@@ -5,992 +5,309 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description"
-        content="SVG Wiring Diagram Editor is a free mobile-first, touch-optimized web application for viewing, analyzing, and interacting with SVG wiring diagrams (circuit schematics, flowcharts, network diagrams, etc.)">
+        content="SVG Wiring Diagram Editor — mobile-first, touch-optimized tool for viewing, tracing, and analyzing SVG wiring diagrams, circuit schematics, and network diagrams.">
     <meta name="keywords"
-        content="upload/import SVG, wiring diagram, svg editor, pan/zoom/rotate, pinch/rotate gestures, double-tap zoom, touch feedback, wire tracing heuristics, component detection, highlighting, export current view, html, css, javascript, jquery, svg, touch-gestures, hammerjs, gsap, mobile, pan-zoom, rotate, file-upload, domparser, filerreader, wire-tracing, component-detection, frontend">
-    <title>Mobile SVG Wiring Diagram Editor</title>
+        content="SVG editor, wiring diagram, circuit schematic, wire tracing, component highlight, pan zoom rotate, touch gestures, CAD viewer">
+    <title>SVG Wiring Editor — CANWORKSTUDIOS</title>
+
+    <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
-    <!-- Testing CDN -->
-    <link rel="stylesheet" href="../../tifany/dist/tifany.min.css">
-    <script src="../../tifany/dist/tifany.min.js"></script>
-    <!-- Parent Header -->
+    <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+
+    <!-- Shared portfolio styles + TIFANY base (header, sidebar-nav, logo-accent) -->
     <link rel="stylesheet" href="../../../assets/css/portfolio.css">
-    <script src="../../../assets/js/portfolio.js"></script>
+    <link rel="stylesheet" href="../../tifany/dist/tifany.min.css">
+
+    <!-- Tool-specific styles -->
+    <link rel="stylesheet" href="css/svgEditorUI.css">
+    <link rel="stylesheet" href="css/wiringDiagram.css">
+
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link
-        href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=Roboto:wght@300;400;500;700&display=swap"
-        rel="stylesheet">
-    <link
-        href="https://fonts.googleapis.com/css2?family=Ceviche+One&family=Ga+Maamli&family=Gluten:wght@100..900&family=Gochi+Hand&display=swap"
-        rel="stylesheet">
-
-    <!-- TIFANY -->
-    <!-- <script src="../../tifany/src/js/core/tifany.js"></script>
-    <script src="../../tifany/src/js/features/tifanyTabs.js"></script>
-    <link rel="stylesheet" href="../../tifany/src/css/tifanyUI.css"> -->
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            height: 100vh;
-            overflow: hidden;
-            /* background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); */
-            background-color: #f8f9fa;
-            color: white;
-            user-select: none;
-            -webkit-user-select: none;
-            -webkit-touch-callout: none;
-        }
-
-        .app-container {
-            height: 100vh;
-            display: flex;
-            flex-direction: column;
-            position: relative;
-        }
-
-        /* Header - Top Controls */
-        .app-header {
-            background: rgba(0, 0, 0, 0.8);
-            backdrop-filter: blur(10px);
-            padding: 8px 15px;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            z-index: 1000;
-            min-height: 50px;
-        }
-
-        .header-left {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            justify-content: end;
-        }
-
-        .header-right {
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            margin-bottom: -1px;
-            justify-content: flex-end;
-        }
-
-        .app-logo {
-            font-weight: bold;
-            font-size: 14px;
-            color: #4facfe;
-            /* white-space: nowrap; */
-        }
-
-        .btn {
-            /* background: rgba(79, 172, 254, 0.2); */
-            background: rgb(79 172 254 / 62%);
-            border: 1px solid rgba(79, 172, 254, 0.4);
-            color: white;
-            padding: 6px 12px;
-            border-radius: 20px;
-            font-size: 11px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            backdrop-filter: blur(5px);
-            margin-right: 5px;
-            white-space: nowrap;
-        }
-
-        .slide-bar {
-            background: rgb(86 86 86 / 90%) !important;
-            padding: 2px;
-            /* width: 6%; */
-        }
-
-        .btn:hover,
-        .btn.active {
-            background: rgba(79, 172, 254, 0.4);
-            border-color: #4facfe;
-            transform: translateY(-1px);
-        }
-
-        .btn.primary {
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            border: none;
-        }
-
-        /* Switches */
-        .switch {
-            position: relative;
-            display: inline-block;
-            width: 60px;
-            height: 34px;
-            background-color: #ccc;
-            border-radius: 34px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            overflow: none;
-        }
-
-        .switch-slider {
-            position: absolute;
-            height: 26px;
-            width: 26px;
-            left: 4px;
-            bottom: 4px;
-            background-color: white;
-            border-radius: 50%;
-            transition: 0.4s;
-            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
-        }
-
-        .switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-
-        }
-
-        .switch.active {
-            background-color: #4facfe;
-        }
-
-        .switch.active .switch-slider {
-            transform: translateX(26px);
-        }
-
-        .switch-content {
-            white-space: nowrap;
-            color: white;
-            margin: 5px 2px;
-        }
-
-        /* Main SVG Area */
-        .svg-viewer {
-            flex: 1;
-            position: relative;
-            overflow: hidden;
-            background: radial-gradient(circle at center, rgba(255, 255, 255, 0.1) 0%, transparent 70%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .svg-container {
-            width: 100%;
-            height: 100%;
-            position: relative;
-            cursor: grab;
-            touch-action: none;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .svg-container:active {
-            cursor: grabbing;
-        }
-
-        .svg-wrapper {
-            transform-origin: center center;
-            transition: transform 0.1s ease-out;
-            will-change: transform;
-        }
-
-        /* Bottom Controls - Mobile Optimized */
-        .bottom-controls {
-            background: rgb(86 86 86 / 90%);
-            backdrop-filter: blur(15px);
-            padding: 10px;
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
-            gap: 8px;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-            /* max-height: 0; */
-            overflow: hidden;
-            transition: max-height 0.3s ease, padding 0.3s ease;
-        }
-
-        .bottom-controls.expanded {
-            display: none;
-            /* max-height: 200px; */
-            max-height: auto;
-            /* padding: 15px; */
-        }
-
-        .custom-bar {
-            display: flex;
-            flex-direction: row;
-            overflow-x: auto;
-            background-color: rgb(86 86 86 / 90%) !important;
-        }
-
-        .control-btn {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            /* gap: 4px; */
-            /* padding: 8px 4px; */
-            /* background: rgba(255, 255, 255, 0.1); */
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            font-size: 10px;
-        }
-
-        .control-btn:active {
-            transform: scale(0.95);
-            background: rgba(79, 172, 254, 0.3);
-        }
-
-        .control-btn .icon {
-            font-size: 16px;
-            margin-bottom: 2px;
-        }
-
-        /* Side Panel - Slides from right */
-        .side-panel {
-            position: fixed;
-            top: 0;
-            right: -320px;
-            width: 320px;
-            height: 100vh;
-            background: rgb(36 36 36);
-            backdrop-filter: blur(20px);
-            border-left: 1px solid rgba(255, 255, 255, 0.1);
-            transition: right 0.3s ease;
-            z-index: 2000;
-            overflow-y: auto;
-            /* padding: 6px 5px 5px; */
-        }
-
-        .side-panel.open {
-            right: 0;
-        }
-
-        .side-panel-close {
-            position: absolute;
-            top: 15px;
-            right: 15px;
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            color: white;
-            width: 30px;
-            height: 30px;
-            border-radius: 50%;
-            cursor: pointer;
-            font-size: 16px;
-        }
-
-        /* Side Panel Layers */
-        .layers-tree {
-            font-size: 11px;
-            font-family: 'Courier New', monospace;
-        }
-
-        .layer-item {
-            display: flex;
-            align-items: center;
-            gap: 6px;
-            padding: 6px 4px;
-            margin: 2px 0;
-            background: rgba(79, 172, 254, 0.1);
-            border-radius: 4px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-            border-left: 2px solid transparent;
-        }
-
-        .layer-item:hover {
-            background: rgba(79, 172, 254, 0.2);
-            border-left-color: #4facfe;
-        }
-
-        .layer-item.active {
-            background: rgba(79, 172, 254, 0.3);
-            border-left-color: #00f2fe;
-            color: #00f2fe;
-        }
-
-        .layer-toggle {
-            width: 20px;
-            height: 20px;
-            background: none;
-            border: none;
-            color: white;
-            cursor: pointer;
-            font-size: 12px;
-            padding: 0;
-        }
-
-        .layer-name {
-            flex: 1;
-            white-space: nowrap;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            font-size: 10px;
-        }
-
-        .layer-indent {
-            margin-left: 12px;
-        }
-
-        /* 3D perspective */
-        .svg-wrapper.perspective-3d {
-            perspective: var(--perspective-distance, 1500px);
-            transform-style: preserve-3d;
-        }
-
-        .svg-wrapper.perspective-3d #svgDisplay {
-            transform-style: preserve-3d;
-            transition: transform 0.1s ease-out;
-        }
-
-        /* Edit mode indicators */
-        .element-editing {
-            stroke: #00f2fe !important;
-            stroke-width: 2 !important;
-            filter: drop-shadow(0 0 6px #00f2fe) !important;
-        }
-
-        .edit-handle {
-            position: absolute;
-            width: 10px;
-            height: 10px;
-            background: #4facfe;
-            border: 1px solid white;
-            border-radius: 50%;
-            cursor: move;
-            z-index: 2001;
-        }
-
-        .edit-handle.rotate {
-            cursor: crosshair;
-            background: #00f2fe;
-        }
-
-        .control-group {
-            margin: 4px;
-            background: rgba(255, 255, 255, 0.05);
-            padding: 10px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .control-group-flex {
-            display: flex;
-            margin: 4px;
-            background: rgb(0 0 0 / 12%);
-            padding: 5px;
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-            color: black;
-        }
-
-        .control-group h3,
-        .custom-bar h3 {
-            margin: 10px;
-            color: #4facfe;
-            font-size: 12px;
-            text-transform: uppercase;
-            letter-spacing: 1px;
-        }
-
-        .slider-group {
-            margin: 10px 0;
-        }
-
-        .slider-group label {
-            display: block;
-            font-size: 11px;
-            margin-bottom: 5px;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .slider {
-            width: 100%;
-            height: 4px;
-            background: rgba(255, 255, 255, 0.2);
-            border-radius: 2px;
-            outline: none;
-            --webkit-appearance: none;
-        }
-
-        .slider::-webkit-slider-thumb {
-            appearance: none;
-            width: 16px;
-            height: 16px;
-            border-radius: 50%;
-            background: #4facfe;
-            cursor: pointer;
-            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
-        }
-
-        .value-display {
-            font-size: 10px;
-            color: rgba(255, 255, 255, 0.6);
-            margin-top: 3px;
-        }
-
-        /* Floating Action Button */
-        .fab {
-            position: fixed;
-            bottom: 20px;
-            right: 5px;
-            width: 46px;
-            height: 46px;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            border: none;
-            border-radius: 50%;
-            color: white;
-            font-size: 20px;
-            cursor: pointer;
-            box-shadow: 0 4px 20px rgba(79, 172, 254, 0.4);
-            z-index: 1500;
-            transition: all 0.3s ease;
-        }
-
-        .fab:hover {
-            transform: scale(1.1);
-            box-shadow: 0 6px 25px rgba(79, 172, 254, 0.6);
-        }
-
-        /* Toast Messages */
-        .toast {
-            position: fixed;
-            bottom: 90px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(0, 0, 0, 0.9);
-            color: white;
-            /* color: black; */
-            padding: 10px 20px;
-            border-radius: 25px;
-            font-size: 12px;
-            z-index: 3000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-            backdrop-filter: blur(10px);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-        }
-
-        .toast.show {
-            opacity: 1;
-        }
-
-        .toast.success {
-            border-color: #4caf50;
-            background: rgba(76, 175, 80, 0.2);
-            color: black;
-        }
-
-        .toast.error {
-            border-color: #f44336;
-            background: rgba(244, 67, 54, 0.2);
-            color: black;
-        }
-
-        #svgDisplay {
-            /* Prevent any browser scaling/filtering */
-            image-rendering: optimizeQuality;
-            shape-rendering: geometricPrecision;
-            text-rendering: geometricPrecision;
-            /* Ensure it fills available space without distortion */
-            max-width: 100%;
-            max-height: 100%;
-            /* Keep aspect ratio */
-            height: auto;
-            width: auto;
-        }
-
-        /* Ensure all SVG elements render as vectors */
-        #svgDisplay * {
-            shape-rendering: geometricPrecision;
-            text-rendering: geometricPrecision;
-            /* Remove any CSS transitions that might cause rasterization */
-            transition: none;
-        }
-
-        /* Text-specific optimizations */
-        #svgDisplay text,
-        #svgDisplay .cls-54,
-        #svgDisplay .cls-29 {
-            text-rendering: geometricPrecision;
-            shape-rendering: crispEdges;
-        }
-
-        /* Interactive elements - minimal styling */
-        /* Wiring Diagram Specific Styles */
-        #svgDisplay path,
-        #svgDisplay line,
-        #svgDisplay polyline,
-        #svgDisplay polygon,
-        #svgDisplay circle,
-        #svgDisplay ellipse,
-        #svgDisplay rect {
-            transition: all 0.3s ease;
-            cursor: pointer;
-        }
-
-        .wire-trace {
-            stroke: #ff6b6b !important;
-            /* stroke-width: 3 !important; */
-            filter: drop-shadow(0 0 2px #ff6b6b) !important;
-            /* animation: wire-pulse 2s infinite; */
-        }
-
-        @keyframes wire-pulse {
-
-            0%,
-            100% {
-                opacity: 1;
-            }
-
-            50% {
-                opacity: 0.6;
-            }
-        }
-
-        .component-highlight {
-            fill: #ffd700 !important;
-            stroke: #ffa500 !important;
-            /* stroke-width: 2 !important; */
-            /* filter: drop-shadow(0 0 4px #ffd700) !important; */
-        }
-
-        .wire-hitbox {
-            pointer-events: stroke;
-            cursor: pointer;
-            stroke: #8c8786;
-            stroke-width: 4px;
-            /* Temporary debugging */
-            stroke-opacity: 0.05 !important;
-        }
-
-        .selected-element {
-            stroke: #04335a !important;
-            stroke-width: 2 !important;
-            /* filter: drop-shadow(0 0 4px #4facfe) !important; */
-        }
-
-        .dimmed {
-            opacity: 0.3 !important;
-        }
-
-        /* File Upload Styles */
-        .file-input-wrapper {
-            position: relative;
-            overflow: hidden;
-            display: inline-block;
-            width: 100%;
-        }
-
-        .file-input-wrapper input {
-            position: absolute;
-            left: -9999px;
-        }
-
-        .file-input-wrapper label {
-            display: block;
-            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-            color: white;
-            padding: 12px;
-            border-radius: 8px;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            font-size: 12px;
-        }
-
-        .switch.active .switch-slider {
-            transform: none;
-        }
-
-        /* Responsive Design */
-        @media (max-width: 768px) {
-            .header {
-                padding: 6px 10px;
-                min-height: 45px;
-            }
-
-            .panel-content {
-                display: none;
-            }
-
-            .btn {
-                padding: 0px 2px;
-                font-size: 20px;
-                background: none;
-                border: none;
-            }
-
-            .side-panel {
-                width: 65%;
-                right: -100%;
-            }
-
-            .slide-bar {
-                background: rgb(86 86 86 / 90%) !important;
-                padding: 2px;
-                writing-mode: sideways-lr;
-                /* width: 6%; */
-            }
-
-            .fab {
-                width: 40px;
-                height: 40px;
-                bottom: 15px;
-                right: 5px;
-                font-size: 18px;
-            }
-
-            /* .app-logo {
-                font-size: 12px;
-            } */
-            .bottom-controls {
-                grid-template-columns: repeat(5, 1fr);
-            }
-
-            .control-group-flex {
-                width: 100%;
-            }
-        }
-
-        @media (max-width: 480px) {
-            .header-left {
-                display: grid;
-                grid-template-columns: 1fr 1fr;
-                gap: 6px;
-                margin: 8px 0;
-            }
-        }
-
-        /* Touch feedback */
-        .touch-feedback {
-            position: absolute;
-            width: 40px;
-            height: 40px;
-            background: rgba(79, 172, 254, 0.3);
-            border-radius: 50%;
-            pointer-events: none;
-            transform: translate(-50%, -50%) scale(0);
-            animation: touch-ripple 0.6s ease-out;
-        }
-
-        @keyframes touch-ripple {
-            to {
-                transform: translate(-50%, -50%) scale(2);
-                opacity: 0;
-            }
-        }
-
-        /* Loading Animation */
-        .loading {
-            position: absolute;
-            top: 50%;
-            left: 50%;
-            transform: translate(-50%, -50%);
-            font-size: 14px;
-            color: rgba(255, 255, 255, 0.8);
-        }
-
-        .loading::after {
-            content: '';
-            display: inline-block;
-            width: 20px;
-            height: 20px;
-            border: 2px solid rgba(255, 255, 255, 0.3);
-            border-radius: 50%;
-            border-top-color: #4facfe;
-            animation: spin 1s ease-in-out infinite;
-            margin-left: 10px;
-        }
-
-        @keyframes spin {
-            to {
-                transform: rotate(360deg);
-            }
-        }
-
-        /* Mini Map */
-        .mini-map {
-            position: absolute;
-            bottom: 100px;
-            left: 15px;
-            width: 120px;
-            height: 80px;
-            background: rgba(0, 0, 0, 0.8);
-            border: 1px solid rgba(255, 255, 255, 0.2);
-            border-radius: 8px;
-            overflow: hidden;
-            z-index: 500;
-            opacity: 0;
-            transition: opacity 0.3s ease;
-        }
-
-        .mini-map.visible {
-            opacity: 1;
-        }
-
-        .mini-map svg {
-            width: 100%;
-            height: 100%;
-        }
-
-        .mini-map-viewport {
-            position: absolute;
-            border: 2px solid #4facfe;
-            background: rgba(79, 172, 254, 0.2);
-            pointer-events: none;
-        }
-    </style>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+
+    <!-- Shared sidebar-nav component -->
+    <script src="../../../assets/components/sidebar-nav.js"></script>
+    <!-- Shared portfolio JS (optional, for any portfolio-wide init) -->
+    <script src="../../../assets/js/portfolio.js"></script>
 </head>
 
-<body>
+<body class="dark-mode">
     <div class="app-container">
-        <!-- Header -->
-        <header class="header">
-            <div class="header-content">
-                <div class="app-logo logo">
-                    <h1><a href="../../../index.html#home">CANWORK<span class="logo-accent">STUDIOS</a></span></h1>
-                    <small class="">SVG Wiring Editor</small>
-                </div>
-                <nav class="nav">
-                    <a href="../../../index.html#projects" class="nav-link">Projects</a>
-                    <a href="../../../index.html#about" class="nav-link">About</a>
-                    <a href="../../../index.html#contact" class="nav-link">Contact</a>
-                    <a href="https://github.com/bonzai2carn" target="_blank" class="nav-link">GitHub</a>
-                </nav>
+
+        <!-- ======================================================
+         HEADER — TIFANY-style banner
+         ====================================================== -->
+        <header class="tifany-header">
+            <div class="logo">
+                <h1>
+                    <a href="../../../index.html" style="text-decoration:none;color:inherit;">
+                        canwork<span class="logo-accent">studios</span>
+                    </a>
+                </h1>
+                <small class="tool-subtitle">SVG Wiring Editor</small>
             </div>
 
+            <nav class="nav" style="flex:1; justify-content: center;">
+                <!-- Icon-rail sidebar navigation -->
+                <div id="sidebar-nav-mount"></div>
+                <!-- <a href="../../../index.html#contact"  class="nav-link">Contact</a>
+            <a href="https://github.com/bonzai2carn" target="_blank" class="nav-link">GitHub</a> -->
+            </nav>
+
+            <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light" aria-label="Toggle dark mode">
+                <iconify-icon icon="material-symbols:dark-mode-outline" style="font-size:16px;"></iconify-icon>
+            </button>
         </header>
-        <!--  -->
+
+        <!-- ======================================================
+         SECONDARY TOOLBAR — Trace switch + utility buttons
+         ====================================================== -->
         <div class="custom-bar header-right">
-            <div class="header-right">
-                <small class="switch-content">Trace ⚡</small>
-                <div class="switch" id="traceWireBtn" data-visibility="trace-wire" title="Trace Wire ON/OFF">
-                    <input type="checkbox">
+            <div class="header-right" style="padding:4px 8px;width:100%;">
+
+                <div class="control-group-flex" style="margin-left:auto;">
+                    <!-- Undo / Redo -->
+                    <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+                        <iconify-icon icon="material-symbols:undo"></iconify-icon>
+                        <span class="panel-content">Undo</span>
+                    </button>
+                    <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+                        <iconify-icon icon="material-symbols:redo"></iconify-icon>
+                        <span class="panel-content">Redo</span>
+                    </button>
+
+                    <!-- Load -->
+                    <button class="btn" id="loadFileBtn" title="Load SVG File">
+                        <iconify-icon icon="material-symbols:folder-open-outline"></iconify-icon>
+                        <span class="panel-content">Load</span>
+                    </button>
+
+                    <!-- Toolbar toggle -->
+                    <button class="btn" id="toggleControlsBtn" title="Toggle bottom toolbar">
+                        <iconify-icon icon="material-symbols:settings-outline"></iconify-icon>
+                        <span class="panel-content">Toolbar</span>
+                    </button>
+                </div>
+                <!-- Wire trace toggle -->
+                <small class="switch-content">
+                    <iconify-icon icon="material-symbols:bolt" style="font-size:14px;color:#4facfe;"></iconify-icon>
+                    Trace
+                </small>
+                <div class="switch" id="traceWireBtn" title="Wire Trace ON/OFF" role="switch" aria-checked="false">
+                    <input type="checkbox" aria-label="Toggle wire tracing">
                     <span class="switch-slider"></span>
                 </div>
-                <div class="control-group-flex">
 
-                    <!-- <button class="btn" id="traceWireBtn">⚡ Trace</button> -->
-                    <button class="btn" data-visibility="load-files" title="Load File" id="loadFileBtn">📁
-                        <span class="panel-content">Load</span></button>
-                    <button class="btn" data-visibility="toolbar-settings" title="Toggle Toolbar"
-                        id="toggleControlsBtn">⚙️ <span class="panel-content">Toolbar</span></button>
-                </div>
+                
             </div>
         </div>
+
+        <!-- ======================================================
+         ACCORDION TOOLBAR — Wiring / Export / Edit sections
+         ====================================================== -->
         <div class="custom-bar">
 
-            <button class="accordion active slide-bar">
-                <h3 class="">Wiring</h3>
+            <!-- Wiring section -->
+            <button class="accordion active slide-bar" aria-label="Wiring tools">
+                <h3>Wiring</h3>
             </button>
             <div class="panel control-group-flex">
-                <button class="btn" data-visibility="highlight-components" title="Highlight Components" id="highlightComponentsBtn">💡 <span class="panel-content">Highlight Components</span></button>
-                <button class="btn" data-visibility="show-connections" title="show connections" id="showConnectionsBtn">🔗 <span class="panel-content">Show
-                        Connections</span></button>
-                <button class="btn" data-visibility="clear" title="Clear All" id="clearHighlightsBtn">⌫ <span class="panel-content">Clear All</span></button>
+                <button class="btn" id="highlightComponentsBtn" title="Highlight Components">
+                    <iconify-icon icon="material-symbols:highlight"></iconify-icon>
+                    <span class="panel-content">Highlight</span>
+                </button>
+                <button class="btn" id="showConnectionsBtn" title="Show Connections">
+                    <iconify-icon icon="material-symbols:cable"></iconify-icon>
+                    <span class="panel-content">Connections</span>
+                </button>
+                <button class="btn" id="clearHighlightsBtn" title="Clear All Highlights">
+                    <iconify-icon icon="material-symbols:clear-all"></iconify-icon>
+                    <span class="panel-content">Clear</span>
+                </button>
             </div>
-            <button class="accordion slide-bar">
-                <h3 class="">Export</h3>
-            </button>
 
-            <div class="panel control-group-flex">
-                <!-- <button class="btn" id="toggleMiniMapBtn">🗺️ Toggle Mini Map</button> -->
-                <!-- <button class="btn" id="darkModeBtn">🌙 Dark Mode</button> -->
-                <button class="btn" id="exportViewBtn">📤 <span class="panel-content">Export Current
-                        View</span></button>
-            </div>
-            <!-- <h3 class="">Edit <br> Tools</h3> -->
-            <!-- Edit Tools -->
-            <button class="accordion active slide-bar">
-                <h3 class="">Edit</h3>
+            <!-- Export section -->
+            <button class="accordion slide-bar" aria-label="Export tools">
+                <h3>Export</h3>
             </button>
             <div class="panel control-group-flex">
-                <h3>✏️ COMING SOON</h3>
-                <!-- <button class="btn" id="moveSelectBtn">↕️ <span class="panel-content">Move</span></button>
-                <button class="btn" id="rotateSelectBtn">🔄 <span class="panel-content">Rotate</span></button>
-                <button class="btn" id="scaleSelectBtn">⬍ <span class="panel-content">Scale</span></button>
-                <button class="btn" id="resetEditBtn">↩️ <span class="panel-content">Reset Edits</span></button> -->
+                <button class="btn" id="exportViewBtn" title="Export Current View as SVG">
+                    <iconify-icon icon="material-symbols:upload-file-outline"></iconify-icon>
+                    <span class="panel-content">Export SVG</span>
+                </button>
             </div>
-            <!-- </div> -->
+
+            <!-- Edit section (coming soon) -->
+            <button class="accordion active slide-bar" aria-label="Edit tools">
+                <h3>Edit</h3>
+            </button>
+            <div class="panel control-group-flex">
+                <span
+                    style="font-size:11px;color:rgb(129 133 148);padding:6px 8px;display:flex;align-items:center;gap:4px;">
+                    <iconify-icon icon="material-symbols:edit-outline" style="font-size:13px;"></iconify-icon>
+                    Coming soon
+                </span>
+            </div>
+
         </div>
 
-        <!-- Main SVG Viewer -->
-        <main class="svg-viewer">
-            <div class="svg-container" id="svgContainer">
-                <div class="svg-wrapper" id="svgWrapper">
-                    <svg id="svgDisplay" width="400" height="300" viewBox="0 0 400 300">
-                        <defs>
-                            <filter id="glow">
-                                <feGaussianBlur stdDeviation="3" result="coloredBlur" />
-                                <feMerge>
-                                    <feMergeNode in="coloredBlur" />
-                                    <feMergeNode in="SourceGraphic" />
-                                </feMerge>
-                            </filter>
-                            <filter id="wire-glow">
-                                <feGaussianBlur stdDeviation="2" result="coloredBlur" />
-                                <feMerge>
-                                    <feMergeNode in="coloredBlur" />
-                                    <feMergeNode in="SourceGraphic" />
-                                </feMerge>
-                            </filter>
-                        </defs>
-                        <text x="200" y="150" text-anchor="middle" fill="black" font-size="16">
-                            Tap 📁 Load to upload your wiring diagram
-                        </text>
-                    </svg>
-                </div>
-                <div class="loading" id="loadingIndicator" style="display: none; color: white;">
-                    Loading diagram...
-                </div>
-            </div>
+        <!-- ======================================================
+         MAIN AREA — Sidebar nav + SVG viewer
+         ====================================================== -->
+        <div class="main-layout">
 
-            <!-- Mini Map -->
-            <!-- <div class="mini-map" id="miniMap">
-                <svg id="miniMapSvg"></svg>
-                <div class="mini-map-viewport" id="miniMapViewport"></div>
-            </div> -->
-        </main>
-        <!-- Bottom Controls -->
+            <!-- SVG canvas -->
+            <main class="svg-viewer">
+                <div class="svg-container" id="svgContainer">
+                    <div class="svg-wrapper" id="svgWrapper">
+                        <svg id="svgDisplay" width="400" height="300" viewBox="0 0 400 300">
+                            <defs>
+                                <filter id="glow">
+                                    <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                                <filter id="wire-glow">
+                                    <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                                    <feMerge>
+                                        <feMergeNode in="coloredBlur" />
+                                        <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                </filter>
+                            </defs>
+                            <text x="200" y="145" text-anchor="middle" fill="rgba(0,0,0,0.35)" font-size="14"
+                                font-family="Inter,sans-serif">
+                                Tap Load to upload your wiring diagram
+                            </text>
+                            <text x="200" y="165" text-anchor="middle" fill="rgba(0,0,0,0.2)" font-size="11"
+                                font-family="Inter,sans-serif">
+                                Supports .svg files
+                            </text>
+                        </svg>
+                    </div>
+                    <div class="loading" id="loadingIndicator" style="display:none;color:rgba(255,255,255,0.7);">
+                        Loading diagram...
+                    </div>
+                </div>
+            </main>
+
+        </div><!-- /.main-layout -->
+
+        <!-- ======================================================
+         BOTTOM CONTROLS
+         ====================================================== -->
         <div class="bottom-controls" id="bottomControls">
-            <div class="control-btn" id="zoomInBtn">
-                <div class="icon">🔍</div>
+
+            <div class="control-btn" id="zoomInBtn" title="Zoom In">
+                <div class="icon"><iconify-icon icon="material-symbols:zoom-in" style="font-size:20px;"></iconify-icon>
+                </div>
                 <div>Zoom In</div>
             </div>
-            <div class="control-btn" id="zoomOutBtn">
-                <div class="icon">🔍</div>
+
+            <div class="control-btn" id="zoomOutBtn" title="Zoom Out">
+                <div class="icon"><iconify-icon icon="material-symbols:zoom-out" style="font-size:20px;"></iconify-icon>
+                </div>
                 <div>Zoom Out</div>
             </div>
-            <div class="control-btn" id="fitViewBtn">
-                <div class="icon">📐</div>
+
+            <div class="control-btn" id="fitViewBtn" title="Fit View">
+                <div class="icon"><iconify-icon icon="material-symbols:fit-screen-outline"
+                        style="font-size:20px;"></iconify-icon></div>
                 <div>Fit View</div>
             </div>
-            <div class="control-btn" id="resetViewBtn">
-                <div class="icon"><svg width="21px" height="25px" viewBox="0 0 21 21" xmlns="http://www.w3.org/2000/svg"
-                        data-iconid="343268" data-svgname="Reset temporary">
 
-                        <g fill="none" fill-rule="evenodd" stroke="#f15bb5" stroke-linecap="round"
-                            stroke-linejoin="round" transform="matrix(0 1 1 0 2.5 2.5)"
-                            style="stroke: rgb(241, 91, 181); fill: none;" stroke-width="2">
-
-                            <path
-                                d="m3.98652376 1.07807068c-2.38377179 1.38514556-3.98652376 3.96636605-3.98652376 6.92192932 0 4.418278 3.581722 8 8 8s8-3.581722 8-8-3.581722-8-8-8"
-                                stroke="#f15bb5" stroke-width="2" fill="none"
-                                style="stroke: rgb(241, 91, 181); fill: none;"></path>
-
-                            <circle cx="8" cy="8" fill="none" r="2" stroke="#f15bb5" stroke-width="2"
-                                style="stroke: rgb(241, 91, 181); fill: none;"></circle>
-
-                            <path d="m4 1v4h-4" transform="matrix(1 0 0 -1 0 6)" stroke="#f15bb5" stroke-width="2"
-                                fill="none" style="stroke: rgb(241, 91, 181); fill: none;"></path>
-
-                        </g>
-
-                    </svg></div>
-                <div>Reset View</div>
+            <div class="control-btn" id="resetViewBtn" title="Reset View">
+                <div class="icon"><iconify-icon icon="material-symbols:reset-focus"
+                        style="font-size:20px;"></iconify-icon></div>
+                <div>Reset</div>
             </div>
-            <!-- <button class="btn" id="">🔄 Reset</button> -->
-            <div class="control-btn" id="rotateBtn">
-                <div class="icon">
-                    <svg fill="#fff" width="21px" height="25px" viewBox="0 0 32 32" id="icon"
-                        xmlns="http://www.w3.org/2000/svg" style="fill: rgb(255, 255, 255);" data-iconid="340936"
-                        data-svgname="Rotate clockwise">
-                        <defs>
-                            <style>
-                                .cls-1 {
-                                    fill: none;
-                                }
-                            </style>
-                        </defs>
-                        <title>rotate-right</title>
-                        <path
-                            d="M28,30H16a2.0023,2.0023,0,0,1-2-2V16a2.0023,2.0023,0,0,1,2-2H28a2.0023,2.0023,0,0,1,2,2V28A2.0023,2.0023,0,0,1,28,30ZM16,16V28H28.0012L28,16Z"
-                            transform="translate(0)"></path>
-                        <path
-                            d="M15,2,13.59,3.41,16.17,6H11a7.0078,7.0078,0,0,0-7,7v5H6V13a5.0057,5.0057,0,0,1,5-5h5.17l-2.58,2.59L15,12l5-5Z"
-                            transform="translate(0)"></path>
-                        <rect id="_Transparent_Rectangle_" data-name="&lt;Transparent Rectangle&gt;" class="cls-1"
-                            width="32" height="32"></rect>
-                    </svg>
-                </div>
-                <div>Rotate Right</div>
+
+            <div class="control-btn" id="rotateBtn" title="Rotate Right 90°">
+                <div class="icon"><iconify-icon icon="material-symbols:rotate-90-degrees-cw-outline"
+                        style="font-size:20px;"></iconify-icon></div>
+                <div>Rotate R</div>
             </div>
-            <div class="control-btn" id="rotateLeftBtn">
-                <div class="icon">
-                    <svg fill="#000000" width="21px" height="25px" viewBox="0 0 56 56"
-                        xmlns="http://www.w3.org/2000/svg" data-iconid="437209" data-svgname="Rotate left">
-                        <title>rotate-left</title>
-                        <path
-                            d="M 37.3280 14.5587 C 38.7343 15.6134 40.1874 15.1915 40.1874 13.3399 L 40.1874 10.1290 L 40.2578 10.1290 C 45.3437 10.1290 48.5545 13.6446 48.5545 18.6603 C 48.5545 21.7774 47.5936 22.9493 47.5235 23.7930 C 47.5000 24.4493 47.7342 24.8477 48.2732 25.1056 C 49.0000 25.4571 49.8438 25.1290 50.2422 24.4493 C 50.9689 23.2071 51.4844 21.1446 51.4844 18.6368 C 51.4844 11.9337 47.0080 7.4103 40.2812 7.4103 L 40.1874 7.4103 L 40.1874 3.9649 C 40.1874 2.0665 38.7578 1.6444 37.3280 2.7227 L 30.9296 7.4103 C 29.8515 8.2071 29.8515 9.1212 30.9296 9.8946 Z M 10.5390 54.3556 L 33.7656 54.3556 C 37.7734 54.3556 39.7890 52.4337 39.7890 48.3321 L 39.7890 25.1524 C 39.7890 21.0508 37.7734 19.1290 33.7656 19.1290 L 10.5390 19.1290 C 6.5312 19.1290 4.5156 21.0508 4.5156 25.1524 L 4.5156 48.3321 C 4.5156 52.4337 6.5312 54.3556 10.5390 54.3556 Z M 10.6093 50.5821 C 9.0156 50.5821 8.2890 49.9259 8.2890 48.2618 L 8.2890 25.2227 C 8.2890 23.5587 9.0156 22.9024 10.6093 22.9024 L 33.6952 22.9024 C 35.3124 22.9024 36.0156 23.5587 36.0156 25.2227 L 36.0156 48.2618 C 36.0156 49.9259 35.3124 50.5821 33.6952 50.5821 Z"
-                            fill="#fff" style="fill: rgb(255, 255, 255);"></path>
-                    </svg>
-                </div>
-                <div>Rotate Left</div>
+
+            <div class="control-btn" id="rotateLeftBtn" title="Rotate Left 90°">
+                <div class="icon"><iconify-icon icon="material-symbols:rotate-90-degrees-ccw-outline"
+                        style="font-size:20px;"></iconify-icon></div>
+                <div>Rotate L</div>
             </div>
-            <div class="control-btn" id="transformBtn">
-                <div class="icon">▱▰</div>
+
+            <div class="control-btn" id="transformBtn" title="Transform / Side Panel">
+                <div class="icon"><iconify-icon icon="material-symbols:transform"
+                        style="font-size:20px;"></iconify-icon></div>
                 <div>Transform</div>
             </div>
-            <div class="control-btn" id="measureBtn">
-                <div class="icon">📏</div>
+
+            <div class="control-btn" id="measureBtn" title="Measure Distance">
+                <div class="icon"><iconify-icon icon="material-symbols:straighten-outline"
+                        style="font-size:20px;"></iconify-icon></div>
                 <div>Measure</div>
             </div>
-            <div class="control-btn" id="layersBtn">
-                <div class="icon">📋</div>
+
+            <div class="control-btn" id="layersBtn" title="Layers Panel">
+                <div class="icon"><iconify-icon icon="material-symbols:layers-outline"
+                        style="font-size:20px;"></iconify-icon></div>
                 <div>Layers</div>
             </div>
-        </div>
 
-        <!-- Side Panel -->
-        <!-- Replace commented side-panel with: -->
+        </div><!-- /.bottom-controls -->
+
+        <!-- ======================================================
+         SIDE PANEL — Layers + View Controls
+         ====================================================== -->
         <div class="side-panel" id="sidePanel">
-            <button class="side-panel-close" id="closePanelBtn">×</button>
+            <button class="side-panel-close" id="closePanelBtn" title="Close panel">
+                <iconify-icon icon="material-symbols:close"></iconify-icon>
+            </button>
 
-            <!-- Layers Tab -->
-            <div class="control-group">
-                <h3>📋 Layers</h3>
+            <!-- Layers tree -->
+            <div class="control-group" style="margin-top:44px;">
+                <h3 style="display:flex;align-items:center;gap:6px;">
+                    <iconify-icon icon="material-symbols:layers-outline"></iconify-icon>
+                    Layers
+                </h3>
                 <div id="layersPanel" class="layers-tree"
-                    style="max-height: 300px; overflow-y: auto; border: 1px solid rgba(255,255,255,0.1); border-radius: 6px; padding: 8px;">
-                    <!-- Dynamically generated -->
+                    style="max-height:280px;overflow-y:auto;border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:6px;margin-top:6px;">
+                    <!-- Populated by layers.js -->
                 </div>
             </div>
 
-            <!-- 2D Transform -->
+            <!-- View controls (2D + 3D sliders) -->
             <div class="control-group">
                 <h3>View Controls</h3>
+
                 <div class="slider-group">
-                    <label>Zoom Level</label>
+                    <label>Zoom</label>
                     <input type="range" id="zoomSlider" class="slider" min="0.1" max="10" step="0.1" value="1">
                     <div class="value-display">Scale: <span id="zoomValue">1.0</span>x</div>
                 </div>
+
                 <div class="slider-group">
                     <label>Rotation</label>
                     <input type="range" id="rotationSlider" class="slider" min="-180" max="180" step="1" value="0">
                     <div class="value-display">Angle: <span id="rotationValue">0</span>°</div>
                 </div>
-                <!-- <h3>🎭 3D Transform</h3> -->
+
                 <div class="slider-group">
-                    <label>Rotate X (Pitch)</label>
+                    <label>Pitch (Rotate X)</label>
                     <input type="range" id="pitchSlider" class="slider" min="-60" max="60" step="1" value="0">
                     <div class="value-display">Pitch: <span id="pitchValue">0</span>°</div>
                 </div>
 
                 <div class="slider-group">
-                    <label>Rotate Y (Yaw)</label>
+                    <label>Yaw (Rotate Y)</label>
                     <input type="range" id="rotateYSlider" class="slider" min="0" max="90" step="1" value="0">
                     <div class="value-display">Yaw: <span id="rotateYValue">0</span>°</div>
                 </div>
+
                 <div class="slider-group">
                     <label>Perspective</label>
                     <input type="range" id="perspectiveSlider" class="slider" min="500" max="3000" step="100"
@@ -1000,1523 +317,43 @@
             </div>
         </div>
 
-        <!-- Floating Action Button -->
-        <!-- <button class="fab" id="fabBtn">⚙️</button> -->
+        <!-- Toast -->
+        <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-        <!-- Toast Container -->
-        <div class="toast" id="toast"></div>
-    </div>
+    </div><!-- /.app-container -->
 
-    <!-- Hidden file input for load button -->
-    <input type="file" id="hiddenFileInput" accept=".svg,image/svg+xml" style="display: none;">
+    <!-- Hidden file input -->
+    <input type="file" id="hiddenFileInput" accept=".svg,image/svg+xml" style="display:none;">
+
+    <!-- ============================================================
+     JS — feature files loaded in dependency order
+     core → features → init
+     ============================================================ -->
+    <script src="js/core/svgEditor.js"></script>
+    <script src="js/features/viewTransform.js"></script>
+    <script src="js/features/wiringDiagram.js"></script>
+    <script src="js/features/wireTracing.js"></script>
+    <script src="js/features/highlights.js"></script>
+    <script src="js/features/layers.js"></script>
+    <script src="js/features/history.js"></script>
+    <script src="js/features/uiControls.js"></script>
 
     <script>
-        class MobileSVGEditor {
-            constructor() {
-                this.initialState = {
-                    currentZoom: 1,
-                    currentRotation: 0,
-                    currentPitch: 0,
-                    currentYaw: 0,
-                    // currentTranslate: {
-                    //     x: 0,
-                    //     y: 0
-                    // },
-                };
-                this.currentZoom = this.initialState.currentZoom;
-                this.currentRotation = this.initialState.currentRotation;
-                this.currentTranslate = { x: 0, y: 0 };
-
-                // 3D
-                this.currentPitch = this.initialState.currentPitch;
-                this.currentYaw = this.initialState.currentYaw;
-                this.dragStart = { x: 0, y: 0 };
-
-                this.selectedElements = [];
-                this.clickTimeout = null;
-                // Boolean
-                this.isDragging = false;
-                this.isCtrlHeld = false;
-                this.isShiftHeld = false;
-                this.isWireTracing = false;
-                this.isConnectionWire = false;
-                this.isComponentBox = false;
-
-                this.wireConnections = [];
-                this.components = [];
-                this.originalViewBox = null;
-                this.miniMapVisible = false;
-
-                this.initializeElements();
-                this.setupGestures();
-                this.bindEvents();
-                this.setupTouchFeedback();
-            }
-
-            initializeElements() {
-                this.$svgViewer = $('#svgViewer');
-                this.$svgContainer = $('#svgContainer');
-                this.$svgWrapper = $('#svgWrapper');
-                this.$svgDisplay = $('#svgDisplay');
-                this.$sidePanel = $('#sidePanel');
-                this.$bottomControls = $('#bottomControls');
-                this.$miniMap = $('#miniMap');
-                this.$miniMapSvg = $('#miniMapSvg');
-                this.$miniMapViewport = $('#miniMapViewport');
-                this.$toast = $('#toast');
-                this.$zoomSlider = $('#zoomSlider');
-                this.$rotationSlider = $('#rotationSlider');
-                this.$pitchSlider = $('#pitchSlider');
-                this.$rotateYSlider = $('#rotateYSlider');
-                this.$perspectiveSlider = $('#perspectiveSlider');
-                this.$selectionRectangle = $('#selectionRectangle');
-                this.$dimOverlay = $('#dimOverlay');
-            }
-
-            setupGestures() {
-                // Initialize Hammer.js for touch gestures
-                // this.hammer = new Hammer(this.$svgContainer[0], {
-                //     recognizers: [
-                //         [Hammer.Pinch, { enable: true }],
-                //         [Hammer.Pan, { direction: Hammer.DIRECTION_ALL, threshold: 0 }],
-                //         [Hammer.Tap, { taps: 1 }],
-                //         [Hammer.Tap, { event: 'doubletap', taps: 2 }],
-                //         [Hammer.Rotate, { enable: true }]
-                //     ]
-                // });
-
-                // // Pan gesture
-                // this.hammer.on('panstart', (e) => {
-                //     this.panStart = {
-                //         x: this.currentTranslate.x,
-                //         y: this.currentTranslate.y
-                //     };
-                // });
-
-                // this.hammer.on('pan', (e) => {
-                //     this.currentTranslate = {
-                //         x: this.panStart.x + e.deltaX,
-                //         y: this.panStart.y + e.deltaY
-                //     };
-                //     this.updateTransform();
-                //     this.updateMiniMap();
-                // });
-
-                // // Pinch to zoom
-                // this.hammer.on('pinchstart', (e) => {
-                //     this.pinchStart = this.currentZoom;
-                // });
-
-                // this.hammer.on('pinch', (e) => {
-                //     const newZoom = Math.max(0.1, Math.min(10, this.pinchStart * e.scale));
-                //     this.setZoom(newZoom);
-                // });
-
-                // // Rotate gesture
-                // this.hammer.on('rotatestart', (e) => {
-                //     this.rotateStart = this.currentRotation;
-                // });
-
-                // this.hammer.on('rotate', (e) => {
-                //     const newRotation = (this.rotateStart + e.rotation) % 360;
-                //     this.setRotation(newRotation);
-                // });
-
-                // // Double tap to zoom
-                // this.hammer.on('doubletap', (e) => {
-                //     const newZoom = this.currentZoom < 2 ? this.currentZoom * 2 : 1;
-                //     this.animateZoom(newZoom);
-                //     this.showTouchFeedback(e.center.x, e.center.y);
-                // });
-
-                // // Single tap for selection
-                // this.hammer.on('tap', (e) => {
-                //     this.handleTap(e);
-                //     this.showTouchFeedback(e.center.x, e.center.y);
-                // });
-                // --- HAMMER.JS FOR TOUCH GESTURES (simultaneous, incremental rotation + working pinch) ---
-                const hammer = new Hammer(this.$svgContainer[0]);
-
-                // Recognizers
-                hammer.get('pan').set({
-                    direction: Hammer.DIRECTION_ALL,
-                    threshold: 6
-                });
-                hammer.get('pinch').set({
-                    enable: true
-                });
-                hammer.get('rotate').set({
-                    enable: true
-                });
-                hammer.get('doubletap').set({
-                    interval: 300,
-                    posThreshold: 50
-                });
-
-                // Allow them to run together
-                hammer.get('pinch').recognizeWith(hammer.get('rotate'));
-                hammer.get('pan').recognizeWith([hammer.get('pinch'), hammer.get('rotate')]);
-
-                // Snapshot state for gesture sequences
-                let gesture = {
-                    baseZoom: this.currentZoom,
-                    baseRotation: this.currentRotation,
-                    baseTranslate: {
-                        ...this.currentTranslate
-                    },
-                    prevHammerRotation: 0,
-                    prevHammerScale: 1,
-                    prevDelta: {
-                        x: 0,
-                        y: 0
-                    },
-                    active: false,
-                };
-
-                hammer.on('pinchstart rotatestart panstart', (ev) => {
-                    // Start of a multi-touch sequence: capture current editor state
-                    gesture.active = true;
-                    gesture.baseZoom = this.currentZoom;
-                    gesture.baseRotation = this.currentRotation;
-                    gesture.baseTranslate = {
-                        ...this.currentTranslate
-                    };
-                    gesture.prevHammerRotation = ev.rotation || 0;
-                    gesture.prevHammerScale = ev.scale || 1;
-                    gesture.prevDelta = {
-                        x: ev.deltaX || 0,
-                        y: ev.deltaY || 0
-                    };
-                }
-                );
-
-                // Handle moves: apply pinch (scale), rotate (incremental delta), pan (incremental delta)
-                hammer.on('pinchmove rotatemove panmove', (ev) => {
-                    if (!gesture.active)
-                        return;
-
-                    if (typeof ev.scale === 'number') {
-                        const relativeScale = ev.scale / (gesture.prevHammerScale || 1);
-                        gesture.baseZoom = Math.max(0.1, Math.min(100, gesture.baseZoom * relativeScale));
-                        this.setZoom(gesture.baseZoom);
-                        gesture.prevHammerScale = ev.scale;
-                    }
-
-                    // ROTATE: incremental delta (ev.rotation - prevHammerRotation)
-                    if (typeof ev.rotation === 'number') {
-                        const rotationDelta = ev.rotation - (gesture.prevHammerRotation || 0);
-                        this.setRotation(this.currentRotation + rotationDelta);
-                        gesture.prevHammerRotation = ev.rotation;
-                    }
-
-                    // PAN: incremental delta since last event, converted by current zoom
-                    if (typeof ev.deltaX === 'number' && typeof ev.deltaY === 'number') {
-                        const dx = ev.deltaX - (gesture.prevDelta.x || 0);
-                        const dy = ev.deltaY - (gesture.prevDelta.y || 0);
-                        const invScale = 1;
-                        //1 / this.currentZoom; 
-                        this.currentTranslate = {
-                            x: this.currentTranslate.x + dx * invScale,
-                            y: this.currentTranslate.y + dy * invScale,
-                        };
-                        this.updateTransform();
-                        gesture.prevDelta.x = ev.deltaX;
-                        gesture.prevDelta.y = ev.deltaY;
-                    }
-
-                    // Keep UI synced
-                    this.updateSliders();
-                }
-                );
-
-                hammer.on('pinchend rotateend panend', (ev) => {
-                    gesture.active = false;
-                    gesture.prevHammerRotation = 0;
-                    gesture.prevHammerScale = 1;
-                    gesture.prevDelta = {
-                        x: 0,
-                        y: 0
-                    };
-                    gesture.baseZoom = this.currentZoom;
-                    gesture.baseRotation = this.currentRotation;
-                    gesture.baseTranslate = {
-                        ...this.currentTranslate
-                    };
-                }
-                );
-
-                // Double-tap to flyTo (keeps your existing behavior)
-                // hammer.on('doubletap', (e) => {
-                //     e.preventDefault();
-                //     const event = {
-                //         clientX: e.center.x,
-                //         clientY: e.center.y,
-                //         preventDefault: () => { }
-                //         ,
-                //         stopPropagation: () => { }
-                //         ,
-                //     };
-                //     this.flyToLocation(event);
-                //     console.log("I'm flying")
-                // }
-                // );
-            }
-
-            setupTouchFeedback() {
-                // Visual feedback for touch interactions
-                this.touchFeedbackTimeout = null;
-            }
-
-            showTouchFeedback(x, y) {
-                const $feedback = $('<div class="touch-feedback"></div>');
-                $feedback.css({
-                    left: x + 'px',
-                    top: y + 'px'
-                });
-
-                this.$svgContainer.append($feedback);
-
-                setTimeout(() => {
-                    $feedback.remove();
-                }, 600);
-            }
-
-            bindEvents() {
-                // Header buttons
-                $('#loadFileBtn, #fabBtn').on('click', () => this.toggleSidePanel());
-                // $('#traceWireBtn').on('click', () => this.toggleWireTracing());
-                $('#traceWireBtn').on('click', () => {
-                    const $switch = $(this);
-                    $switch.toggleClass('active');
-                    this.toggleWireTracing();
-                });
-                $('#resetViewBtn').on('click', () => this.resetView());
-                $('#toggleControlsBtn').on('click', () => this.toggleBottomControls());
-
-
-                // Bottom control buttons
-                $('#zoomInBtn').on('click', () => this.zoomIn());
-                $('#zoomOutBtn').on('click', () => this.zoomOut());
-                $('#fitViewBtn').on('click', () => this.fitToView());
-                $('#rotateBtn').on('click', () => this.rotateView());
-                $('#rotateLeftBtn').on('click', () => this.rotateViewLeft());
-                $('#layersBtn').on('click', () => this.showLayers());
-                $('#measureBtn').on('click', () => this.toggleMeasureTool());
-
-                // Side panel
-                $('#closePanelBtn').on('click', () => this.closeSidePanel());
-                $('#svgFileInput, #hiddenFileInput').on('change', (e) => this.loadSVGFile(e));
-                $('#loadFileBtn').on('click', () => $('#hiddenFileInput').click());
-
-                // Sliders
-                $('#zoomSlider').on('input', (e) => this.setZoom(parseFloat(e.target.value)));
-                $('#rotationSlider').on('input', (e) => this.setRotation(parseFloat(e.target.value)));
-                $('#pitchSlider').on('input', (e) => this.setPitch(parseFloat(e.target.value)));
-                $('#rotateYSlider').on('input', (e) => this.setYRotation(parseFloat(e.target.value)));
-
-                $('#perspectiveSlider').on('input', (e) => {
-                    const val = parseFloat(e.target.value);
-                    $('#perspectiveValue').text(val);
-                    this.$svgWrapper.css('perspective', val + 'px');
-                });
-
-                // Wiring tools
-                $('#traceWiresBtn').on('click', () => this.startWireTracing());
-                $('#highlightComponentsBtn').on('click', () => {
-                    if (this.isComponentBox) {
-                        this.hideComponentBox();
-                    } else {
-                        this.highlightComponents()
-                    }
-                    this.isComponentBox = !this.isComponentBox;
-                });
-                $('#showConnectionsBtn').on('click', () => {
-                    if (this.isConnectionWire) {
-                        this.hideConnections();
-                    } else {
-
-                        this.showConnections()
-                    }
-                    this.isConnectionWire = !this.isConnectionWire;
-                });
-
-                $('#clearHighlightsBtn').on('click', () => this.clearAllHighlights());
-
-                // Display options
-                $('#toggleMiniMapBtn').on('click', () => this.toggleMiniMap());
-                $('#darkModeBtn').on('click', () => this.toggleDarkMode());
-                $('#exportViewBtn').on('click', () => this.exportCurrentView());
-
-                // Dragging Interactions
-                this.$svgContainer.on('mousedown', (e) => this.startDrag(e));
-                $(document).on('mousemove', (e) => this.drag(e));
-                $(document).on('mouseup', () => this.endDrag());
-
-                //Keypad Interactions
-                this.$svgContainer.on('wheel', (e) => this.handleWheel(e));
-                // Keyboard
-                $(document).on('keydown', (e) => {
-                    if (e.key === 'Shift')
-                        this.isShiftHeld = true;
-                }
-                );
-                $(document).on('keyup', (e) => {
-                    if (e.key === 'Shift')
-                        this.isShiftHeld = false;
-                }
-                );
-
-                $(document).on('keydown', (e) => {
-                    if (e.key === 'Ctrl')
-                        this.isCtrlHeld = true;
-                }
-                );
-                $(document).on('keyup', (e) => {
-                    if (e.key === 'Ctrl')
-                        this.isCtrlHeld = false;
-                }
-                );
-
-                $(document).on('click', (e) => {
-                    const $target = $(e.target);
-                    const isClickInPanel = $target.closest('#sidePanel').length > 0;
-                    const isClickOnButton = $target.closest('#layersBtn, #transformBtn, #closePanelBtn').length > 0;
-
-                    if (!isClickInPanel && !isClickOnButton && this.$sidePanel.hasClass('open')) {
-                        this.closeSidePanel();
-                    }
-                });
-
-                // Prevent context menu on long press
-                this.$svgContainer.on('contextmenu', (e) => e.preventDefault());
-
-                // Handle orientation change
-                $(window).on('orientationchange resize', () => {
-                    setTimeout(() => this.handleOrientationChange(), 100);
-                });
-            }
-
-            loadSVGFile(event) {
-                const file = event.target.files[0];
-                if (!file) return;
-
-                this.showLoading(true);
-
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    try {
-                        const svgContent = e.target.result;
-                        const parser = new DOMParser();
-                        const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
-                        const svgElement = svgDoc.querySelector('svg');
-
-                        if (svgElement) {
-                            this.$svgDisplay.empty();
-
-                            // Preserve viewBox
-                            const viewBox = svgElement.getAttribute('viewBox');
-                            if (viewBox) {
-                                this.$svgDisplay.attr('viewBox', viewBox);
-                                this.originalViewBox = viewBox;
-                            }
-
-                            // Copy SVG content
-                            $(svgElement).children().each((index, child) => {
-                                this.$svgDisplay.append($(child).clone());
-                            });
-
-                            this.setupSVGInteractions();
-                            this.analyzeWiringDiagram();
-                            this.resetView();
-                            this.updateMiniMap();
-                            this.showToast('SVG loaded successfully!', 'success');
-                            this.closeSidePanel();
-                        } else {
-                            throw new Error('Invalid SVG file');
-                        }
-                    } catch (error) {
-                        this.showToast('Error loading SVG: ' + error.message, 'error');
-                    } finally {
-                        this.showLoading(false);
-                    }
-                };
-
-                reader.readAsText(file);
-            }
-
-            setupSVGInteractions() {
-                this.analyzeWiringDiagram();
-                const interactiveElements = this.$svgDisplay.find('path, line, polyline, polygon, circle, ellipse, rect, g, .wire-hitbox, wire-hitbox');
-
-                interactiveElements.each((index, element) => {
-                    const $element = $(element);
-
-                    // Add hover effects for non-touch devices
-                    if (!('ontouchstart' in window)) {
-                        $element.on('mouseenter', () => {
-                            if (!this.selectedElements.includes(element)) {
-                                this.highlightElement($element, true);
-                            }
-                        });
-
-                        $element.on('mouseleave', () => {
-                            if (!this.selectedElements.includes(element)) {
-                                this.highlightElement($element, false);
-                            }
-                        });
-                    }
-                });
-            }
-
-            scaleValue(value, fromMin, fromMax, toMin, toMax) {
-                return ((value - fromMin) / (fromMax - fromMin)) * (toMax - toMin) + toMin;
-            }
-
-            analyzeWiringDiagram() {
-                // Analyze the SVG to identify wires, components, and connections
-                this.wires = [];
-                this.components = [];
-                this.connections = [];
-
-                const SVG_NS = "http://www.w3.org/2000/svg";
-
-                this.$svgDisplay.find('line, path[d*="L"], path[d*="l"], path[d*="v"], path[d*="V"], path[d*="h"], path[d*="H"],  polyline').each((index, element) => {
-                    const $orig = $(element);
-                    const origEl = element;
-                    const originalStroke = $orig.attr('stroke') || 'black';
-                    const originalStrokeWidth = parseFloat($orig.attr('stroke-width') || '1');
-
-                    // 1) Create group
-                    const group = document.createElementNS(SVG_NS, 'g');
-                    group.setAttribute('class', 'wire-group');
-                    group.setAttribute('data-original-wire-id', `wire_${index}`);
-
-                    // 2) Clone the original (deep clone)
-                    const cloneOriginal = origEl.cloneNode(true);
-
-                    // 3) Create hitbox clone from the clone (so original stays untouched until replaced)
-                    const cloneHitbox = cloneOriginal.cloneNode(true);
-                    // Make the hitbox invisible but still capture pointer events
-                    cloneHitbox.setAttribute('stroke', originalStroke);
-                    cloneHitbox.setAttribute('stroke-opacity', '0');            // invisible
-                    // cloneHitbox.setAttribute('stroke-width', Math.max(originalStrokeWidth * 4).toString());
-                    cloneHitbox.setAttribute('fill', 'none');
-                    cloneHitbox.setAttribute('class', 'wire-hitbox');
-                    cloneHitbox.setAttribute('data-original-wire-id', `wire_${index}`);
-
-                    // 4) Append hitbox then the visual clone to the group
-                    group.appendChild(cloneOriginal);
-                    group.appendChild(cloneHitbox);
-
-                    // 5) Replace original element in DOM with the group
-                    origEl.parentNode.replaceChild(group, origEl);
-
-                    // 6) Store references (wrap hitbox with jQuery for handlers)
-                    this.wires.push({
-                        element: cloneOriginal,
-                        $element: $(cloneOriginal),
-                        $hitbox: $(cloneHitbox),
-                        $group: $(group),
-                        id: `wire_${index}`,
-                        color: originalStroke,
-                        width: originalStrokeWidth
-                    });
-                });
-
-
-                // Find component elements (typically circles, rects, polygons, groups)
-                this.$svgDisplay.find('circle, rect, polygon, ellipse, path[d*="c"], path[d*="C"], path[d*="s"], path[d*="S"], g').each((index, element) => {
-                    const $element = $(element);
-
-                    const bbox = element.getBBox ? element.getBBox() : { width: 0, height: 0 };
-
-                    //larger elements are likely components
-                    if (bbox.width > 10 || bbox.height > 10) {
-                        this.components.push({
-                            element: element,
-                            $element: $element,
-                            id: `component_${index}`,
-                            bbox: bbox,
-                            type: this.identifyComponentType($element)
-                        });
-                    }
-                });
-
-                // this.showToast(`Found ${this.wires.length} wires and ${this.components.length} components`, 'success');
-                console.log(`found ${this.wires.length}wires and ${this.components.length} components`);
-            }
-
-            identifyComponentType($element) {
-                const tagName = $element[0].tagName.toLowerCase();
-                const className = $element.attr('class') || '';
-                const id = $element.attr('id') || '';
-
-                // Simple heuristics for component identification
-                if (tagName === 'circle') return 'connector';
-                if (tagName === 'rect') return 'module';
-                if (className.includes('resistor')) return 'resistor';
-                if (className.includes('capacitor')) return 'capacitor';
-                if (className.includes('switch')) return 'switch';
-                if (id.includes('relay')) return 'relay';
-
-                return 'component';
-            }
-
-            handleTap(event) {
-                const target = event.target;
-                if (target && target !== this.$svgContainer[0] && target !== this.$svgWrapper[0]) {
-                    this.selectElement($(target));
-                }
-            }
-
-            setupComponentHitboxes() {
-                this.$svgDisplay.find('rect').each((index, element) => {
-                    const $orig = $(element);
-                    const origEl = element;
-                    const bbox = origEl.getBBox ? origEl.getBBox() : {
-                        width: 0,
-                        height: 0
-                    };
-
-                    // Skip small elements
-                    // if (bbox.width < 10 && bbox.height < 10) return;
-
-                    // 1) Create group
-                    const group = document.createElementNS(SVG_NS, 'g');
-                    group.setAttribute('class', 'component-group');
-                    group.setAttribute('data-original-component-id', `component_${index}`);
-
-                    // 2) Clone the original (deep clone)
-                    const cloneOriginal = origEl.cloneNode(true);
-
-                    // 3) Create hitbox 
-                    const cloneHitbox = document.createElementNS(SVG_NS, 'rect');
-
-                    // Set hitbox dimensions to slightly larger than the original element
-                    cloneHitbox.setAttribute('x', bbox.x - 5);
-                    cloneHitbox.setAttribute('y', bbox.y - 5);
-                    cloneHitbox.setAttribute('width', bbox.width + 5);
-                    cloneHitbox.setAttribute('height', bbox.height + 5);
-                    cloneHitbox.setAttribute('fill', 'transparent');
-                    cloneHitbox.setAttribute('stroke', 'none');
-                    cloneHitbox.setAttribute('class', 'component-hitbox');
-                    cloneHitbox.setAttribute('data-original-component-id', `component_${index}`);
-
-                    // 4) Append original then hitbox to the group
-                    group.appendChild(cloneOriginal);
-                    group.appendChild(cloneHitbox);
-
-                    // 5) Replace original element in DOM with the group
-                    origEl.parentNode.replaceChild(group, origEl);
-
-                    // 6) Update component reference
-                    const componentIndex = this.components.findIndex(comp => comp.element === origEl);
-                    if (componentIndex !== -1) {
-                        this.components[componentIndex] = {
-                            ...this.components[componentIndex],
-                            element: cloneOriginal,
-                            $element: $(cloneOriginal),
-                            $hitbox: $(cloneHitbox),
-                            $group: $(group)
-                        };
-                    }
-                }
-                );
-            }
-
-            selectElement($element) {
-                const element = $element[0];
-
-                // Clear previous selection
-                // this.clearSelection();
-
-                // Add to selection
-                this.selectedElements = [element];
-                $element.addClass('selected-element');
-
-                // Show element info
-                this.showElementInfo($element);
-
-                // If it's a wire, show connected components
-                if (this.isWire($element)) {
-                    this.highlightConnectedComponents($element);
-                }
-            }
-
-            isWire($element) {
-                return this.wires.some(wire => wire.element === $element[0]);
-            }
-
-            showElementInfo($element) {
-                const tagName = $element[0].tagName;
-                const elementClass = $element.attr('class') || 'None';
-                const elementId = $element.attr('id') || 'None';
-
-                const info = `Selected: ${tagName}\nClass: ${elementClass}\nID: ${elementId}`;
-                this.showToast(info, 'success');
-            }
-
-            highlightConnectedComponents($wireElement) {
-                // Simple connection detection based on proximity
-                const wireBBox = $wireElement[0].getBBox();
-                const wireEndPoints = this.getWireEndPoints($wireElement);
-
-                this.components.forEach(component => {
-                    const compBBox = component.bbox;
-
-                    // Check if wire endpoints are near component
-                    wireEndPoints.forEach(point => {
-                        const distance = Math.sqrt(
-                            Math.pow(point.x - (compBBox.x + compBBox.width / 2), 2) +
-                            Math.pow(point.y - (compBBox.y + compBBox.height / 2), 2)
-                        );
-
-                        if (distance < 20) { // Proximity threshold
-                            component.$element.addClass('component-highlight');
-                        }
-                    });
-                });
-            }
-
-            getWireEndPoints($wireElement) {
-                const element = $wireElement[0];
-                const points = [];
-
-                if (element.tagName === 'line') {
-                    points.push(
-                        { x: parseFloat($wireElement.attr('x1')), y: parseFloat($wireElement.attr('y1')) },
-                        { x: parseFloat($wireElement.attr('x2')), y: parseFloat($wireElement.attr('y2')) }
-                    );
-                } else if (element.tagName === 'path') {
-                    // Simplified: just get first and last points from path data
-                    const pathData = $wireElement.attr('d');
-                    const matches = pathData.match(/[\d.]+/g);
-                    if (matches && matches.length >= 4) {
-                        points.push(
-                            { x: parseFloat(matches[0]), y: parseFloat(matches[1]) },
-                            { x: parseFloat(matches[matches.length - 2]), y: parseFloat(matches[matches.length - 1]) }
-                        );
-                    }
-                }
-
-                return points;
-            }
-
-            clearSelection() {
-                this.selectedElements.forEach(element => {
-                    $(element).removeClass('selected-element');
-                });
-                this.selectedElements = [];
-                this.clearAllHighlights();
-            }
-
-            // 
-            startWireTracing() {
-                this.isWireTracing = true;
-
-                this.showToast('Wire tracing mode is always ON - Tap wires to trace paths', 'success');
-                this.wires.forEach(wire => {
-                    wire.$hitbox.on('click.tracing', (e) => {
-                        e.stopPropagation();
-                        this.traceWirePath(wire);
-                    }
-                    );
-                }
-                );
-                // this.clearAllHighlights();
-            }
-
-            stopWireTracing() {
-                this.isWireTracing = false;
-
-                this.showToast('Wire tracing mode is OFF', 'info');
-                this.wires.forEach(wire => {
-                    wire.$hitbox.off('click.tracing');
-                });
-                this.clearAllHighlights(); // Optional: clear any existing highlights when turning off
-            }
-
-            traceWirePath(selectedWire) {
-                // this.clearAllHighlights(); - clear this so you can select more than 1 paths
-                this.showLoading(true);
-
-
-                const elementType = selectedWire.$element[0].tagName.toLowerCase();
-
-                if (elementType === 'rect') {
-                    selectedWire.$element.addClass('selected-element');
-                } else {
-                    selectedWire.$element.addClass('wire-trace');
-                }
-
-                // Highlight the selected wire
-
-                // Find and highlight connected wires
-                const connectedWires = this.findConnectedWires(selectedWire);
-                connectedWires.forEach(wire => {
-                    const wireType = wire.$element[0].tagName.toLowerCase();
-
-                    if (wireType === 'rect') {
-                        wire.$element.addClass('selected-element');
-                    } else {
-                        wire.$element.addClass('wire-trace');
-                    }
-                }
-                );
-
-                // Highlight connected components
-                this.highlightConnectedComponents(selectedWire.$element);
-
-                // this.showToast(`Traced wire path: ${connectedWires.length + 1} segments`, 'success');
-                this.showToast(`Traced wire path: ${connectedWires.length + 1} segments`, 'success');
-                this.showLoading(false);
-            }
-
-            // findConnectedWires(startWire) {
-            //     const connected = [];
-            //     const visited = new Set([startWire.id]);
-            //     const queue = [startWire];
-
-            //     while (queue.length > 0) {
-            //         const currentWire = queue.shift();
-            //         const endPoints = this.getWireEndPoints(currentWire.$element);
-
-            //         // Find other wires that connect to these endpoints
-            //         this.wires.forEach(wire => {
-            //             if (visited.has(wire.id)) return;
-
-            //             // **ADD FILTER: Only consider wires matching the tracing heuristic**
-            //             const element = wire.$element[0];
-            //             const isTraceable = element.tagName === 'line' ||
-            //                 element.tagName === 'polyline' ||
-            //                 (element.tagName === 'path' &&
-            //                     wire.$element.attr('d') &&
-            //                     /[L]/.test(wire.$element.attr('d')));
-
-            //             if (!isTraceable) return;
-
-            //             const wireEndPoints = this.getWireEndPoints(wire.$element);
-
-            //             // Check if any endpoints are close enough to be connected
-            //             for (let ep1 of endPoints) {
-            //                 for (let ep2 of wireEndPoints) {
-            //                     const distance = Math.sqrt(
-            //                         Math.pow(ep1.x - ep2.x, 2) + Math.pow(ep1.y - ep2.y, 2)
-            //                     );
-
-            //                     if (distance < 5) { // Connection threshold
-            //                         connected.push(wire);
-            //                         visited.add(wire.id);
-            //                         queue.push(wire);
-            //                         break;
-            //                     }
-            //                 }
-            //             }
-            //         });
-            //     }
-
-            //     return connected;
-            // }
-
-            findConnectedWires(startWire) {
-                const connected = [];
-                const startPts = this.getWireEndPoints(startWire.$element);
-                const epsilon = 0.5; // tight tolerance
-
-                this.wires.forEach(wire => {
-                    if (wire.id === startWire.id) return;
-                    const pts = this.getWireEndPoints(wire.$element);
-                    for (let a of startPts) {
-                        for (let b of pts) {
-                            const dx = a.x - b.x, dy = a.y - b.y;
-                            if (Math.hypot(dx, dy) <= epsilon) {
-                                connected.push(wire);
-                                // break out to next wire
-                                a = startPts[startPts.length - 1]; // force outer break
-                                break;
-                            }
-                        }
-                    }
-                });
-
-                return connected;
-            }
-
-            hideComponentBox() {
-                if (!this.components || !Array.isArray(this.components)) {
-                    console.error('Components are not initialized');
-                    return;
-                }
-
-                this.components.forEach(component => {
-                    const $parentComponentElement = component.$element;
-
-                    // Remove the highlight class
-                    $parentComponentElement.removeClass('component-highlight');
-
-                    // Optional: Remove any child highlight classes if you had them uncommented earlier
-                    // const $children = $parentComponentElement.find('path, line, polyline, polygon, circle, ellipse, rect');
-                    // $children.each((index, childElement) => {
-                    //     $(childElement).removeClass('component-highlight-child');
-                    // });
-                }
-                );
-
-                this.showToast(`Removed highlight from ${this.components.length} components`, 'success');
-            }
-
-            highlightComponents() {
-                // this.clearAllHighlights();
-                this.showLoading(true);
-                this.components.forEach(component => {
-                    component.$element.addClass('component-highlight');
-                });
-                this.showToast(`Highlighted ${this.components.length} components`, 'success');
-                this.showLoading(false);
-            }
-
-            hideConnections() {
-                this.wires.forEach(wire => {
-                    wire.$element.css({
-                        'stroke': '',
-                        // Reset to default stroke
-                        'stroke-width': '',
-                        // Reset to default stroke width
-                        'filter': '',
-                        // Remove drop shadow
-                    });
-                }
-                );
-
-                // this.showToast('Hiding wire connections', 'success');
-                this.showToast('Hiding wire connections', 'success');
-            }
-
-            showConnections() {
-                // this.clearAllHighlights();
-                // this.highlightComponents();
-
-                // Show all wire connections with different colors
-                const colors = ['#ff6b6b', '#4ecdc4', '#45b7d1', '#f9ca24', '#f0932b', '#eb4d4b'];
-
-                this.wires.forEach((wire, index) => {
-                    const color = colors[index % colors.length];
-
-                    // Check if the wire element is a path with specific commands
-                    const $element = wire.$element;
-                    const isSpecialPath = $element.is('path') &&
-                        $element.attr('d') &&
-                        /[lvVhH]/.test($element.attr('d'));
-
-                    $element.css({
-                        'stroke': isSpecialPath ? 'blue' : color,
-                        'stroke-width': '',
-                    });
-                });
-
-                // Add radial gradient background to SVG
-                // this.$svgDisplay.css({
-                //     'background': 'rgba(5, 63, 43, 0.904)', //rgba(0, 0, 0, 0.7) - dark gray;
-                // });
-
-                this.showToast('Showing all wire connections', 'success');
-                console.log('Showing all wire connections', 'success');
-            }
-
-            clearAllHighlights() {
-                this.$svgDisplay.find('.wire-trace, .component-highlight, .selected-element')
-                    .removeClass('wire-trace component-highlight selected-element');
-
-                // Reset inline styles
-                this.$svgDisplay.find('*').each((index, element) => {
-                    const $element = $(element);
-                    $element.css({
-                        'stroke': '',
-                        'stroke-width': '',
-                        'filter': '',
-                        'fill': ''
-                    });
-                });
-            }
-
-            // toggleWireTracing() {
-            //     this.startWireTracing();
-            //     $('#traceWireBtn').toggleClass('active', this.isWireTracing);
-            // }
-            toggleWireTracing() {
-                if (this.isWireTracing) {
-                    this.stopWireTracing();
-                } else {
-                    this.startWireTracing();
-                }
-                $('#traceWireBtn').toggleClass('active', this.isWireTracing);
-            }
-
-            highlightElement($element, highlight) {
-                if (highlight) {
-                    $element.css({
-                        'stroke': '#4facfe',
-                        // 'filter': 'drop-shadow(0 0 4px #4facfe)'
-                    });
-                } else {
-                    $element.css({
-                        'stroke': '',
-                        'stroke-width': '',
-                        'filter': ''
-                    });
-                }
-            }
-
-            // View manipulation methods
-            // ================Dragging===================
-            startDrag(event) {
-                if (this.currentMode === 'point')
-                    return;
-
-                if (this.currentMode === 'dragSelect') {
-                    // Start drag selection
-                    this.isSelecting = true;
-                    const rect = this.$svgContainer[0].getBoundingClientRect();
-                    this.selectionStart = {
-                        x: event.clientX - rect.left,
-                        y: event.clientY - rect.top,
-                    };
-
-                    // Position and show the selection rectangle
-                    this.$selectionRectangle.css({
-                        left: this.selectionStart.x + 'px',
-                        top: this.selectionStart.y + 'px',
-                        width: '0px',
-                        height: '0px',
-                        display: 'block'
-                    });
-                } else {
-                    // Regular pan/rotate/pitch drag
-                    this.isDragging = true;
-                    this.dragStart = {
-                        x: event.clientX,
-                        y: event.clientY,
-                        translate: {
-                            ...this.currentTranslate
-                        },
-                        rotation: this.currentRotation,
-                        pitch: this.currentPitch
-                    };
-                    this.$svgContainer.css('cursor', 'default');
-                }
-            }
-
-            drag(event) {
-                if (this.currentMode === 'dragSelect' && this.isSelecting) {
-                    // Update the selection rectangle
-                    const rect = this.$svgContainer[0].getBoundingClientRect();
-                    const currentX = event.clientX - rect.left;
-                    const currentY = event.clientY - rect.top;
-
-                    const left = Math.min(this.selectionStart.x, currentX);
-                    const top = Math.min(this.selectionStart.y, currentY);
-                    const width = Math.abs(currentX - this.selectionStart.x);
-                    const height = Math.abs(currentY - this.selectionStart.y);
-
-                    this.$selectionRectangle.css({
-                        left: left + 'px',
-                        top: top + 'px',
-                        width: width + 'px',
-                        height: height + 'px'
-                    });
-                } else if (this.isDragging && this.currentMode !== 'point') {
-                    const deltaX = event.clientX - this.dragStart.x;
-                    const deltaY = event.clientY - this.dragStart.y;
-
-                    if (event.shiftKey) {
-                        // Rotate
-                        const rotation = this.dragStart.rotation + (deltaX * 0.5);
-                        this.setRotation(rotation);
-                    } else if (event.ctrlKey) {
-                        // Pitch
-                        const pitch = this.dragStart.pitch + (deltaX * 0.5);
-                        this.setPitch(Math.max(0, Math.min(60, pitch)));
-                    } else {
-                        // Pan
-                        this.currentTranslate = {
-                            x: this.dragStart.translate.x + deltaX,
-                            y: this.dragStart.translate.y + deltaY
-                        };
-                        this.updateTransform();
-                    }
-                }
-            }
-
-            endDrag() {
-                if (this.currentMode === 'dragSelect' && this.isSelecting) {
-                    // Finish drag selection and select elements within the rectangle
-                    this.isSelecting = false;
-                    this.$selectionRectangle.css('display', 'none');
-
-                    // Get the rectangle coordinates
-                    const rect = this.$svgContainer[0].getBoundingClientRect();
-                    const rectLeft = parseInt(this.$selectionRectangle.css('left'));
-                    const rectTop = parseInt(this.$selectionRectangle.css('top'));
-                    const rectWidth = parseInt(this.$selectionRectangle.css('width'));
-                    const rectHeight = parseInt(this.$selectionRectangle.css('height'));
-                    console.log()
-
-                    // Only proceed if the rectangle has a meaningful size
-                    if (rectWidth > 5 && rectHeight > 5) {
-                        // Clear current selection if not holding shift
-                        if (!this.isShiftHeld) {
-                            this.clearSelection();
-                        }
-
-                        // Find all interactive elements
-                        const interactiveElements = this.$svgDisplay.find('path, line, polyline, polygon, circle, ellipse, rect');
-
-                        // Check each element to see if it's within the selection rectangle
-                        interactiveElements.each((index, element) => {
-                            const $element = $(element);
-                            const bbox = element.getBBox();
-
-                            // Get the element's position in screen coordinates
-                            const svgPoint = this.$svgDisplay[0].createSVGPoint();
-                            svgPoint.x = bbox.x + bbox.width / 2;
-                            svgPoint.y = bbox.y + bbox.height / 2;
-
-                            // Transform to screen coordinates
-                            const ctm = this.$svgDisplay[0].getScreenCTM();
-                            if (ctm) {
-                                const screenPoint = svgPoint.matrixTransform(ctm);
-
-                                // Adjust for container position
-                                const containerX = screenPoint.x - rect.left;
-                                const containerY = screenPoint.y - rect.top;
-
-                                // Check if the point is within the selection rectangle
-                                if (containerX >= rectLeft && containerX <= rectLeft + rectWidth && containerY >= rectTop && containerY <= rectTop + rectHeight) {
-
-                                    // Add to selection if not already selected
-                                    if (!this.selectedElements.includes(element)) {
-                                        this.selectedElements.push(element);
-                                        $element.addClass('selected');
-                                    }
-                                }
-                            }
-                        }
-                        );
-
-                        this.updateSelectionInfo();
-                        this.updateSelectedElements();
-
-                        if (this.selectedElements.length > 0) {
-                            this.showStatus(`${this.selectedElements.length} elements selected`, 'success');
-                        }
-                    }
-                } else if (this.isDragging) {
-                    this.isDragging = false;
-                    if (this.currentMode === 'select') {
-                        this.$svgContainer.css('cursor', 'grab');
-                    }
-                }
-            }
-
-            handleWheel(event) {
-                event.preventDefault();
-                const delta = event.originalEvent.deltaY;
-                const zoomFactor = delta > 0 ? 0.9 : 1.1;
-                const newZoom = Math.max(1, Math.min(100, this.currentZoom * zoomFactor));
-                this.setZoom(newZoom);
-            }
-
-            // =============================== SVG Animation and Transformation ==============================
-            setZoom(zoom) {
-                this.currentZoom = zoom;
-                this.$zoomSlider.val(zoom);
-                $('#zoomValue').text(zoom.toFixed(1));
-                this.updateTransform();
-            }
-
-            setRotation(rotation) {
-                this.currentRotation = rotation % 360;
-                const sliderValue = this.scaleValue(this.currentRotation, 0, 180, 0, 180);
-                this.$rotationSlider.val(sliderValue);
-                $('#rotationValue').text(Math.round(this.currentRotation));
-                this.updateTransform();
-            }
-
-            setPitch(pitch) {
-                this.currentPitch = pitch;
-                // Math.max(0, Math.min(60, pitch));
-                const sliderValue = this.scaleValue(this.currentPitch, 0, 60, 0, 60);
-                this.$pitchSlider.val(sliderValue);
-                $('#pitchValue').text(Math.round(this.currentPitch));
-                this.updateTransform();
-            }
-
-            setYRotation(yaw) {
-                this.currentYaw = yaw;
-                // Math.max(0, Math.min(60, pitch));
-                const sliderValue = this.scaleValue(this.currentYaw, 0, 90, 0, 90);
-                this.$rotateYSlider.val(sliderValue);
-                $('#rotateYSlider').text(Math.round(this.currentYaw));
-                this.updateTransform();
-            }
-            // setPitch(sliderValue) {
-            //     // Convert FROM slider range (0-100) TO pitch range (0-60)
-            //     const pitch = this.scaleValue(sliderValue, 0, 100, 0, 60);
-            //     this.currentPitch = Math.max(0, Math.min(60, pitch));
-
-            //     this.$pitchSlider.val(sliderValue); // Keep slider at user's input
-            //     $('#pitchValue').text(Math.round(this.currentPitch));
-            //     this.updateTransform();
-            // }
-
-            updateTransform() {
-                // const yaw = this.currentYaw || 0;
-                const transform = `
-                    translate(${this.currentTranslate.x}px, ${this.currentTranslate.y}px)
-                    scale(${this.currentZoom})
-                    rotateZ(${this.currentRotation}deg)
-                    skewX(${this.currentPitch}deg)
-                    rotateY(${this.currentYaw}deg)
-
-                `;
-
-                this.$svgWrapper.css({
-                    'transform': transform,
-                    'transform-origin': 'center center',
-                    'transform-style': 'preserve-3d',
-                    'perspective': '1500px'
-                });
-            }
-
-            animateZoom(targetZoom) {
-                gsap.to(this, {
-                    duration: 0.5,
-                    ease: "power2.out",
-                    currentZoom: targetZoom,
-                    onUpdate: () => {
-                        this.setZoom(this.currentZoom);
-                    }
-                });
-            }
-
-            zoomIn() {
-                const newZoom = Math.min(10, this.currentZoom * 1.5);
-                this.animateZoom(newZoom);
-            }
-
-            zoomOut() {
-                const newZoom = Math.max(0.1, this.currentZoom / 1.5);
-                this.animateZoom(newZoom);
-            }
-
-            fitToView() {
-                if (!this.originalViewBox) return;
-
-                gsap.to(this, {
-                    duration: 1,
-                    ease: "power2.inOut",
-                    currentZoom: 3,
-                    currentRotation: 0,
-                    onUpdate: () => {
-                        this.currentTranslate = { x: 0, y: 0 };
-                        this.setZoom(this.currentZoom);
-                        this.setRotation(this.currentRotation);
-                    }
-                });
-            }
-
-            rotateView() {
-                const newRotation = (this.currentRotation + 90) % 360;
-                gsap.to(this, {
-                    duration: 0.8,
-                    ease: "power2.inOut",
-                    currentRotation: newRotation,
-                    onUpdate: () => {
-                        this.setRotation(this.currentRotation);
-                    }
-                });
-            }
-
-            rotateViewLeft() {
-                const newRotation = (this.currentRotation - 90) % 360;
-                gsap.to(this, {
-                    duration: 0.8,
-                    ease: "power2.inOut",
-                    currentRotation: newRotation,
-                    onUpdate: () => {
-                        this.setRotation(this.currentRotation);
-                    }
-                });
-            }
-
-            resetView() {
-                gsap.to(this, {
-                    duration: 1,
-                    ease: "power2.inOut",
-                    currentZoom: 1,
-                    currentRotation: 0,
-                    onUpdate: () => {
-                        this.currentTranslate = { x: 0, y: 0 };
-                        this.setZoom(this.currentZoom);
-                        this.setRotation(this.currentRotation);
-                    }
-                });
-                this.clearAllHighlights();
-                this.isWireTracing = false;
-                $('#traceWireBtn').removeClass('active');
-            }
-
-            // UI Control methods
-            toggleSidePanel() {
-                this.$sidePanel.toggleClass('open');
-            }
-
-            closeSidePanel() {
-                this.$sidePanel.removeClass('open');
-            }
-
-            toggleBottomControls() {
-                this.$bottomControls.toggleClass('expanded');
-            }
-
-            updateMiniMap() {
-                if (!this.miniMapVisible) return;
-
-                // Clone the main SVG for mini map
-                const mainSvgClone = this.$svgDisplay.clone();
-                mainSvgClone.removeAttr('id');
-                mainSvgClone.find('*').removeAttr('id');
-
-                this.$miniMapSvg.empty().append(mainSvgClone);
-
-                // Update viewport indicator
-                const viewportSize = 20; // Percentage of mini map
-                this.$miniMapViewport.css({
-                    width: viewportSize + '%',
-                    height: viewportSize + '%',
-                    left: '40%',
-                    top: '40%'
-                });
-            }
-
-            toggleMiniMap() {
-                this.miniMapVisible = !this.miniMapVisible;
-                this.$miniMap.toggleClass('visible', this.miniMapVisible);
-                if (this.miniMapVisible) {
-                    this.updateMiniMap();
-                }
-            }
-
-            // showLayers() {
-            //     // Simple layer visualization
-            //     const layers = [];
-            //     this.$svgDisplay.find('g').each((index, group) => {
-            //         const $group = $(group);
-            //         const id = $group.attr('id') || `Layer ${layers.length + 1}`;
-            //         layers.push(id);
-            //     });
-
-            //     if (layers.length > 0) {
-            //         this.showToast(`Found ${layers.length} layers: ${layers.slice(0, 3).join(', ')}`, 'success');
-            //     } else {
-            //         this.showToast('No grouped layers found', 'success');
-            //     }
-            // }
-
-            buildLayersTree() {
-                const $layersPanel = $('#layersPanel');
-                $layersPanel.empty();
-
-                const layers = [];
-                this.$svgDisplay.find('g').each((index, group) => {
-                    const $group = $(group);
-                    const id = $group.attr('id') || `Layer ${layers.length + 1}`;
-                    layers.push(id);
-                });
-
-                if (layers.length > 0) {
-                    this.showToast(`Found ${layers.length} layers: ${layers.slice(0, 3).join(', ')}`, 'success');
-                } else {
-                    this.showToast('No grouped layers found', 'success');
-                }
-
-                const buildTree = (elements, depth = 0) => {
-                    elements.forEach((el, idx) => {
-                        const $el = $(el);
-                        const tagName = el.tagName.toLowerCase();
-                        const id = $el.attr('id') || `${tagName}_${idx}`;
-                        const className = $el.attr('class') || '';
-                        const isGroup = tagName === 'g';
-                        const childCount = isGroup ? el.children.length : 0;
-
-                        const $item = $(`
-                <div class="layer-item" data-element-id="${id}" style="margin-left: ${depth * 12}px;">
-                    <button class="layer-toggle" data-toggle="${id}">
-                        ${isGroup ? (childCount > 0 ? '▼' : '◀') : '●'}
-                    </button>
-                    <button class="layer-toggle" data-visibility="${id}" title="Toggle visibility">
-                        👁
-                    </button>
-                    <span class="layer-name">${tagName}${id ? `#${id}` : ''}</span>
-                </div>
-            `);
-
-                        $item.on('click', () => this.selectLayer(el, $item));
-
-                        $item.find(`[data-toggle="${id}"]`).on('click', (e) => {
-                            e.stopPropagation();
-                            $item.toggleClass('collapsed');
-                            $item.find(`[data-toggle="${id}"]`).text(
-                                $item.hasClass('collapsed') ? '▶' : '▼'
-                            );
-                        });
-
-                        $item.find(`[data-visibility="${id}"]`).on('click', (e) => {
-                            e.stopPropagation();
-                            const $elem = $(el);
-                            const isHidden = $elem.css('display') === 'none';
-                            $elem.css('display', isHidden ? '' : 'none');
-                            $item.css('opacity', isHidden ? 1 : 0.5);
-                        });
-
-                        $layersPanel.append($item);
-
-                        // Recursively add children for groups
-                        if (isGroup && childCount > 0) {
-                            buildTree(Array.from(el.children), depth + 0.5);
-                        }
-                    });
-                };
-
-                const rootElements = Array.from(this.$svgDisplay[0].children);
-                buildTree(rootElements);
-            }
-
-            selectLayer(element, $layerItem) {
-                $('.layer-item.active').removeClass('active');
-                $layerItem.addClass('active');
-
-                // Highlight on canvas
-                this.clearSelection();
-                this.selectedElements = [element];
-                $(element).addClass('component-highlight');
-
-                this.showToast(`Selected: ${element.tagName}#${$(element).attr('id') || 'unnamed'}`, 'success');
-            }
-
-            showLayers() {
-                this.$sidePanel.addClass('open');
-                this.buildLayersTree();
-            }
-
-            toggleMeasureTool() {
-                this.showToast('Measure tool - Double tap two points to measure distance', 'success');
-                // Implementation would track touch points and calculate distances
-                let measurePoints = [];
-                let isMeasuring = false;
-
-                // Toggle measuring mode
-                isMeasuring = !isMeasuring;
-
-                if (isMeasuring) {
-                    measurePoints = [];
-                    this.showToast('Measuring mode ON - Tap points to measure', 'success');
-
-                    // Listen for clicks on SVG elements
-                    this.$svgDisplay.on('click.measure', (e) => {
-                        const rect = this.$svgDisplay[0].getBoundingClientRect();
-                        const point = {
-                            x: e.clientX - rect.left,
-                            y: e.clientY - rect.top
-                        };
-                        measurePoints.push(point);
-
-                        if (measurePoints.length === 2) {
-                            const distance = Math.sqrt(
-                                Math.pow(measurePoints[1].x - measurePoints[0].x, 2) +
-                                Math.pow(measurePoints[1].y - measurePoints[0].y, 2)
-                            );
-                            this.showToast(`Distance: ${distance.toFixed(2)}px`, 'success');
-                            measurePoints = [];
-                        } else {
-                            this.showToast(`Point ${measurePoints.length} marked`, 'success');
-                        }
-                    });
-                } else {
-                    this.showToast('Measuring mode OFF', 'success');
-                    this.$svgDisplay.off('click.measure');
-                    measurePoints = [];
-                }
-            }
-
-            toggleDarkMode() {
-                $('body').toggleClass('dark-mode');
-                this.showToast('Dark mode toggled', 'success');
-            }
-
-            exportCurrentView() {
-                // Create a data URL of the current SVG view
-                const svgData = new XMLSerializer().serializeToString(this.$svgDisplay[0]);
-                const svgBlob = new Blob([svgData], { type: 'image/svg+xml;charset=utf-8' });
-                const svgUrl = URL.createObjectURL(svgBlob);
-
-                const downloadLink = document.createElement('a');
-                downloadLink.href = svgUrl;
-                downloadLink.download = 'wiring_diagram_view.svg';
-                document.body.appendChild(downloadLink);
-                downloadLink.click();
-                document.body.removeChild(downloadLink);
-                URL.revokeObjectURL(svgUrl);
-
-                this.showToast('View exported successfully', 'success');
-            }
-
-            updateSliders() {
-                this.$zoomSlider.val(this.currentZoom);
-                const rotationSliderValue = this.scaleValue(this.currentRotation, 0, 360, 0, 100);
-                this.$rotationSlider.val(rotationSliderValue);
-                const pitchSliderValue = this.scaleValue(this.currentPitch, 0, 80, 0, 100);
-                this.$pitchSlider.val(pitchSliderValue);
-                $('#zoomValue').text(this.currentZoom.toFixed(1));
-                $('#rotationValue').text(Math.round(this.currentRotation));
-                $('#pitchValue').text(Math.round(this.currentPitch));
-            }
-
-            handleOrientationChange() {
-                // Recalculate transforms and update mini map
-                setTimeout(() => {
-                    this.updateTransform();
-                    this.updateMiniMap();
-                }, 100);
-            }
-
-            showLoading(show) {
-                $('#loadingIndicator').toggle(show);
-            }
-
-            showToast(message, type = 'success') {
-                this.$toast.removeClass('show success error').addClass(type);
-                this.$toast.text(message).addClass('show');
-
-                clearTimeout(this.toastTimeout);
-                this.toastTimeout = setTimeout(() => {
-                    this.$toast.removeClass('show');
-                }, 3000);
-            }
-        }
-
-        // Initialize the editor when document is ready
-        $(document).ready(() => {
+        $(document).ready(function () {
             window.editor = new MobileSVGEditor();
 
-            // Service Worker for offline capability (optional)
+            // Sidebar nav — mark SVG Editor as the active tool
+            if (window.SidebarNav) {
+                SidebarNav.render('#sidebar-nav-mount', 'SVG Editor');
+            }
+
+            // Service Worker (offline capability)
             if ('serviceWorker' in navigator) {
-                navigator.serviceWorker.register('/sw.js').catch(() => {
-                    // Service worker registration failed, continue normally
-                });
+                navigator.serviceWorker.register('/sw.js').catch(() => { });
             }
         });
     </script>
+
 </body>
 
 </html>

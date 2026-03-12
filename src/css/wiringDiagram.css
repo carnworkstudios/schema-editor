@@ -1,0 +1,143 @@
+/* ============================================================
+   SVG Wiring Editor — Wiring Diagram Styles
+   SVG element interactions, highlights, wire tracing
+   ============================================================ */
+
+/* ============================================================
+   SVG Display
+   ============================================================ */
+#svgDisplay {
+    image-rendering: optimizeQuality;
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
+    max-width: 100%;
+    max-height: 100%;
+    height: auto;
+    width: auto;
+}
+
+#svgDisplay * {
+    shape-rendering: geometricPrecision;
+    text-rendering: geometricPrecision;
+    transition: none;
+}
+
+#svgDisplay text {
+    text-rendering: geometricPrecision;
+    shape-rendering: crispEdges;
+}
+
+/* Interactive SVG elements */
+#svgDisplay path,
+#svgDisplay line,
+#svgDisplay polyline,
+#svgDisplay polygon,
+#svgDisplay circle,
+#svgDisplay ellipse,
+#svgDisplay rect {
+    transition: stroke 0.25s ease, fill 0.25s ease, filter 0.25s ease;
+    cursor: pointer;
+}
+
+/* ============================================================
+   Wire Tracing
+   ============================================================ */
+.wire-trace {
+    stroke: #ff6b6b !important;
+    filter: drop-shadow(0 0 3px rgba(255, 107, 107, 0.7)) !important;
+}
+
+@keyframes wire-pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.55; }
+}
+
+/* ============================================================
+   Component Highlight
+   ============================================================ */
+.component-highlight {
+    fill: rgba(255, 215, 0, 0.35) !important;
+    stroke: #ffa500 !important;
+}
+
+/* ============================================================
+   Wire Hitbox (invisible wider click target over each wire)
+   ============================================================ */
+.wire-hitbox {
+    pointer-events: stroke;
+    cursor: pointer;
+    stroke-width: 8px;
+    stroke-opacity: 0 !important;
+    fill: none;
+}
+
+/* ============================================================
+   Selection
+   ============================================================ */
+.selected-element {
+    stroke: #4facfe !important;
+    stroke-width: 2 !important;
+}
+
+/* ============================================================
+   Dimming (non-active elements)
+   ============================================================ */
+.dimmed {
+    opacity: 0.2 !important;
+}
+
+/* ============================================================
+   Edit handles (for future edit mode)
+   ============================================================ */
+.element-editing {
+    stroke: #00f2fe !important;
+    stroke-width: 2 !important;
+    filter: drop-shadow(0 0 5px #00f2fe) !important;
+}
+
+.edit-handle {
+    position: absolute;
+    width: 10px;
+    height: 10px;
+    background: #4facfe;
+    border: 1px solid white;
+    border-radius: 50%;
+    cursor: move;
+    z-index: 2001;
+}
+
+.edit-handle.rotate {
+    cursor: crosshair;
+    background: #00f2fe;
+}
+
+/* ============================================================
+   File Upload Drop Zone (inside side panel)
+   ============================================================ */
+.file-input-wrapper {
+    position: relative;
+    overflow: hidden;
+    display: inline-block;
+    width: 100%;
+}
+
+.file-input-wrapper input {
+    position: absolute;
+    left: -9999px;
+}
+
+.file-input-wrapper label {
+    display: block;
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 12px;
+}
+
+.file-input-wrapper label:hover {
+    opacity: 0.88;
+}

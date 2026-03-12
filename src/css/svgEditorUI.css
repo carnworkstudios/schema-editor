@@ -1,0 +1,889 @@
+/* ============================================================
+   SVG Wiring Editor — UI Styles
+   Layout, header, toolbar, panels, switches, controls
+   Light mode is default; dark mode via body.dark-mode
+   ============================================================ */
+
+/* ============================================================
+   Base
+   ============================================================ */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    height: 100vh;
+    overflow: hidden;
+    background-color: #f4f5f7;
+    color: #1a1a1a;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.app-container {
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* ============================================================
+   TIFANY-style Header — light default, let TIFANY CSS lead
+   ============================================================ */
+.tifany-header {
+    z-index: 1000;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 16px;
+}
+
+.tifany-header .logo h1 a {
+    color: #0066cc;
+    text-decoration: none;
+}
+
+.tifany-header .logo h1 {
+    color: #0066cc;
+}
+
+.tifany-header .logo-accent {
+    color: #0099dd;
+}
+
+.tifany-header .tool-subtitle {
+    display: block;
+    font-size: 10px;
+    color: rgba(0, 0, 0, 0.45);
+    font-weight: 400;
+    letter-spacing: 0.3px;
+    margin-top: 1px;
+    text-align: center;
+}
+
+.tifany-header .nav-link {
+    color: rgba(0, 0, 0, 0.55);
+    font-size: 13px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    text-decoration: none;
+    transition: all 150ms ease;
+}
+
+.tifany-header .nav-link:hover {
+    color: rgba(0, 0, 0, 0.9);
+    background: rgba(0, 0, 0, 0.06);
+}
+
+.tifany-header .theme-toggle-btn {
+    background: none;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    color: rgba(0, 0, 0, 0.55);
+    font-size: 16px;
+    transition: all 150ms ease;
+    flex-shrink: 0;
+}
+
+.tifany-header .theme-toggle-btn:hover {
+    background: rgba(0, 0, 0, 0.06);
+    color: #1a1a1a;
+}
+
+/* ============================================================
+   Toolbar Strips
+   ============================================================ */
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    justify-content: flex-end;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: -1px;
+    justify-content: flex-end;
+}
+
+.custom-bar {
+    display: flex;
+    flex-direction: row;
+    overflow-x: auto;
+    background-color: rgba(242, 243, 246, 0.97);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.07);
+    flex-shrink: 0;
+}
+
+/* ============================================================
+   Accordion panels
+   ============================================================ */
+.custom-bar .accordion + .panel {
+    display: none;
+}
+
+.custom-bar .accordion.active + .panel {
+    display: flex;
+}
+
+/* ============================================================
+   Buttons
+   ============================================================ */
+.btn {
+    background: rgba(79, 172, 254, 0.12);
+    border: 1px solid rgba(79, 172, 254, 0.3);
+    color: #1a1a1a;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    backdrop-filter: blur(5px);
+    margin-right: 4px;
+    white-space: nowrap;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn:hover,
+.btn.active {
+    background: rgba(79, 172, 254, 0.28);
+    border-color: #4facfe;
+    transform: translateY(-1px);
+}
+
+.btn:disabled,
+.btn.disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    transform: none;
+}
+
+.btn.primary {
+    background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    color: white;
+    border: none;
+}
+
+.slide-bar {
+    background: rgba(235, 236, 240, 0.9) !important;
+    color: #333;
+    border: none;
+    border-right: 1px solid rgba(0, 0, 0, 0.06);
+    padding: 2px 6px;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.sidebar-nav-rail {
+    display: flex;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+
+.sidebar-nav-rail a, .sidebar-nav-rail a:hover {
+    padding: 4px 6px;
+    border-radius: 5px;
+}
+
+/* ============================================================
+   Toggle Switch
+   ============================================================ */
+.switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    background-color: rgba(0, 0, 0, 0.18);
+    border-radius: 24px;
+    cursor: pointer;
+    transition: background-color 0.3s ease;
+    overflow: hidden;
+    flex-shrink: 0;
+}
+
+.switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+    position: absolute;
+}
+
+.switch-slider {
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    top: 3px;
+    background-color: white;
+    border-radius: 50%;
+    transition: transform 0.3s ease;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
+}
+
+.switch.active {
+    background-color: #4facfe;
+}
+
+.switch.active .switch-slider {
+    transform: translateX(20px);
+}
+
+.switch-content {
+    white-space: nowrap;
+    color: rgba(0, 0, 0, 0.55);
+    font-size: 11px;
+    margin: 0 4px;
+    display: flex;
+    align-items: center;
+    gap: 3px;
+}
+
+/* ============================================================
+   Main Layout (sidebar + viewer)
+   ============================================================ */
+.main-layout {
+    flex: 1;
+    display: flex;
+    flex-direction: row;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ============================================================
+   SVG Viewer Area
+   ============================================================ */
+.svg-viewer {
+    flex: 1;
+    position: relative;
+    overflow: hidden;
+    background: radial-gradient(circle at center, rgba(0, 0, 0, 0.03) 0%, transparent 70%);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 0;
+}
+
+.svg-container {
+    width: 100%;
+    height: 100%;
+    position: relative;
+    cursor: grab;
+    touch-action: none;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.svg-container:active {
+    cursor: grabbing;
+}
+
+.svg-wrapper {
+    transform-origin: center center;
+    transition: transform 0.1s ease-out;
+    will-change: transform;
+}
+
+/* ============================================================
+   Bottom Controls
+   ============================================================ */
+.bottom-controls {
+    background: rgba(242, 243, 246, 0.97);
+    backdrop-filter: blur(15px);
+    padding: 8px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+    gap: 6px;
+    border-top: 1px solid rgba(0, 0, 0, 0.07);
+    overflow: hidden;
+    transition: max-height 0.3s ease, padding 0.3s ease;
+    flex-shrink: 0;
+}
+
+.bottom-controls.expanded {
+    display: none;
+}
+
+.control-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 10px;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.control-btn:hover {
+    background: rgba(79, 172, 254, 0.12);
+    border-color: rgba(79, 172, 254, 0.4);
+    color: #0066cc;
+}
+
+.control-btn:active {
+    transform: scale(0.95);
+    background: rgba(79, 172, 254, 0.22);
+}
+
+.control-btn .icon {
+    font-size: 18px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.control-group {
+    margin: 4px;
+    background: rgba(0, 0, 0, 0.03);
+    padding: 10px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.07);
+}
+
+.control-group-flex {
+    display: flex;
+    flex-wrap: wrap;
+    margin: 4px;
+    background: rgba(0, 0, 0, 0.04);
+    padding: 5px;
+    border-radius: 10px;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    align-items: center;
+}
+
+.control-group h3,
+.custom-bar h3 {
+    margin: 8px;
+    color: #0066cc;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+}
+
+/* ============================================================
+   Side Panel
+   ============================================================ */
+.side-panel {
+    position: fixed;
+    top: 0;
+    right: -320px;
+    width: 320px;
+    height: 100vh;
+    background: #ffffff;
+    backdrop-filter: blur(20px);
+    border-left: 1px solid rgba(0, 0, 0, 0.1);
+    transition: right 0.3s ease;
+    z-index: 2000;
+    overflow-y: auto;
+}
+
+.side-panel.open {
+    right: 0;
+}
+
+.side-panel-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    background: rgba(0, 0, 0, 0.07);
+    border: none;
+    color: #1a1a1a;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    cursor: pointer;
+    font-size: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background 0.2s;
+}
+
+.side-panel-close:hover {
+    background: rgba(0, 0, 0, 0.13);
+}
+
+/* ============================================================
+   Layers Panel
+   ============================================================ */
+.layers-tree {
+    font-size: 11px;
+    font-family: 'Courier New', monospace;
+}
+
+.layer-item {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 4px;
+    margin: 2px 0;
+    background: rgba(79, 172, 254, 0.06);
+    border-radius: 4px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    border-left: 2px solid transparent;
+}
+
+.layer-item:hover {
+    background: rgba(79, 172, 254, 0.14);
+    border-left-color: #4facfe;
+}
+
+.layer-item.active {
+    background: rgba(79, 172, 254, 0.2);
+    border-left-color: #0099dd;
+    color: #0066cc;
+}
+
+.layer-toggle {
+    width: 18px;
+    height: 18px;
+    background: none;
+    border: none;
+    color: rgba(0, 0, 0, 0.5);
+    cursor: pointer;
+    font-size: 10px;
+    padding: 0;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.layer-name {
+    flex: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    font-size: 10px;
+}
+
+/* ============================================================
+   Sliders
+   ============================================================ */
+.slider-group {
+    margin: 10px 0;
+}
+
+.slider-group label {
+    display: block;
+    font-size: 11px;
+    margin-bottom: 5px;
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.slider {
+    width: 100%;
+    height: 4px;
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 2px;
+    outline: none;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+.slider::-webkit-slider-thumb {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    background: #4facfe;
+    cursor: pointer;
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.2);
+}
+
+.value-display {
+    font-size: 10px;
+    color: rgba(0, 0, 0, 0.42);
+    margin-top: 3px;
+}
+
+/* ============================================================
+   Toast
+   ============================================================ */
+.toast {
+    position: fixed;
+    bottom: 80px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(255, 255, 255, 0.96);
+    color: #1a1a1a;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 12px;
+    z-index: 3000;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    pointer-events: none;
+    white-space: nowrap;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.1);
+}
+
+.toast.show {
+    opacity: 1;
+}
+
+.toast.success {
+    border-color: rgba(76, 175, 80, 0.5);
+}
+
+.toast.error {
+    border-color: rgba(244, 67, 54, 0.5);
+}
+
+/* ============================================================
+   Loading Indicator
+   ============================================================ */
+.loading {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 13px;
+    color: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.loading::after {
+    content: '';
+    display: inline-block;
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(0, 0, 0, 0.12);
+    border-radius: 50%;
+    border-top-color: #4facfe;
+    animation: spin 0.8s ease-in-out infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* ============================================================
+   Touch Feedback Ripple
+   ============================================================ */
+.touch-feedback {
+    position: absolute;
+    width: 36px;
+    height: 36px;
+    background: rgba(79, 172, 254, 0.22);
+    border-radius: 50%;
+    pointer-events: none;
+    transform: translate(-50%, -50%) scale(0);
+    animation: touch-ripple 0.5s ease-out forwards;
+}
+
+@keyframes touch-ripple {
+    to {
+        transform: translate(-50%, -50%) scale(2.5);
+        opacity: 0;
+    }
+}
+
+/* ============================================================
+   Mini Map
+   ============================================================ */
+.mini-map {
+    position: absolute;
+    bottom: 90px;
+    left: 60px;
+    width: 120px;
+    height: 80px;
+    background: rgba(255, 255, 255, 0.95);
+    border: 1px solid rgba(0, 0, 0, 0.12);
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 500;
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.mini-map.visible {
+    opacity: 1;
+}
+
+.mini-map svg {
+    width: 100%;
+    height: 100%;
+}
+
+.mini-map-viewport {
+    position: absolute;
+    border: 2px solid #4facfe;
+    background: rgba(79, 172, 254, 0.15);
+    pointer-events: none;
+}
+
+/* ============================================================
+   3D Perspective Wrapper
+   ============================================================ */
+.svg-wrapper.perspective-3d {
+    perspective: var(--perspective-distance, 1500px);
+    transform-style: preserve-3d;
+}
+
+.svg-wrapper.perspective-3d #svgDisplay {
+    transform-style: preserve-3d;
+    transition: transform 0.1s ease-out;
+}
+
+/* ============================================================
+   Responsive
+   ============================================================ */
+@media (max-width: 768px) {
+    .panel-content {
+        display: none;
+    }
+
+    .btn {
+        padding: 4px 6px;
+        font-size: 15px;
+        background: none;
+        border: none;
+    }
+
+    .side-panel {
+        width: 75%;
+        right: -100%;
+    }
+
+    .slide-bar {
+        writing-mode: sideways-lr;
+    }
+
+    .bottom-controls {
+        grid-template-columns: repeat(5, 1fr);
+    }
+
+    .control-group-flex {
+        width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .header-left {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 5px;
+        margin: 6px 0;
+    }
+}
+
+/* ============================================================
+   DARK MODE — body.dark-mode overrides
+   ============================================================ */
+body.dark-mode {
+    background-color: #bfbfbf;
+    color: white;
+}
+
+body.dark-mode .tifany-header {
+    background: rgba(18, 18, 18, 0.97) !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08) !important;
+    backdrop-filter: blur(10px);
+}
+
+body.dark-mode .tifany-header .logo h1 a,
+body.dark-mode .tifany-header .logo h1 {
+    color: #4facfe;
+}
+
+body.dark-mode .tifany-header .logo-accent {
+    color: #00f2fe;
+}
+
+body.dark-mode .tifany-header .tool-subtitle {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+body.dark-mode .tifany-header .nav-link {
+    color: rgba(255, 255, 255, 0.55) !important;
+}
+
+body.dark-mode .tifany-header .nav-link:hover {
+    color: rgba(255, 255, 255, 0.9) !important;
+    background: rgba(255, 255, 255, 0.07) !important;
+}
+
+body.dark-mode .tifany-header .theme-toggle-btn {
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+}
+
+body.dark-mode .tifany-header .theme-toggle-btn:hover {
+    background: rgba(255, 255, 255, 0.08) !important;
+    color: white !important;
+}
+
+body.dark-mode .custom-bar {
+    background-color: rgb(40 40 40 / 97%);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .btn {
+    background: rgb(79 172 254 / 18%);
+    border: 1px solid rgba(79, 172, 254, 0.3);
+    color: white;
+}
+
+body.dark-mode .btn:hover,
+body.dark-mode .btn.active {
+    background: rgba(79, 172, 254, 0.35);
+}
+
+body.dark-mode .slide-bar {
+    background: rgb(55 55 55 / 90%) !important;
+    color: rgba(255, 255, 255, 0.8);
+    border-right: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .switch {
+    background-color: rgba(255, 255, 255, 0.2);
+}
+
+body.dark-mode .switch-content {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+body.dark-mode .svg-viewer {
+    background: radial-gradient(circle at center, rgba(255, 255, 255, 0.04) 0%, transparent 70%);
+}
+
+body.dark-mode .bottom-controls {
+    background: rgb(40 40 40 / 97%);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .control-btn {
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+body.dark-mode .control-btn:hover {
+    background: rgba(79, 172, 254, 0.15);
+    border-color: rgba(79, 172, 254, 0.4);
+    color: #4facfe;
+}
+
+body.dark-mode .control-btn:active {
+    background: rgba(79, 172, 254, 0.25);
+}
+
+body.dark-mode .control-group {
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .control-group-flex {
+    background: rgb(0 0 0 / 15%);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .control-group h3,
+body.dark-mode .custom-bar h3 {
+    color: #4facfe;
+}
+
+body.dark-mode .side-panel {
+    background: rgb(28 28 28);
+    border-left: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .side-panel-close {
+    background: rgba(255, 255, 255, 0.08);
+    color: white;
+}
+
+body.dark-mode .side-panel-close:hover {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .layer-toggle {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+body.dark-mode .layer-item.active {
+    color: #00f2fe;
+}
+
+body.dark-mode .slider-group label {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+body.dark-mode .slider {
+    background: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .value-display {
+    color: rgba(255, 255, 255, 0.45);
+}
+
+body.dark-mode .toast {
+    background: rgba(10, 10, 10, 0.92);
+    color: white;
+    border: 1px solid rgba(255, 255, 255, 0.12);
+    box-shadow: none;
+}
+
+body.dark-mode .loading {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+body.dark-mode .loading::after {
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #4facfe;
+}
+
+body.dark-mode .mini-map {
+    background: rgba(0, 0, 0, 0.8);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    box-shadow: none;
+}
+
+/* Sidebar nav dark override */
+body.dark-mode .sidebar-nav-rail {
+    background: rgb(28 28 28 / 98%) !important;
+    border-right: 1px solid rgba(255, 255, 255, 0.07) !important;
+}
+
+body.dark-mode .sidebar-nav-rail a,
+body.dark-mode .sidebar-nav-rail button {
+    color: rgba(255, 255, 255, 0.45) !important;
+}
+
+body.dark-mode .sidebar-nav-rail a:hover,
+body.dark-mode .sidebar-nav-rail button:hover {
+    background: rgba(79, 172, 254, 0.15) !important;
+    color: #4facfe !important;
+}
+
+body.dark-mode .sidebar-nav-rail a.active {
+    color: #4facfe !important;
+    background: rgba(79, 172, 254, 0.2) !important;
+}
