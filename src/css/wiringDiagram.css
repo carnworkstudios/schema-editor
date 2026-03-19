@@ -72,6 +72,16 @@
 }
 
 /* ============================================================
+   Component Hitbox (invisible fill target over each component)
+   ============================================================ */
+.component-hitbox {
+    pointer-events: all;
+    cursor: pointer;
+    fill-opacity: 0 !important;
+    stroke-opacity: 0 !important;
+}
+
+/* ============================================================
    Selection
    ============================================================ */
 .selected-element {
@@ -109,6 +119,63 @@
 .edit-handle.rotate {
     cursor: crosshair;
     background: #00f2fe;
+}
+
+/* ============================================================
+   Layer panel hover — highlights corresponding SVG element
+   ============================================================ */
+.layer-hover-highlight:hover path {
+  stroke: rgba(79, 172, 254, 0.9);
+  stroke-width: 2px;
+  paint-order: stroke; /* Ensures the stroke is behind the fill */
+}
+/* ============================================================
+   Canvas-mode overlays (PDF, TIFF, raster files)
+   Invisible by default; revealed through interaction states.
+   Visual layer = rasterized <image>. Interaction layer = SVG overlays.
+   ============================================================ */
+
+/* Wire overlays — invisible until highlighted */
+.canvas-wire-overlay {
+    stroke-opacity: 0;
+    fill: none;
+    pointer-events: none;     /* hitbox sibling handles pointer events */
+    transition: stroke-opacity 0.2s ease;
+}
+.canvas-wire-hitbox {
+    pointer-events: stroke;
+    cursor: pointer;
+    stroke-opacity: 0 !important;
+}
+
+/* States that reveal the wire overlay on the canvas */
+.canvas-wire-overlay.wire-trace {
+    stroke-opacity: 0.85 !important;
+    stroke: #ff6b6b !important;
+    filter: drop-shadow(0 0 4px rgba(255, 107, 107, 0.8)) !important;
+}
+.canvas-wire-overlay.selected-element {
+    stroke-opacity: 0.85 !important;
+}
+
+/* Component overlays — transparent bounding boxes */
+.canvas-component-overlay {
+    fill-opacity: 0;
+    stroke-opacity: 0;
+    pointer-events: fill;
+    cursor: pointer;
+    transition: fill-opacity 0.2s ease, stroke-opacity 0.2s ease;
+}
+.canvas-component-overlay.component-highlight {
+    fill: rgba(255, 215, 0, 0.25) !important;
+    stroke: #ffa500 !important;
+    stroke-width: 2 !important;
+    stroke-opacity: 1 !important;
+}
+.canvas-component-overlay.selected-element {
+    stroke: #4facfe !important;
+    stroke-width: 2 !important;
+    stroke-opacity: 1 !important;
 }
 
 /* ============================================================

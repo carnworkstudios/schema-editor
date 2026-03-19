@@ -15,6 +15,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/hammer.js/2.0.8/hammer.min.js"></script>
     <script src="https://code.iconify.design/iconify-icon/2.1.0/iconify-icon.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
+    <script src="https://cdn.jsdelivr.net/npm/imagetracer-js@1.2.6/imagetracer_v1.2.6.js"></script>
 
     <!-- Shared portfolio styles + TIFANY base (header, sidebar-nav, logo-accent) -->
     <link rel="stylesheet" href="../../../assets/css/portfolio.css">
@@ -323,7 +326,7 @@
     </div><!-- /.app-container -->
 
     <!-- Hidden file input -->
-    <input type="file" id="hiddenFileInput" accept=".svg,image/svg+xml" style="display:none;">
+    <input type="file" id="hiddenFileInput" accept=".svg,.svgz,image/svg+xml,.pdf,application/pdf,.png,image/png,.jpg,.jpeg,image/jpeg,.bmp,image/bmp,.tif,.tiff,image/tiff,.plt,.hpgl,.dwf,.dwfx" style="display:none;">
 
     <!-- ============================================================
      JS — feature files loaded in dependency order

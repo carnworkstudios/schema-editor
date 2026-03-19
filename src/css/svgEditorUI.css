@@ -476,6 +476,26 @@ body {
     overflow: hidden;
     text-overflow: ellipsis;
     font-size: 10px;
+    cursor: text;
+}
+
+/* Inline rename input that replaces .layer-name on dblclick */
+.layer-name-input {
+    flex: 1;
+    background: rgba(79, 172, 254, 0.12);
+    border: 1px solid #4facfe;
+    border-radius: 3px;
+    color: inherit;
+    font-size: 10px;
+    font-family: inherit;
+    padding: 1px 5px;
+    min-width: 0;
+    width: 100%;
+    outline: none;
+}
+.layer-name-input:focus {
+    background: rgba(79, 172, 254, 0.2);
+    box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.3);
 }
 
 /* ============================================================
