@@ -1,9 +1,11 @@
 /* ============================================================
    SVG Wiring Editor — Layers Feature
-   Layers tree panel, visibility toggles, layer selection
+   Layers tree panel (side panel) + Timeline thumbnail filmstrip
    ============================================================ */
 
 Object.assign(MobileSVGEditor.prototype, {
+
+    // ── Layers tree (side panel) — unchanged behaviour ────────
 
     showLayers() {
         this.$sidePanel.addClass('open');
@@ -22,10 +24,10 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const buildTree = (elements, depth) => {
             elements.forEach((el, idx) => {
-                const $el     = $(el);
-                const tag     = el.tagName.toLowerCase();
-                const id      = $el.attr('id') || `${tag}_${idx}`;
-                const isGroup = tag === 'g';
+                const $el      = $(el);
+                const tag      = el.tagName.toLowerCase();
+                const id       = $el.attr('id') || `${tag}_${idx}`;
+                const isGroup  = tag === 'g';
                 const childCount = isGroup ? el.children.length : 0;
 
                 const toggleIcon = isGroup ? (childCount > 0 ? '▾' : '◂') : '●';
@@ -42,7 +44,6 @@ Object.assign(MobileSVGEditor.prototype, {
 
                 $item.on('click', () => this.selectLayer(el, $item));
 
-                // Hover: highlight the corresponding SVG element in the display
                 $item.on('mouseenter', () => {
                     if (!$item.hasClass('active')) $(el).addClass('layer-hover-highlight');
                 }).on('mouseleave', () => {
@@ -62,7 +63,6 @@ Object.assign(MobileSVGEditor.prototype, {
                     $item.css('opacity', hidden ? 1 : 0.4);
                 });
 
-                // Double-click on the name label → inline rename
                 $item.find('.layer-name').on('dblclick', (e) => {
                     e.stopPropagation();
                     this.startLayerRename(el, $item, $(e.currentTarget));
@@ -82,7 +82,6 @@ Object.assign(MobileSVGEditor.prototype, {
     selectLayer(element, $layerItem) {
         $('.layer-item.active').removeClass('active');
         $layerItem.addClass('active');
-        // Remove hover highlight now that it's selected
         $(element).removeClass('layer-hover-highlight');
         this.clearSelection();
         this.selectedElements = [element];
@@ -91,7 +90,7 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     startLayerRename(svgEl, $item, $nameSpan) {
-        if ($item.find('.layer-name-input').length) return; // already editing
+        if ($item.find('.layer-name-input').length) return;
 
         const tag = svgEl.tagName.toLowerCase();
         const currentId = $(svgEl).attr('id') || '';
@@ -104,13 +103,11 @@ Object.assign(MobileSVGEditor.prototype, {
         $input[0].select();
 
         const commit = () => {
-            // Sanitize: trim, replace spaces with hyphens, strip invalid XML id chars
             const raw = $input.val().trim();
             const newId = raw
                 ? raw.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_\-:.]/g, '')
                 : currentId;
 
-            // Apply to SVG element — used by export (id attr is preserved on serialization)
             if (newId) svgEl.setAttribute('id', newId);
             $item.attr('data-element-id', newId || currentId);
 
@@ -118,7 +115,6 @@ Object.assign(MobileSVGEditor.prototype, {
             const $newSpan = $(`<span class="layer-name" title="Double-click to rename">${label}</span>`);
             $input.replaceWith($newSpan);
 
-            // Re-bind rename on the new span
             $newSpan.on('dblclick', (e) => {
                 e.stopPropagation();
                 this.startLayerRename(svgEl, $item, $newSpan);
@@ -128,7 +124,87 @@ Object.assign(MobileSVGEditor.prototype, {
         $input.on('blur', commit);
         $input.on('keydown', (e) => {
             if (e.key === 'Enter')  { $input.trigger('blur'); }
-            if (e.key === 'Escape') { $input.replaceWith($nameSpan); } // cancel
+            if (e.key === 'Escape') { $input.replaceWith($nameSpan); }
         });
+    },
+
+    // ── Timeline thumbnail filmstrip ──────────────────────────
+
+    showTimeline() {
+        $('#timelinePanel').toggleClass('open');
+        if ($('#timelinePanel').hasClass('open')) this.buildTimeline();
+    },
+
+    buildTimeline() {
+        const $tracks = $('#timelineTracks');
+        $tracks.empty();
+
+        this.displays.forEach((display, idx) => {
+            const isActive = idx === this.activeDisplayIdx;
+
+            // Build SVG thumbnail from stored content
+            let thumbHtml = '<iconify-icon icon="material-symbols:description-outline" style="font-size:22px;opacity:0.4;"></iconify-icon>';
+            try {
+                const parser = new DOMParser();
+                const svgDoc = parser.parseFromString(display.svgContent, 'image/svg+xml');
+                const svgEl  = svgDoc.querySelector('svg');
+                if (svgEl) {
+                    const vb = svgEl.getAttribute('viewBox') || '0 0 400 300';
+                    thumbHtml = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}">${svgEl.innerHTML}</svg>`;
+                }
+            } catch (_) { /* fallback icon */ }
+
+            const shortName = display.name.length > 10
+                ? display.name.slice(0, 9) + '…'
+                : display.name;
+
+            const $card = $(`
+                <div class="timeline-card${isActive ? ' active' : ''}" data-idx="${idx}" title="${display.name}">
+                    <div class="timeline-card-preview">${thumbHtml}</div>
+                    <div class="timeline-card-name">${shortName}</div>
+                    <button class="timeline-card-del" title="Remove">✕</button>
+                </div>
+            `);
+
+            $card.on('click', e => {
+                if (!$(e.target).closest('.timeline-card-del').length) {
+                    this.switchDisplay(idx);
+                }
+            });
+
+            $card.find('.timeline-card-del').on('click', e => {
+                e.stopPropagation();
+                this.removeDisplay(idx);
+            });
+
+            $tracks.append($card);
+        });
+
+        // Add (+) card at the end
+        const $addCard = $(`
+            <div class="timeline-card timeline-add-card" title="Add diagram">
+                <div class="timeline-card-preview">
+                    <iconify-icon icon="material-symbols:add" style="font-size:24px;opacity:0.5;"></iconify-icon>
+                </div>
+                <div class="timeline-card-name">Add</div>
+            </div>
+        `);
+        $addCard.on('click', () => $('#hiddenFileInput').click());
+        $tracks.append($addCard);
+    },
+
+    removeDisplay(idx) {
+        this.displays.splice(idx, 1);
+
+        if (!this.displays.length) {
+            this.$svgDisplay.empty();
+            this.wires = [];
+            this.components = [];
+            this.activeDisplayIdx = -1;
+            this.buildTimeline();
+            return;
+        }
+
+        this.switchDisplay(Math.min(idx, this.displays.length - 1));
     },
 });

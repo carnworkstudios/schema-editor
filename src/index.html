@@ -138,9 +138,21 @@
                 <h3>Export</h3>
             </button>
             <div class="panel control-group-flex">
-                <button class="btn" id="exportViewBtn" title="Export Current View as SVG">
+                <button class="btn" id="exportViewBtn" title="Export current diagram as SVG">
                     <iconify-icon icon="material-symbols:upload-file-outline"></iconify-icon>
-                    <span class="panel-content">Export SVG</span>
+                    <span class="panel-content">SVG</span>
+                </button>
+                <button class="btn" id="exportHtmlBtn" title="Export current diagram as HTML">
+                    <iconify-icon icon="material-symbols:html"></iconify-icon>
+                    <span class="panel-content">HTML</span>
+                </button>
+                <button class="btn" id="exportJsonBtn" title="Export diagram data as JSON">
+                    <iconify-icon icon="material-symbols:data-object"></iconify-icon>
+                    <span class="panel-content">JSON</span>
+                </button>
+                <button class="btn" id="batchExportBtn" title="Batch export all loaded diagrams as SVG">
+                    <iconify-icon icon="material-symbols:download-for-offline-outline"></iconify-icon>
+                    <span class="panel-content">Batch</span>
                 </button>
             </div>
 
@@ -203,6 +215,15 @@
         </div><!-- /.main-layout -->
 
         <!-- ======================================================
+         TIMELINE PANEL — thumbnail filmstrip, toggled by Timeline btn
+         ====================================================== -->
+        <div class="timeline-panel" id="timelinePanel">
+            <div class="timeline-tracks" id="timelineTracks">
+                <!-- Populated by buildTimeline() -->
+            </div>
+        </div>
+
+        <!-- ======================================================
          BOTTOM CONTROLS
          ====================================================== -->
         <div class="bottom-controls" id="bottomControls">
@@ -259,6 +280,12 @@
                 <div class="icon"><iconify-icon icon="material-symbols:layers-outline"
                         style="font-size:20px;"></iconify-icon></div>
                 <div>Layers</div>
+            </div>
+
+            <div class="control-btn" id="timelineBtn" title="Timeline — all loaded diagrams">
+                <div class="icon"><iconify-icon icon="material-symbols:video-library-outline"
+                        style="font-size:20px;"></iconify-icon></div>
+                <div>Timeline</div>
             </div>
 
         </div><!-- /.bottom-controls -->
@@ -323,10 +350,68 @@
         <!-- Toast -->
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+        <!-- ======================================================
+         MEASURE MODAL — unit scale setup
+         ====================================================== -->
+        <div class="modal-backdrop" id="measureModal" role="dialog" aria-modal="true" aria-label="Measure unit scale">
+            <div class="modal">
+                <h3 class="modal-title">
+                    <iconify-icon icon="material-symbols:straighten-outline" style="font-size:16px;"></iconify-icon>
+                    Measure Scale
+                </h3>
+
+                <!-- System tabs -->
+                <div class="measure-tabs">
+                    <button class="measure-tab active" data-system="px">Pixels</button>
+                    <button class="measure-tab" data-system="metric">Metric</button>
+                    <button class="measure-tab" data-system="imperial">Imperial</button>
+                </div>
+
+                <!-- Pixel (no-scale) group -->
+                <div class="measure-unit-group" data-system="px">
+                    <div class="measure-unit-btns">
+                        <button class="measure-unit-btn active" data-unit="px">px</button>
+                    </div>
+                    <p class="measure-hint">Distances shown in raw screen pixels.</p>
+                </div>
+
+                <!-- Metric group -->
+                <div class="measure-unit-group" data-system="metric" style="display:none;">
+                    <div class="measure-unit-btns">
+                        <button class="measure-unit-btn" data-unit="mm">mm</button>
+                        <button class="measure-unit-btn" data-unit="cm">cm</button>
+                        <button class="measure-unit-btn" data-unit="m">m</button>
+                    </div>
+                </div>
+
+                <!-- Imperial group -->
+                <div class="measure-unit-group" data-system="imperial" style="display:none;">
+                    <div class="measure-unit-btns">
+                        <button class="measure-unit-btn" data-unit="in">in</button>
+                        <button class="measure-unit-btn" data-unit="ft">ft</button>
+                        <button class="measure-unit-btn" data-unit="yd">yd</button>
+                    </div>
+                </div>
+
+                <!-- Shared scale row (hidden when px tab active) -->
+                <div class="measure-scale-row" id="measureScaleRow" style="display:none;">
+                    <input type="number" id="measurePxVal" class="measure-scale-input" value="1" min="0.001" step="any">
+                    <span class="measure-scale-sep">px =</span>
+                    <input type="number" id="measureUnitVal" class="measure-scale-input" value="1" min="0.001" step="any">
+                    <span class="measure-scale-unit-label" id="measureScaleUnitLabel">mm</span>
+                </div>
+
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" id="measureModalCancel">Cancel</button>
+                    <button class="btn btn-primary" id="measureModalOk">Start Measuring</button>
+                </div>
+            </div>
+        </div>
+
     </div><!-- /.app-container -->
 
-    <!-- Hidden file input -->
-    <input type="file" id="hiddenFileInput" accept=".svg,.svgz,image/svg+xml,.pdf,application/pdf,.png,image/png,.jpg,.jpeg,image/jpeg,.bmp,image/bmp,.tif,.tiff,image/tiff,.plt,.hpgl,.dwf,.dwfx" style="display:none;">
+    <!-- Hidden file input — multiple for batch upload -->
+    <input type="file" id="hiddenFileInput" multiple accept=".svg,.svgz,image/svg+xml,.pdf,application/pdf,.png,image/png,.jpg,.jpeg,image/jpeg,.bmp,image/bmp,.tif,.tiff,image/tiff,.plt,.hpgl,.dwf,.dwfx" style="display:none;">
 
     <!-- ============================================================
      JS — feature files loaded in dependency order

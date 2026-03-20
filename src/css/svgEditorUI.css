@@ -424,7 +424,7 @@ body {
 }
 
 /* ============================================================
-   Layers Panel
+   Layers Panel (side panel tree)
    ============================================================ */
 .layers-tree {
     font-size: 11px;
@@ -479,7 +479,6 @@ body {
     cursor: text;
 }
 
-/* Inline rename input that replaces .layer-name on dblclick */
 .layer-name-input {
     flex: 1;
     background: rgba(79, 172, 254, 0.12);
@@ -493,9 +492,131 @@ body {
     width: 100%;
     outline: none;
 }
+
 .layer-name-input:focus {
     background: rgba(79, 172, 254, 0.2);
     box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.3);
+}
+
+/* ============================================================
+   Timeline Panel — thumbnail filmstrip, same style as bottom controls
+   ============================================================ */
+.timeline-panel {
+    display: none;
+    background: rgba(242, 243, 246, 0.97);
+    backdrop-filter: blur(15px);
+    border-top: 1px solid rgba(0, 0, 0, 0.07);
+    padding: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(0, 0, 0, 0.15) transparent;
+}
+
+.timeline-panel.open {
+    display: flex;
+}
+
+.timeline-tracks {
+    display: flex;
+    gap: 6px;
+    align-items: flex-start;
+}
+
+.timeline-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 3px;
+    padding: 6px 4px;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    font-size: 10px;
+    color: rgba(0, 0, 0, 0.6);
+    min-width: 72px;
+    flex-shrink: 0;
+    position: relative;
+}
+
+.timeline-card:hover {
+    background: rgba(79, 172, 254, 0.12);
+    border-color: rgba(79, 172, 254, 0.4);
+    color: #0066cc;
+}
+
+.timeline-card:active {
+    transform: scale(0.95);
+    background: rgba(79, 172, 254, 0.22);
+}
+
+.timeline-card.active {
+    background: rgba(79, 172, 254, 0.14);
+    border-color: #4facfe;
+    color: #0066cc;
+}
+
+.timeline-card-preview {
+    width: 60px;
+    height: 42px;
+    background: white;
+    border-radius: 4px;
+    border: 1px solid rgba(0, 0, 0, 0.08);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.timeline-card-preview svg {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+
+.timeline-card-name {
+    font-size: 9px;
+    max-width: 70px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    text-align: center;
+    color: inherit;
+}
+
+.timeline-card-del {
+    position: absolute;
+    top: 2px;
+    right: 3px;
+    background: none;
+    border: none;
+    font-size: 9px;
+    color: rgba(0, 0, 0, 0.25);
+    cursor: pointer;
+    line-height: 1;
+    padding: 1px 2px;
+    border-radius: 2px;
+    display: none;
+}
+
+.timeline-card:hover .timeline-card-del {
+    display: block;
+}
+
+.timeline-card-del:hover {
+    color: #e53935;
+    background: rgba(229, 57, 53, 0.08);
+}
+
+.timeline-add-card {
+    border-style: dashed;
+    color: rgba(0, 0, 0, 0.35);
+}
+
+.timeline-add-card:hover {
+    border-style: solid;
 }
 
 /* ============================================================
@@ -852,6 +973,37 @@ body.dark-mode .layer-item.active {
     color: #00f2fe;
 }
 
+body.dark-mode .timeline-panel {
+    background: rgb(40 40 40 / 97%);
+    border-top: 1px solid rgba(255, 255, 255, 0.06);
+}
+
+body.dark-mode .timeline-card {
+    border-color: rgba(255, 255, 255, 0.12);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+body.dark-mode .timeline-card:hover {
+    background: rgba(79, 172, 254, 0.15);
+    border-color: rgba(79, 172, 254, 0.4);
+    color: #4facfe;
+}
+
+body.dark-mode .timeline-card.active {
+    background: rgba(79, 172, 254, 0.18);
+    border-color: #4facfe;
+    color: #4facfe;
+}
+
+body.dark-mode .timeline-card-preview {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.08);
+}
+
+body.dark-mode .timeline-card-del {
+    color: rgba(255, 255, 255, 0.25);
+}
+
 body.dark-mode .slider-group label {
     color: rgba(255, 255, 255, 0.7);
 }
@@ -906,4 +1058,226 @@ body.dark-mode .sidebar-nav-rail button:hover {
 body.dark-mode .sidebar-nav-rail a.active {
     color: #4facfe !important;
     background: rgba(79, 172, 254, 0.2) !important;
+}
+
+/* ============================================================
+   Modal — shared base
+   ============================================================ */
+.modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
+    background: rgba(0, 0, 0, 0.55);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+}
+
+.modal-backdrop.open {
+    display: flex;
+}
+
+.modal {
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    width: 100%;
+    max-width: 340px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.modal-title {
+    font-size: 14px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: #1a1a1a;
+}
+
+/* ── Measure Modal ───────────────────────────────────────── */
+
+.measure-tabs {
+    display: flex;
+    gap: 4px;
+    background: rgba(0, 0, 0, 0.06);
+    border-radius: 8px;
+    padding: 3px;
+}
+
+.measure-tab {
+    flex: 1;
+    padding: 5px 0;
+    border: none;
+    background: transparent;
+    border-radius: 6px;
+    font-size: 11px;
+    font-weight: 500;
+    cursor: pointer;
+    color: rgba(0, 0, 0, 0.5);
+    transition: background 0.15s, color 0.15s;
+}
+
+.measure-tab.active {
+    background: #fff;
+    color: #0066cc;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.measure-unit-btns {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.measure-unit-btn {
+    padding: 5px 14px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    background: transparent;
+    font-size: 12px;
+    cursor: pointer;
+    color: #1a1a1a;
+    transition: background 0.12s, border-color 0.12s, color 0.12s;
+}
+
+.measure-unit-btn.active {
+    background: #0066cc;
+    border-color: #0066cc;
+    color: #fff;
+}
+
+.measure-scale-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 4px;
+}
+
+.measure-scale-input {
+    width: 64px;
+    padding: 5px 8px;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    border-radius: 6px;
+    font-size: 12px;
+    text-align: center;
+    background: transparent;
+    color: #1a1a1a;
+}
+
+.measure-scale-sep {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.45);
+    white-space: nowrap;
+}
+
+.measure-scale-unit-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: #0066cc;
+    min-width: 24px;
+}
+
+.measure-hint {
+    font-size: 11px;
+    color: rgba(0, 0, 0, 0.45);
+    margin-top: 4px;
+}
+
+.modal-actions {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+    padding-top: 4px;
+}
+
+.btn-ghost {
+    background: transparent;
+    border: 1px solid rgba(0, 0, 0, 0.15);
+    color: rgba(0, 0, 0, 0.6);
+}
+
+.btn-primary {
+    background: #0066cc;
+    border: 1px solid #0066cc;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background: #0055aa;
+    border-color: #0055aa;
+}
+
+/* ── Dark mode — Modal ───────────────────────────────────── */
+
+body.dark-mode .modal {
+    background: #1e1e1e;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+}
+
+body.dark-mode .modal-title {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+body.dark-mode .measure-tabs {
+    background: rgba(255, 255, 255, 0.07);
+}
+
+body.dark-mode .measure-tab {
+    color: rgba(255, 255, 255, 0.4);
+}
+
+body.dark-mode .measure-tab.active {
+    background: rgba(255, 255, 255, 0.1);
+    color: #4facfe;
+    box-shadow: none;
+}
+
+body.dark-mode .measure-unit-btn {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+body.dark-mode .measure-unit-btn.active {
+    background: #4facfe;
+    border-color: #4facfe;
+    color: #000;
+}
+
+body.dark-mode .measure-scale-input {
+    border-color: rgba(255, 255, 255, 0.15);
+    color: rgba(255, 255, 255, 0.8);
+    background: rgba(255, 255, 255, 0.05);
+}
+
+body.dark-mode .measure-scale-sep {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+body.dark-mode .measure-scale-unit-label {
+    color: #4facfe;
+}
+
+body.dark-mode .measure-hint {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+body.dark-mode .btn-ghost {
+    border-color: rgba(255, 255, 255, 0.2);
+    color: rgba(255, 255, 255, 0.55);
+}
+
+body.dark-mode .btn-primary {
+    background: #4facfe;
+    border-color: #4facfe;
+    color: #000;
+}
+
+body.dark-mode .btn-primary:hover {
+    background: #3d9ef0;
+    border-color: #3d9ef0;
 }

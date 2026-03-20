@@ -33,9 +33,21 @@ class MobileSVGEditor {
         this.clickTimeout = null;
         this.toastTimeout = null;
 
+        // Measure state
+        this._measuring = false;
+        this._measurePoints = [];
+        this._measureUnit = 'px';
+        this._measureScaleFactor = null;
+        this._measurePxVal = 1;
+        this._measureUnitVal = 1;
+
         // History (populated by history.js)
         this._historyStack = [];
         this._historyIndex = -1;
+
+        // Multi-display
+        this.displays = [];
+        this.activeDisplayIdx = -1;
 
         this.SVG_NS = 'http://www.w3.org/2000/svg';
 
@@ -148,9 +160,12 @@ class MobileSVGEditor {
     }
 
     bindEvents() {
-        // Load file
+        // Load file (multi-select)
         $('#loadFileBtn').on('click', () => $('#hiddenFileInput').click());
-        $('#svgFileInput, #hiddenFileInput').on('change', (e) => this.loadSVGFile(e));
+        $('#svgFileInput, #hiddenFileInput').on('change', (e) => this.loadSVGFiles(e));
+
+        // Timeline filmstrip
+        $('#timelineBtn').on('click', () => this.showTimeline());
 
         // Trace wire switch — fixed: no broken $(this) in arrow fn
         $('#traceWireBtn').on('click', () => this.toggleWireTracing());
@@ -165,7 +180,7 @@ class MobileSVGEditor {
         $('#fitViewBtn').on('click',   () => this.fitToView());
         $('#rotateBtn').on('click',    () => this.rotateView());
         $('#rotateLeftBtn').on('click',() => this.rotateViewLeft());
-        $('#layersBtn').on('click',    () => this.showLayers());
+        $('#layersBtn').on('click',    () => this.toggleSidePanel());
         $('#measureBtn').on('click',   () => this.toggleMeasureTool());
         $('#transformBtn').on('click', () => this.toggleSidePanel());
 
@@ -191,9 +206,12 @@ class MobileSVGEditor {
         $('#clearHighlightsBtn').on('click', () => this.clearAllHighlights());
 
         // Export / display
-        $('#exportViewBtn').on('click',  () => this.exportCurrentView());
+        $('#exportViewBtn').on('click',    () => this.exportCurrentView());
+        $('#exportHtmlBtn').on('click',    () => this.exportAsHtml());
+        $('#exportJsonBtn').on('click',    () => this.exportAsJson());
+        $('#batchExportBtn').on('click',   () => this.batchExport());
         $('#toggleMiniMapBtn').on('click', () => this.toggleMiniMap());
-        $('#darkModeBtn').on('click',    () => this.toggleDarkMode());
+        $('#darkModeBtn').on('click',      () => this.toggleDarkMode());
 
         // Side panel
         $('#closePanelBtn').on('click', () => this.closeSidePanel());
@@ -245,7 +263,7 @@ class MobileSVGEditor {
         $(document).on('click', (e) => {
             const $t = $(e.target);
             if (!$t.closest('#sidePanel').length &&
-                !$t.closest('#layersBtn, #transformBtn, #closePanelBtn').length &&
+                !$t.closest('#transformBtn, #closePanelBtn, #layersBtn').length &&
                 this.$sidePanel.hasClass('open')) {
                 this.closeSidePanel();
             }
@@ -253,6 +271,56 @@ class MobileSVGEditor {
 
         // Prevent context menu on long press
         this.$svgContainer.on('contextmenu', (e) => e.preventDefault());
+
+        // Measure modal — tab switching
+        $(document).on('click', '.measure-tab', (e) => {
+            const system = $(e.currentTarget).data('system');
+            $('.measure-tab').removeClass('active');
+            $(e.currentTarget).addClass('active');
+            $('.measure-unit-group').hide();
+            $(`.measure-unit-group[data-system="${system}"]`).show();
+            // Select first unit in group
+            const $first = $(`.measure-unit-group[data-system="${system}"] .measure-unit-btn`).first();
+            $('.measure-unit-btn').removeClass('active');
+            $first.addClass('active');
+            // Show/hide scale row
+            const showScale = system !== 'px';
+            $('#measureScaleRow').toggle(showScale);
+            if (showScale) $('#measureScaleUnitLabel').text($first.data('unit'));
+        });
+
+        // Measure modal — unit button selection
+        $(document).on('click', '.measure-unit-btn', (e) => {
+            $('.measure-unit-btn').removeClass('active');
+            $(e.currentTarget).addClass('active');
+            const unit = $(e.currentTarget).data('unit');
+            if (unit !== 'px') $('#measureScaleUnitLabel').text(unit);
+        });
+
+        // Measure modal — OK
+        $('#measureModalOk').on('click', () => {
+            const unit = $('.measure-unit-btn.active').data('unit') || 'px';
+            const pxVal   = parseFloat($('#measurePxVal').val())   || 1;
+            const unitVal = parseFloat($('#measureUnitVal').val())  || 1;
+
+            this._measureUnit        = unit;
+            this._measurePxVal       = pxVal;
+            this._measureUnitVal     = unitVal;
+            this._measureScaleFactor = unit === 'px' ? null : (unitVal / pxVal);
+
+            $('#measureModal').removeClass('open');
+            this._startMeasuring();
+        });
+
+        // Measure modal — Cancel
+        $('#measureModalCancel').on('click', () => {
+            $('#measureModal').removeClass('open');
+        });
+
+        // Measure modal — backdrop click closes
+        $('#measureModal').on('click', (e) => {
+            if ($(e.target).is('#measureModal')) $('#measureModal').removeClass('open');
+        });
 
         // Orientation / resize
         $(window).on('orientationchange resize', () => {

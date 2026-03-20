@@ -5,28 +5,95 @@
 
 Object.assign(MobileSVGEditor.prototype, {
 
-    loadSVGFile(event) {
-        const file = event.target.files[0];
-        if (!file) return;
-
-        const ext = file.name.split('.').pop().toLowerCase();
+    // ── Multi-file batch load ─────────────────────────────────
+    loadSVGFiles(event) {
+        const files = Array.from(event.target.files);
+        event.target.value = ''; // reset so same file can be re-added
+        if (!files.length) return;
         this.showLoading(true);
 
-        if (ext === 'svg' || ext === 'svgz' || file.type === 'image/svg+xml') {
-            this._loadSVG(file);
-        } else if (ext === 'pdf' || file.type === 'application/pdf') {
-            this._loadPDF(file);
-        } else if (ext === 'plt' || ext === 'hpgl') {
-            this._loadPLT(file);
-        } else if (ext === 'dwf' || ext === 'dwfx') {
-            this._loadDWF(file);
-        } else if (ext === 'png' || ext === 'jpg' || ext === 'jpeg' || ext === 'bmp' ||
-                   ext === 'tif' || ext === 'tiff' || file.type.startsWith('image/')) {
-            this._loadRasterImage(file);
-        } else {
-            this.showToast('Unsupported format: .' + ext, 'error');
-            this.showLoading(false);
+        Promise.all(files.map(f => this._fileToSvgString(f).then(svg => ({ name: f.name, svgContent: svg }))))
+            .then(results => {
+                const firstNewIdx = this.displays.length;
+                results.forEach(r => this.displays.push({ id: `disp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...r }));
+                this.switchDisplay(firstNewIdx);
+            })
+            .catch(err => this.showToast('Load error: ' + err.message, 'error'))
+            .finally(() => this.showLoading(false));
+    },
+
+    // ── Switch active display ─────────────────────────────────
+    switchDisplay(idx) {
+        if (idx < 0 || idx >= this.displays.length) return;
+        this.activeDisplayIdx = idx;
+        const d = this.displays[idx];
+        try {
+            this._mountParsedSvg(d.svgContent, `Active: ${d.name}`);
+        } catch (e) {
+            this.showToast(`Render error: ${e.message}`, 'error');
         }
+        if ($('#timelinePanel').hasClass('open')) this.buildTimeline();
+    },
+
+    // ── Promise-based format dispatcher ──────────────────────
+    _fileToSvgString(file) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (ext === 'svg' || ext === 'svgz' || file.type === 'image/svg+xml')
+            return this._readTextFile(file);
+        if (ext === 'pdf' || file.type === 'application/pdf')
+            return this._pdfFileToSvg(file);
+        if (ext === 'plt' || ext === 'hpgl')
+            return this._readTextFile(file).then(text => this._hpglToSvg(text));
+        if (ext === 'dwf' || ext === 'dwfx')
+            return this._dwfFileToSvg(file);
+        if (['png','jpg','jpeg','bmp','tif','tiff'].includes(ext) || file.type.startsWith('image/'))
+            return this._rasterFileToSvg(file);
+        return Promise.reject(new Error(`Unsupported format: .${ext}`));
+    },
+
+    _readTextFile(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload  = e => resolve(e.target.result);
+            reader.onerror = () => reject(new Error('File read error'));
+            reader.readAsText(file);
+        });
+    },
+
+    _pdfFileToSvg(file) {
+        if (typeof pdfjsLib === 'undefined') return Promise.reject(new Error('PDF renderer not available'));
+        const url = URL.createObjectURL(file);
+        return pdfjsLib.getDocument(url).promise
+            .then(pdf => pdf.getPage(1))
+            .then(page => this._pdfOpsToSvg(page))
+            .finally(() => URL.revokeObjectURL(url));
+    },
+
+    _dwfFileToSvg(file) {
+        return this._readTextFile(file).then(text => {
+            const m = text.match(/<svg[\s\S]*?<\/svg>/i);
+            if (!m) throw new Error('DWF not renderable in-browser. Export as SVG or PDF first.');
+            return m[0];
+        });
+    },
+
+    _rasterFileToSvg(file) {
+        if (typeof ImageTracer === 'undefined') return Promise.reject(new Error('ImageTracer not loaded'));
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload  = e => {
+                ImageTracer.imageToSVG(
+                    e.target.result,
+                    svgStr => svgStr ? resolve(svgStr) : reject(new Error('ImageTracer returned empty result')),
+                    { ltres: 1, qtres: 1, pathomit: 8, rightangleenhance: true,
+                      colorsampling: 2, numberofcolors: 16, mincolorratio: 0, colorquantcycles: 3,
+                      scale: 1, strokewidth: 1, linefilter: false, viewbox: true, desc: false,
+                      blurradius: 0, blurdelta: 20 }
+                );
+            };
+            reader.onerror = () => reject(new Error('File read error'));
+            reader.readAsDataURL(file);
+        });
     },
 
     // ── Shared: mount a parsed SVG string into the display and activate all features ──
@@ -48,109 +115,6 @@ Object.assign(MobileSVGEditor.prototype, {
         this.closeSidePanel();
     },
 
-    // ── Shared: embed a raster data URL as an SVG <image> (trace/highlight unavailable) ──
-    _embedAsImage(src, width, height, filename) {
-        this.$svgDisplay.empty();
-        this.$svgDisplay.attr('viewBox', `0 0 ${width} ${height}`);
-        this.originalViewBox = `0 0 ${width} ${height}`;
-
-        const imageEl = document.createElementNS('http://www.w3.org/2000/svg', 'image');
-        imageEl.setAttribute('href', src);
-        imageEl.setAttribute('x', '0');
-        imageEl.setAttribute('y', '0');
-        imageEl.setAttribute('width', String(width));
-        imageEl.setAttribute('height', String(height));
-        imageEl.setAttribute('data-filename', filename);
-        this.$svgDisplay[0].appendChild(imageEl);
-
-        this.resetView();
-        this.updateMiniMap();
-        this.showToast(`${filename} loaded as image — wire trace & highlight unavailable for raster files`, 'success');
-        this.closeSidePanel();
-        this.showLoading(false);
-    },
-
-    // ── Canvas mode: embed raster visual + build invisible SVG overlay for interaction ──
-    _mountCanvasAsSvg(canvas, filename) {
-        const W = canvas.width, H = canvas.height;
-        const NS = 'http://www.w3.org/2000/svg';
-
-        this.$svgDisplay.empty();
-        this.$svgDisplay.attr('viewBox', `0 0 ${W} ${H}`);
-        this.originalViewBox = `0 0 ${W} ${H}`;
-
-        // Visual layer — the rasterized image
-        const imgEl = document.createElementNS(NS, 'image');
-        imgEl.setAttribute('href', canvas.toDataURL('image/png'));
-        imgEl.setAttribute('x', '0'); imgEl.setAttribute('y', '0');
-        imgEl.setAttribute('width', String(W)); imgEl.setAttribute('height', String(H));
-        this.$svgDisplay[0].appendChild(imgEl);
-
-        // Interaction layer — pixel-detected wires and components as invisible SVG overlays
-        this.wires = [];
-        this.components = [];
-        this.analyzeCanvasDiagram(canvas);
-
-        // Bind hover on canvas overlay hitboxes
-        if (!('ontouchstart' in window)) {
-            this.wires.forEach(w => {
-                w.$hitbox
-                    .on('mouseenter', () => this.highlightElement(w.$element, true))
-                    .on('mouseleave', () => this.highlightElement(w.$element, false));
-            });
-            this.components.forEach(c => {
-                c.$element
-                    .on('mouseenter', () => this.highlightElement(c.$element, true))
-                    .on('mouseleave', () => this.highlightElement(c.$element, false));
-            });
-        }
-
-        this.resetView();
-        this.updateMiniMap();
-        this.showToast(
-            `${filename} loaded — ${this.wires.length} wires, ${this.components.length} components detected`,
-            'success'
-        );
-        this.closeSidePanel();
-        this.showLoading(false);
-    },
-
-    // ── SVG ──────────────────────────────────────────────────
-    _loadSVG(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                this._mountParsedSvg(e.target.result, 'SVG loaded — all features active');
-            } catch (err) {
-                this.showToast('Error loading SVG: ' + err.message, 'error');
-            } finally {
-                this.showLoading(false);
-            }
-        };
-        reader.readAsText(file);
-    },
-
-    // ── PDF: direct operator-list extraction → native SVG paths ──────────────
-    _loadPDF(file) {
-        if (typeof pdfjsLib === 'undefined') {
-            this.showToast('PDF renderer not available.', 'error');
-            this.showLoading(false);
-            return;
-        }
-        const url = URL.createObjectURL(file);
-        pdfjsLib.getDocument(url).promise
-            .then(pdf => pdf.getPage(1))
-            .then(page => this._pdfOpsToSvg(page))
-            .then(svgContent => {
-                URL.revokeObjectURL(url);
-                this._mountParsedSvg(svgContent, `${file.name} — vector paths extracted`);
-            })
-            .catch(err => {
-                URL.revokeObjectURL(url);
-                this.showToast('PDF load error: ' + err.message, 'error');
-            })
-            .finally(() => this.showLoading(false));
-    },
 
     // ── Extract PDF drawing operators → SVG path elements ────────────────────
     _pdfOpsToSvg(page) {
@@ -261,72 +225,6 @@ Object.assign(MobileSVGEditor.prototype, {
         return `#${h(r)}${h(g)}${h(b)}`;
     },
 
-    // ── Raster images: bitmap trace → SVG paths via ImageTracer.js ───────────
-    _loadRasterImage(file) {
-        if (typeof ImageTracer === 'undefined') {
-            this.showToast('ImageTracer not loaded — cannot trace raster image', 'error');
-            this.showLoading(false);
-            return;
-        }
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            ImageTracer.imageToSVG(
-                e.target.result,
-                (svgStr) => {
-                    try {
-                        this._mountParsedSvg(svgStr, `${file.name} — bitmap traced to SVG`);
-                    } catch (err) {
-                        this.showToast('Trace error: ' + err.message, 'error');
-                    } finally {
-                        this.showLoading(false);
-                    }
-                },
-                {
-                    // Optimised for technical line drawings
-                    ltres: 1, qtres: 1, pathomit: 8,
-                    rightangleenhance: true,
-                    colorsampling: 2, numberofcolors: 16,
-                    mincolorratio: 0, colorquantcycles: 3,
-                    scale: 1, strokewidth: 1,
-                    linefilter: false, viewbox: true, desc: false,
-                    blurradius: 0, blurdelta: 20,
-                }
-            );
-        };
-        reader.readAsDataURL(file);
-    },
-
-    // ── PLT / HPGL: converts to SVG paths — all features active ──
-    _loadPLT(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                this._mountParsedSvg(this._hpglToSvg(e.target.result), 'PLT loaded — wire trace & highlight active');
-            } catch (err) {
-                this.showToast('Error loading PLT: ' + err.message, 'error');
-            } finally {
-                this.showLoading(false);
-            }
-        };
-        reader.readAsText(file);
-    },
-
-    // ── DWF: extract embedded SVG if present ──────────────────
-    _loadDWF(file) {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-            try {
-                const svgMatch = e.target.result.match(/<svg[\s\S]*?<\/svg>/i);
-                if (!svgMatch) throw new Error('DWF format is not renderable in-browser. Export as SVG or PDF from your CAD tool first.');
-                this._mountParsedSvg(svgMatch[0], 'DWF loaded — wire trace & highlight active');
-            } catch (err) {
-                this.showToast(err.message, 'error');
-            } finally {
-                this.showLoading(false);
-            }
-        };
-        reader.readAsText(file);
-    },
 
     _hpglToSvg(hpgl) {
         const penColors = ['#000000', '#e53935', '#43a047', '#1e88e5', '#fb8c00', '#8e24aa', '#00acc1', '#6d4c41'];
