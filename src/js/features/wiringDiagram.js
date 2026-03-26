@@ -78,21 +78,32 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     _rasterFileToSvg(file) {
-        if (typeof ImageTracer === 'undefined') return Promise.reject(new Error('ImageTracer not loaded'));
+        if (typeof ImageTracer === 'undefined') return Promise.reject(new Error('ImageTracer not loaded — check network'));
         return new Promise((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onload  = e => {
-                ImageTracer.imageToSVG(
-                    e.target.result,
-                    svgStr => svgStr ? resolve(svgStr) : reject(new Error('ImageTracer returned empty result')),
-                    { ltres: 1, qtres: 1, pathomit: 8, rightangleenhance: true,
-                      colorsampling: 2, numberofcolors: 16, mincolorratio: 0, colorquantcycles: 3,
-                      scale: 1, strokewidth: 1, linefilter: false, viewbox: true, desc: false,
-                      blurradius: 0, blurdelta: 20 }
-                );
+            const objectUrl = URL.createObjectURL(file);
+            const img = new Image();
+            img.onload = () => {
+                URL.revokeObjectURL(objectUrl);
+                try {
+                    const canvas = document.createElement('canvas');
+                    canvas.width  = img.naturalWidth  || img.width;
+                    canvas.height = img.naturalHeight || img.height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0);
+                    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+                    const svgStr = ImageTracer.imagedataToSVG(imageData, {
+                        ltres: 1, qtres: 1, pathomit: 8, rightangleenhance: true,
+                        colorsampling: 2, numberofcolors: 16, mincolorratio: 0, colorquantcycles: 3,
+                        scale: 1, strokewidth: 1, linefilter: false, viewbox: true, desc: false,
+                        blurradius: 0, blurdelta: 20,
+                    });
+                    svgStr ? resolve(svgStr) : reject(new Error('ImageTracer returned empty result'));
+                } catch (err) {
+                    reject(err);
+                }
             };
-            reader.onerror = () => reject(new Error('File read error'));
-            reader.readAsDataURL(file);
+            img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error('Failed to load image')); };
+            img.src = objectUrl;
         });
     },
 
