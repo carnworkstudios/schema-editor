@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — Highlights Feature
+   SVG Wiring Editor; Highlights Feature
    Component highlights, connection colouring, clear all
    ============================================================ */
 

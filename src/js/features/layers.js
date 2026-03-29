@@ -1,11 +1,11 @@
 /* ============================================================
-   SVG Wiring Editor — Layers Feature
+   SVG Wiring Editor; Layers Feature
    Layers tree panel (side panel) + Timeline thumbnail filmstrip
    ============================================================ */
 
 Object.assign(MobileSVGEditor.prototype, {
 
-    // ── Layers tree (side panel) — unchanged behaviour ────────
+    // ── Layers tree (side panel); unchanged behaviour ────────
 
     showLayers() {
         this.$sidePanel.addClass('open');

@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — View Transform Feature
+   SVG Wiring Editor; View Transform Feature
    Zoom, pan, rotate, pitch/yaw, drag, wheel, sliders
    ============================================================ */
 

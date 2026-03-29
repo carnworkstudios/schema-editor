@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — Wiring Diagram Styles
+   SVG Wiring Editor; Wiring Diagram Styles
    SVG element interactions, highlights, wire tracing
    ============================================================ */
 
@@ -122,7 +122,7 @@
 }
 
 /* ============================================================
-   Layer panel hover — highlights corresponding SVG element
+   Layer panel hover; highlights corresponding SVG element
    ============================================================ */
 .layer-hover-highlight:hover path {
   stroke: rgba(79, 172, 254, 0.9);
@@ -135,7 +135,7 @@
    Visual layer = rasterized <image>. Interaction layer = SVG overlays.
    ============================================================ */
 
-/* Wire overlays — invisible until highlighted */
+/* Wire overlays; invisible until highlighted */
 .canvas-wire-overlay {
     stroke-opacity: 0;
     fill: none;
@@ -158,7 +158,7 @@
     stroke-opacity: 0.85 !important;
 }
 
-/* Component overlays — transparent bounding boxes */
+/* Component overlays; transparent bounding boxes */
 .canvas-component-overlay {
     fill-opacity: 0;
     stroke-opacity: 0;

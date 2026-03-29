@@ -5,10 +5,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description"
-        content="SVG Wiring Diagram Editor — mobile-first, touch-optimized tool for viewing, tracing, and analyzing SVG wiring diagrams, circuit schematics, and network diagrams.">
+        content="SVG Wiring Diagram Editor; mobile-first, touch-optimized tool for viewing, tracing, and analyzing SVG wiring diagrams, circuit schematics, and network diagrams.">
     <meta name="keywords"
         content="SVG editor, wiring diagram, circuit schematic, wire tracing, component highlight, pan zoom rotate, touch gestures, CAD viewer">
-    <title>SVG Wiring Editor — CANWORKSTUDIOS</title>
+    <title>SVG Wiring Editor; CANWORKSTUDIOS</title>
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -42,7 +42,7 @@
     <div class="app-container">
 
         <!-- ======================================================
-         HEADER — TIFANY-style banner
+         HEADER; TIFANY-style banner
          ====================================================== -->
         <header class="tifany-header">
             <div class="logo">
@@ -67,7 +67,7 @@
         </header>
 
         <!-- ======================================================
-         SECONDARY TOOLBAR — Trace switch + utility buttons
+         SECONDARY TOOLBAR; Trace switch + utility buttons
          ====================================================== -->
         <div class="custom-bar header-right">
             <div class="header-right" style="padding:4px 8px;width:100%;">
@@ -105,12 +105,12 @@
                     <span class="switch-slider"></span>
                 </div>
 
-                
+
             </div>
         </div>
 
         <!-- ======================================================
-         ACCORDION TOOLBAR — Wiring / Export / Edit sections
+         ACCORDION TOOLBAR; Wiring / Export / Edit sections
          ====================================================== -->
         <div class="custom-bar">
 
@@ -171,7 +171,7 @@
         </div>
 
         <!-- ======================================================
-         MAIN AREA — Sidebar nav + SVG viewer
+         MAIN AREA; Sidebar nav + SVG viewer
          ====================================================== -->
         <div class="main-layout">
 
@@ -215,7 +215,7 @@
         </div><!-- /.main-layout -->
 
         <!-- ======================================================
-         TIMELINE PANEL — thumbnail filmstrip, toggled by Timeline btn
+         TIMELINE PANEL; thumbnail filmstrip, toggled by Timeline btn
          ====================================================== -->
         <div class="timeline-panel" id="timelinePanel">
             <div class="timeline-tracks" id="timelineTracks">
@@ -282,7 +282,7 @@
                 <div>Layers</div>
             </div>
 
-            <div class="control-btn" id="timelineBtn" title="Timeline — all loaded diagrams">
+            <div class="control-btn" id="timelineBtn" title="Timeline; all loaded diagrams">
                 <div class="icon"><iconify-icon icon="material-symbols:video-library-outline"
                         style="font-size:20px;"></iconify-icon></div>
                 <div>Timeline</div>
@@ -291,7 +291,7 @@
         </div><!-- /.bottom-controls -->
 
         <!-- ======================================================
-         SIDE PANEL — Layers + View Controls
+         SIDE PANEL; Layers + View Controls
          ====================================================== -->
         <div class="side-panel" id="sidePanel">
             <button class="side-panel-close" id="closePanelBtn" title="Close panel">
@@ -351,7 +351,7 @@
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
         <!-- ======================================================
-         MEASURE MODAL — unit scale setup
+         MEASURE MODAL; unit scale setup
          ====================================================== -->
         <div class="modal-backdrop" id="measureModal" role="dialog" aria-modal="true" aria-label="Measure unit scale">
             <div class="modal">
@@ -397,7 +397,8 @@
                 <div class="measure-scale-row" id="measureScaleRow" style="display:none;">
                     <input type="number" id="measurePxVal" class="measure-scale-input" value="1" min="0.001" step="any">
                     <span class="measure-scale-sep">px =</span>
-                    <input type="number" id="measureUnitVal" class="measure-scale-input" value="1" min="0.001" step="any">
+                    <input type="number" id="measureUnitVal" class="measure-scale-input" value="1" min="0.001"
+                        step="any">
                     <span class="measure-scale-unit-label" id="measureScaleUnitLabel">mm</span>
                 </div>
 
@@ -410,11 +411,13 @@
 
     </div><!-- /.app-container -->
 
-    <!-- Hidden file input — multiple for batch upload -->
-    <input type="file" id="hiddenFileInput" multiple accept=".svg,.svgz,image/svg+xml,.pdf,application/pdf,.png,image/png,.jpg,.jpeg,image/jpeg,.bmp,image/bmp,.tif,.tiff,image/tiff,.plt,.hpgl,.dwf,.dwfx" style="display:none;">
+    <!-- Hidden file input; multiple for batch upload -->
+    <input type="file" id="hiddenFileInput" multiple
+        accept=".svg,.svgz,image/svg+xml,.pdf,application/pdf,.png,image/png,.jpg,.jpeg,image/jpeg,.bmp,image/bmp,.tif,.tiff,image/tiff,.plt,.hpgl,.dwf,.dwfx"
+        style="display:none;">
 
     <!-- ============================================================
-     JS — feature files loaded in dependency order
+     JS; feature files loaded in dependency order
      core → features → init
      ============================================================ -->
     <script src="js/core/svgEditor.js"></script>
@@ -430,7 +433,7 @@
         $(document).ready(function () {
             window.editor = new MobileSVGEditor();
 
-            // Sidebar nav — mark SVG Editor as the active tool
+            // Sidebar nav; mark SVG Editor as the active tool
             if (window.SidebarNav) {
                 SidebarNav.render('#sidebar-nav-mount', 'SVG Editor');
             }

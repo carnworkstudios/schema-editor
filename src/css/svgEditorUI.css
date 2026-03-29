@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — UI Styles
+   SVG Wiring Editor; UI Styles
    Layout, header, toolbar, panels, switches, controls
    Light mode is default; dark mode via body.dark-mode
    ============================================================ */
@@ -32,7 +32,7 @@ body {
 }
 
 /* ============================================================
-   TIFANY-style Header — light default, let TIFANY CSS lead
+   TIFANY-style Header; light default, let TIFANY CSS lead
    ============================================================ */
 .tifany-header {
     z-index: 1000;
@@ -499,7 +499,7 @@ body {
 }
 
 /* ============================================================
-   Timeline Panel — thumbnail filmstrip, same style as bottom controls
+   Timeline Panel; thumbnail filmstrip, same style as bottom controls
    ============================================================ */
 .timeline-panel {
     display: none;
@@ -837,7 +837,7 @@ body {
 }
 
 /* ============================================================
-   DARK MODE — body.dark-mode overrides
+   DARK MODE; body.dark-mode overrides
    ============================================================ */
 body.dark-mode {
     background-color: #bfbfbf;
@@ -1061,7 +1061,7 @@ body.dark-mode .sidebar-nav-rail a.active {
 }
 
 /* ============================================================
-   Modal — shared base
+   Modal; shared base
    ============================================================ */
 .modal-backdrop {
     position: fixed;
@@ -1212,7 +1212,7 @@ body.dark-mode .sidebar-nav-rail a.active {
     border-color: #0055aa;
 }
 
-/* ── Dark mode — Modal ───────────────────────────────────── */
+/* ── Dark mode; Modal ───────────────────────────────────── */
 
 body.dark-mode .modal {
     background: #1e1e1e;

@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — Wiring Diagram Feature
+   SVG Wiring Editor; Wiring Diagram Feature
    SVG file loading, element analysis, interaction setup
    ============================================================ */
 
@@ -46,7 +46,7 @@ Object.assign(MobileSVGEditor.prototype, {
             return this._readTextFile(file).then(text => this._hpglToSvg(text));
         if (ext === 'dwf' || ext === 'dwfx')
             return this._dwfFileToSvg(file);
-        if (['png','jpg','jpeg','bmp','tif','tiff'].includes(ext) || file.type.startsWith('image/'))
+        if (['png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff'].includes(ext) || file.type.startsWith('image/'))
             return this._rasterFileToSvg(file);
         return Promise.reject(new Error(`Unsupported format: .${ext}`));
     },
@@ -54,7 +54,7 @@ Object.assign(MobileSVGEditor.prototype, {
     _readTextFile(file) {
         return new Promise((resolve, reject) => {
             const reader = new FileReader();
-            reader.onload  = e => resolve(e.target.result);
+            reader.onload = e => resolve(e.target.result);
             reader.onerror = () => reject(new Error('File read error'));
             reader.readAsText(file);
         });
@@ -63,11 +63,78 @@ Object.assign(MobileSVGEditor.prototype, {
     _pdfFileToSvg(file) {
         if (typeof pdfjsLib === 'undefined') return Promise.reject(new Error('PDF renderer not available'));
         const url = URL.createObjectURL(file);
+
         return pdfjsLib.getDocument(url).promise
-            .then(pdf => pdf.getPage(1))
-            .then(page => this._pdfOpsToSvg(page))
+            .then(pdf => pdf.getPage(1)) // Process first page
+            .then(page => {
+                const viewport = page.getViewport({ scale: 1.0 }); // Native units
+                return page.getOperatorList().then(opList => {
+                    const svgGfx = new pdfjsLib.SVGGraphics(page.commonObjs, page.objs);
+                    // Generate SVG element using official backend
+                    return svgGfx.getSVG(opList, viewport);
+                });
+            })
+            .then(svgElement => {
+                // Flatten hierarchy so every path/line is top-level and has its own transform
+                this.ungroupAll(svgElement);
+                // Serialize back to string for the existing pipeline (_mountParsedSvg)
+                return new XMLSerializer().serializeToString(svgElement);
+            })
             .finally(() => URL.revokeObjectURL(url));
     },
+
+    ungroupAll(svgElement) {
+        // Find all groups. We use a while loop to handle deep nesting
+        let groups = svgElement.querySelectorAll('g');
+        while (groups.length > 0) {
+            groups.forEach(group => {
+                const parent = group.parentNode;
+                if (!parent) return;
+
+                // Move all children out of the group
+                while (group.firstChild) {
+                    const child = group.firstChild;
+
+                    // Skip non-element nodes (like text if any)
+                    if (child.nodeType !== 1) {
+                        parent.insertBefore(child, group);
+                        continue;
+                    }
+
+                    // Apply the group's transform to the child
+                    const combinedTransform = this.consolidateTransforms(group, child);
+                    if (combinedTransform) {
+                        child.setAttribute('transform', combinedTransform);
+                    }
+
+                    // Move child to parent level
+                    parent.insertBefore(child, group);
+                }
+                // Remove the now-empty group
+                parent.removeChild(group);
+            });
+            // Re-query to see if we uncovered more nested groups
+            groups = svgElement.querySelectorAll('g');
+        }
+    },
+
+    consolidateTransforms(parent, child) {
+        const pT = parent.getAttribute('transform') || '';
+        const cT = child.getAttribute('transform') || '';
+        if (!pT) return cT;
+        if (!cT) return pT;
+
+        try {
+            // Modern browsers support DOMMatrix for robust math
+            const m1 = new DOMMatrix(pT);
+            const m2 = new DOMMatrix(cT);
+            return m1.multiply(m2).toString();
+        } catch (e) {
+            // Fallback to simple concatenation if matrix parsing fails
+            return `${pT} ${cT}`;
+        }
+    },
+
 
     _dwfFileToSvg(file) {
         return this._readTextFile(file).then(text => {
@@ -78,7 +145,7 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     _rasterFileToSvg(file) {
-        if (typeof ImageTracer === 'undefined') return Promise.reject(new Error('ImageTracer not loaded — check network'));
+        if (typeof ImageTracer === 'undefined') return Promise.reject(new Error('ImageTracer not loaded; check network'));
         return new Promise((resolve, reject) => {
             const objectUrl = URL.createObjectURL(file);
             const img = new Image();
@@ -86,7 +153,7 @@ Object.assign(MobileSVGEditor.prototype, {
                 URL.revokeObjectURL(objectUrl);
                 try {
                     const canvas = document.createElement('canvas');
-                    canvas.width  = img.naturalWidth  || img.width;
+                    canvas.width = img.naturalWidth || img.width;
                     canvas.height = img.naturalHeight || img.height;
                     const ctx = canvas.getContext('2d');
                     ctx.drawImage(img, 0, 0);
@@ -127,114 +194,14 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
 
-    // ── Extract PDF drawing operators → SVG path elements ────────────────────
+    /* 
     _pdfOpsToSvg(page) {
-        const OPS = pdfjsLib.OPS;
-        const [, , W, H] = page.view; // page dimensions in PDF user units
+        // [DEPRECATED] Replaced by official SVGGraphics backend in _pdfFileToSvg
+        ...
+    }
+    _cmykToHex(c, m, y, k) { ... }
+    */
 
-        return page.getOperatorList().then(({ fnArray, argsArray }) => {
-            const elements = [];
-            let d = '';
-            let cx = 0, cy = 0;
-            const stateStack = [];
-            let state = { stroke: '#000000', fill: 'none', lineWidth: 1 };
-
-            const flipY = y => H - y;
-
-            const toHex = (r, g, b) => {
-                const h = v => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0');
-                return `#${h(r)}${h(g)}${h(b)}`;
-            };
-
-            const flushPath = (mode) => {
-                if (!d.trim()) return;
-                elements.push({
-                    d: d.trim(),
-                    stroke: (mode === 'stroke' || mode === 'fillStroke') ? state.stroke : 'none',
-                    fill:   (mode === 'fill'   || mode === 'fillStroke') ? state.fill   : 'none',
-                    lw: state.lineWidth,
-                });
-                d = '';
-            };
-
-            for (let i = 0; i < fnArray.length; i++) {
-                const fn = fnArray[i];
-                const a  = argsArray[i];
-                switch (fn) {
-                    case OPS.save:    stateStack.push({ ...state }); break;
-                    case OPS.restore: if (stateStack.length) state = stateStack.pop(); break;
-
-                    case OPS.moveTo:
-                        cx = a[0]; cy = flipY(a[1]);
-                        d += `M ${cx.toFixed(2)} ${cy.toFixed(2)} `; break;
-                    case OPS.lineTo:
-                        cx = a[0]; cy = flipY(a[1]);
-                        d += `L ${cx.toFixed(2)} ${cy.toFixed(2)} `; break;
-                    case OPS.curveTo:   // c: x1 y1 x2 y2 x3 y3
-                        d += `C ${a[0].toFixed(2)} ${flipY(a[1]).toFixed(2)} ${a[2].toFixed(2)} ${flipY(a[3]).toFixed(2)} ${a[4].toFixed(2)} ${flipY(a[5]).toFixed(2)} `;
-                        cx = a[4]; cy = flipY(a[5]); break;
-                    case OPS.curveTo2:  // v: x2 y2 x3 y3 — first CP = current point
-                        d += `C ${cx.toFixed(2)} ${cy.toFixed(2)} ${a[0].toFixed(2)} ${flipY(a[1]).toFixed(2)} ${a[2].toFixed(2)} ${flipY(a[3]).toFixed(2)} `;
-                        cx = a[2]; cy = flipY(a[3]); break;
-                    case OPS.curveTo3:  // y: x1 y1 x3 y3 — last CP = end point
-                        d += `C ${a[0].toFixed(2)} ${flipY(a[1]).toFixed(2)} ${a[2].toFixed(2)} ${flipY(a[3]).toFixed(2)} ${a[2].toFixed(2)} ${flipY(a[3]).toFixed(2)} `;
-                        cx = a[2]; cy = flipY(a[3]); break;
-                    case OPS.closePath: d += 'Z '; break;
-                    case OPS.rectangle: {
-                        const rx = a[0].toFixed(2), ry = flipY(a[1]).toFixed(2);
-                        const rw = a[2].toFixed(2), rh = (a[3]).toFixed(2);
-                        d += `M ${rx} ${ry} h ${rw} v ${-rh} h ${-rw} Z `;
-                        break;
-                    }
-                    case OPS.stroke:            flushPath('stroke'); break;
-                    case OPS.closeStroke:       d += 'Z '; flushPath('stroke'); break;
-                    case OPS.fill:
-                    case OPS.eoFill:            flushPath('fill'); break;
-                    case OPS.fillStroke:
-                    case OPS.eoFillStroke:      flushPath('fillStroke'); break;
-                    case OPS.closeFillStroke:
-                    case OPS.closeEOFillStroke: d += 'Z '; flushPath('fillStroke'); break;
-                    case OPS.endPath:           d = ''; break;
-
-                    case OPS.setLineWidth:      state.lineWidth = a[0]; break;
-                    case OPS.setStrokeRGBColor: state.stroke = toHex(a[0], a[1], a[2]); break;
-                    case OPS.setFillRGBColor:   state.fill   = toHex(a[0], a[1], a[2]); break;
-                    case OPS.setStrokeGray:     state.stroke = toHex(a[0], a[0], a[0]); break;
-                    case OPS.setFillGray:       state.fill   = toHex(a[0], a[0], a[0]); break;
-                    case OPS.setStrokeColor:
-                    case OPS.setStrokeColorN:
-                        if (a && a.length >= 3) state.stroke = toHex(a[0], a[1], a[2]);
-                        else if (a && a.length === 1) state.stroke = toHex(a[0], a[0], a[0]);
-                        break;
-                    case OPS.setFillColor:
-                    case OPS.setFillColorN:
-                        if (a && a.length >= 3) state.fill = toHex(a[0], a[1], a[2]);
-                        else if (a && a.length === 1) state.fill = toHex(a[0], a[0], a[0]);
-                        break;
-                    case OPS.setStrokeCMYKColor: state.stroke = this._cmykToHex(...a); break;
-                    case OPS.setFillCMYKColor:   state.fill   = this._cmykToHex(...a); break;
-                }
-            }
-
-            if (!elements.length) {
-                throw new Error('No vector paths in PDF — export as SVG from your CAD tool for best results');
-            }
-
-            const svgPaths = elements.map(el =>
-                `<path d="${el.d}" stroke="${el.stroke}" fill="${el.fill}" stroke-width="${el.lw.toFixed(2)}"/>`
-            ).join('\n');
-
-            return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}">\n${svgPaths}\n</svg>`;
-        });
-    },
-
-    _cmykToHex(c, m, y, k) {
-        const h = v => Math.round(Math.min(255, Math.max(0, v * 255))).toString(16).padStart(2, '0');
-        const r = 1 - Math.min(1, c * (1 - k) + k);
-        const g = 1 - Math.min(1, m * (1 - k) + k);
-        const b = 1 - Math.min(1, y * (1 - k) + k);
-        return `#${h(r)}${h(g)}${h(b)}`;
-    },
 
 
     _hpglToSvg(hpgl) {
@@ -450,7 +417,7 @@ Object.assign(MobileSVGEditor.prototype, {
     identifyComponentType($element) {
         const tag = $element[0].tagName.toLowerCase();
         const cls = $element.attr('class') || '';
-        const id  = $element.attr('id') || '';
+        const id = $element.attr('id') || '';
 
         if (tag === 'circle') return 'connector';
         if (tag === 'rect') return 'module';
@@ -486,7 +453,7 @@ Object.assign(MobileSVGEditor.prototype, {
     showElementInfo($element) {
         const tag = $element[0].tagName;
         const cls = $element.attr('class') || 'None';
-        const id  = $element.attr('id') || 'None';
+        const id = $element.attr('id') || 'None';
         this.showToast(`${tag}  cls:${cls}  id:${id}`, 'success');
     },
 
@@ -529,9 +496,9 @@ Object.assign(MobileSVGEditor.prototype, {
 
     highlightElement($element, on) {
         if (on) {
-            // Canvas-mode overlay wires are invisible by default — reveal on hover
+            // Canvas-mode overlay wires are invisible by default; reveal on hover
             const isCanvasOverlay = $element.hasClass('canvas-wire-overlay') ||
-                                    $element.hasClass('canvas-component-overlay');
+                $element.hasClass('canvas-component-overlay');
             $element.css(isCanvasOverlay
                 ? { stroke: '#4facfe', 'stroke-opacity': '0.75' }
                 : { stroke: '#4facfe' });
@@ -546,12 +513,12 @@ Object.assign(MobileSVGEditor.prototype, {
         const NS = 'http://www.w3.org/2000/svg';
         const { data } = canvas.getContext('2d').getImageData(0, 0, W, H);
 
-        // 1. Binary image — 1 = dark pixel
+        // 1. Binary image; 1 = dark pixel
         const bin = new Uint8Array(W * H);
         const DARK = 200; // luminance threshold
         for (let i = 0; i < W * H; i++) {
             if (data[i * 4 + 3] < 128) continue; // transparent = light
-            bin[i] = (data[i*4] * 0.299 + data[i*4+1] * 0.587 + data[i*4+2] * 0.114) < DARK ? 1 : 0;
+            bin[i] = (data[i * 4] * 0.299 + data[i * 4 + 1] * 0.587 + data[i * 4 + 2] * 0.114) < DARK ? 1 : 0;
         }
 
         // 2. Scan rows/columns for continuous dark pixel runs ≥ MIN_LEN
@@ -601,15 +568,15 @@ Object.assign(MobileSVGEditor.prototype, {
 
         // 4. Sample actual stroke colour from the canvas pixels at wire midpoint
         const sampleColor = (x, y) => {
-            const i = (Math.clamp ? Math.clamp(Math.round(y), 0, H-1) : Math.min(Math.max(Math.round(y), 0), H-1)) * W
-                    + Math.min(Math.max(Math.round(x), 0), W-1);
-            return `rgb(${data[i*4]},${data[i*4+1]},${data[i*4+2]})`;
+            const i = (Math.clamp ? Math.clamp(Math.round(y), 0, H - 1) : Math.min(Math.max(Math.round(y), 0), H - 1)) * W
+                + Math.min(Math.max(Math.round(x), 0), W - 1);
+            return `rgb(${data[i * 4]},${data[i * 4 + 1]},${data[i * 4 + 2]})`;
         };
 
         // 5. Build invisible SVG <line> overlays for each detected wire
         const allSegs = [
-            ...hLines.map(l => ({ x1: l.a, y1: l.pos, x2: l.b, y2: l.pos, color: sampleColor((l.a+l.b)/2, l.pos) })),
-            ...vLines.map(l => ({ x1: l.pos, y1: l.a, x2: l.pos, y2: l.b, color: sampleColor(l.pos, (l.a+l.b)/2) })),
+            ...hLines.map(l => ({ x1: l.a, y1: l.pos, x2: l.b, y2: l.pos, color: sampleColor((l.a + l.b) / 2, l.pos) })),
+            ...vLines.map(l => ({ x1: l.pos, y1: l.a, x2: l.pos, y2: l.b, color: sampleColor(l.pos, (l.a + l.b) / 2) })),
         ];
 
         allSegs.forEach((seg, idx) => {
@@ -668,7 +635,7 @@ Object.assign(MobileSVGEditor.prototype, {
                     if (cx < minX) minX = cx; if (cx > maxX) maxX = cx;
                     if (cy < minY) minY = cy; if (cy > maxY) maxY = cy;
                     count++;
-                    for (const [dx, dy] of [[-1,0],[1,0],[0,-1],[0,1]]) {
+                    for (const [dx, dy] of [[-1, 0], [1, 0], [0, -1], [0, 1]]) {
                         const nx = cx + dx, ny = cy + dy;
                         if (nx < 0 || nx >= W || ny < 0 || ny >= H) continue;
                         const ni = ny * W + nx;

@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — Undo/Redo History
+   SVG Wiring Editor; Undo/Redo History
    Snapshot-based history for highlight operations
    ============================================================ */
 

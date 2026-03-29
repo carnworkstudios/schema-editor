@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — UI Controls Feature
+   SVG Wiring Editor; UI Controls Feature
    Side panel, bottom controls, dark mode, export, toast,
    loading indicator, mini-map, measure tool
    ============================================================ */
@@ -170,7 +170,7 @@ ${svgData}
     _startMeasuring() {
         this._measuring = true;
         this._measurePoints = [];
-        this.showToast(`Measure ON — tap two points (${this._measureUnit})`, 'success');
+        this.showToast(`Measure ON; tap two points (${this._measureUnit})`, 'success');
 
         this.$svgDisplay.on('click.measure', (e) => {
             const rect = this.$svgDisplay[0].getBoundingClientRect();
@@ -194,7 +194,7 @@ ${svgData}
                 this.showToast(`Distance: ${result}`, 'success');
                 this._measurePoints = [];
             } else {
-                this.showToast('Point 1 marked — tap second point', 'success');
+                this.showToast('Point 1 marked; tap second point', 'success');
             }
         });
     },

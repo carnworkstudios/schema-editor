@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — Wire Tracing Feature
+   SVG Wiring Editor; Wire Tracing Feature
    Toggle tracing mode, trace paths, find connected wires
    ============================================================ */
 
@@ -17,7 +17,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
     startWireTracing() {
         this.isWireTracing = true;
-        this.showToast('Wire tracing ON — tap a wire or component to trace', 'success');
+        this.showToast('Wire tracing ON; tap a wire or component to trace', 'success');
 
         this.wires.forEach(wire => {
             wire.$hitbox.on('click.tracing', (e) => {
@@ -69,7 +69,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const after = this.captureHighlightState();
         this.pushHistory('Trace Component', before, after);
-        this.showToast(`Traced component: ${selectedComp.type} — ${connected.length} wire(s) connected`, 'success');
+        this.showToast(`Traced component: ${selectedComp.type}; ${connected.length} wire(s) connected`, 'success');
         this.showLoading(false);
     },
 

@@ -1,5 +1,5 @@
 /* ============================================================
-   SVG Wiring Editor — Core Class
+   SVG Wiring Editor; Core Class
    Constructor, element init, gesture setup, event binding
    ============================================================ */
 
@@ -167,7 +167,7 @@ class MobileSVGEditor {
         // Timeline filmstrip
         $('#timelineBtn').on('click', () => this.showTimeline());
 
-        // Trace wire switch — fixed: no broken $(this) in arrow fn
+        // Trace wire switch; fixed: no broken $(this) in arrow fn
         $('#traceWireBtn').on('click', () => this.toggleWireTracing());
 
         // Toolbar
@@ -272,7 +272,7 @@ class MobileSVGEditor {
         // Prevent context menu on long press
         this.$svgContainer.on('contextmenu', (e) => e.preventDefault());
 
-        // Measure modal — tab switching
+        // Measure modal; tab switching
         $(document).on('click', '.measure-tab', (e) => {
             const system = $(e.currentTarget).data('system');
             $('.measure-tab').removeClass('active');
@@ -289,7 +289,7 @@ class MobileSVGEditor {
             if (showScale) $('#measureScaleUnitLabel').text($first.data('unit'));
         });
 
-        // Measure modal — unit button selection
+        // Measure modal; unit button selection
         $(document).on('click', '.measure-unit-btn', (e) => {
             $('.measure-unit-btn').removeClass('active');
             $(e.currentTarget).addClass('active');
@@ -297,7 +297,7 @@ class MobileSVGEditor {
             if (unit !== 'px') $('#measureScaleUnitLabel').text(unit);
         });
 
-        // Measure modal — OK
+        // Measure modal; OK
         $('#measureModalOk').on('click', () => {
             const unit = $('.measure-unit-btn.active').data('unit') || 'px';
             const pxVal   = parseFloat($('#measurePxVal').val())   || 1;
@@ -312,12 +312,12 @@ class MobileSVGEditor {
             this._startMeasuring();
         });
 
-        // Measure modal — Cancel
+        // Measure modal; Cancel
         $('#measureModalCancel').on('click', () => {
             $('#measureModal').removeClass('open');
         });
 
-        // Measure modal — backdrop click closes
+        // Measure modal; backdrop click closes
         $('#measureModal').on('click', (e) => {
             if ($(e.target).is('#measureModal')) $('#measureModal').removeClass('open');
         });
