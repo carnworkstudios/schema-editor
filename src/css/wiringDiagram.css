@@ -208,3 +208,120 @@
 .file-input-wrapper label:hover {
     opacity: 0.88;
 }
+
+/* ============================================================
+   PHASE 1 — Canvas Engine: Selection & Handles
+   ============================================================ */
+
+.selection-rect {
+    fill:         none;
+    stroke:       #4facfe;
+    stroke-width: 1.5;
+    stroke-dasharray: 5,3;
+    pointer-events: none;
+}
+
+.selection-handle {
+    fill:   #1a1a2e;
+    stroke: #4facfe;
+    stroke-width: 1.5;
+    pointer-events: all;
+    transition: fill 0.15s ease;
+}
+
+.selection-handle:hover { fill: #4facfe; }
+
+.selection-handle[data-handle="n"],
+.selection-handle[data-handle="s"]  { cursor: ns-resize; }
+.selection-handle[data-handle="e"],
+.selection-handle[data-handle="w"]  { cursor: ew-resize; }
+.selection-handle[data-handle="nw"],
+.selection-handle[data-handle="se"] { cursor: nwse-resize; }
+.selection-handle[data-handle="ne"],
+.selection-handle[data-handle="sw"] { cursor: nesw-resize; }
+
+.rotation-line {
+    stroke:       #4facfe;
+    stroke-width: 1;
+    stroke-dasharray: 3,2;
+    pointer-events: none;
+}
+
+.rotation-handle {
+    fill:   #00f2fe;
+    stroke: #1a1a2e;
+    stroke-width: 1.5;
+    cursor: crosshair;
+    pointer-events: all;
+    transition: fill 0.15s ease;
+    filter: drop-shadow(0 0 4px rgba(0,242,254,0.5));
+}
+
+.rotation-handle:hover { fill: #fff; }
+
+.se-selected {
+    filter: drop-shadow(0 0 3px rgba(79,172,254,0.6)) !important;
+}
+
+/* ============================================================
+   PHASE 1 — SnapGrid: Guide lines
+   ============================================================ */
+.snap-guide {
+    stroke:         #4facfe;
+    stroke-width:   0.8;
+    stroke-dasharray: 4,4;
+    pointer-events: none;
+    opacity:        0.6;
+}
+
+/* ============================================================
+   PHASE 1 — Drawing Tools: Preview ghost
+   ============================================================ */
+.draw-preview {
+    pointer-events: none;
+    opacity:        0.7;
+    stroke-dasharray: 6,3;
+    animation: draw-preview-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes draw-preview-pulse {
+    0%, 100% { opacity: 0.7; }
+    50%       { opacity: 0.4; }
+}
+
+/* ============================================================
+   PHASE 1 — Draw tool active state
+   ============================================================ */
+.draw-tool-btn.active {
+    background:   rgba(79,172,254,0.35) !important;
+    border-color: #4facfe !important;
+    color:        #4facfe !important;
+    box-shadow:   0 0 8px rgba(79,172,254,0.3);
+}
+
+.toolbar-sep {
+    font-size:   9px;
+    color:       rgba(255,255,255,0.3);
+    padding:     0 6px;
+    display:     flex;
+    align-items: center;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    flex-shrink: 0;
+}
+
+body:not(.dark-mode) .toolbar-sep { color: rgba(0,0,0,0.3); }
+
+/* ============================================================
+   PHASE 1 — Pin marker
+   ============================================================ */
+.pin-point {
+    fill:   #1a1a2e;
+    stroke: #4facfe;
+    stroke-width: 1.5;
+    cursor: crosshair;
+    transition: fill 0.15s;
+}
+
+.pin-point.connected { fill: #4facfe; }

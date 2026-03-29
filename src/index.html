@@ -5,10 +5,14 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <meta name="description"
-        content="SVG Wiring Diagram Editor; mobile-first, touch-optimized tool for viewing, tracing, and analyzing SVG wiring diagrams, circuit schematics, and network diagrams.">
+        content="Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans. Draw, edit, trace, and export.">
     <meta name="keywords"
-        content="SVG editor, wiring diagram, circuit schematic, wire tracing, component highlight, pan zoom rotate, touch gestures, CAD viewer">
-    <title>SVG Wiring Editor; CANWORKSTUDIOS</title>
+        content="SVG editor, schematic, PCB, UML, flowchart, floorplan, wiring diagram, circuit, draw, trace, canvas">
+    <title>Schematics Editor · CANWORKSTUDIOS</title>
+
+    <!-- OS Bridge -->
+    <script src="/assets/os/contracts.js"></script>
+    <script src="/assets/os/bridge.js"></script>
 
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
@@ -19,7 +23,7 @@
     <script>if (typeof pdfjsLib !== 'undefined') pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
     <script src="https://unpkg.com/imagetracer-js@1.2.6/imagetracer_v1.2.6.js"></script>
 
-    <!-- Shared portfolio styles + TIFANY base (header, sidebar-nav, logo-accent) -->
+    <!-- Shared portfolio styles + TIFANY base -->
     <link rel="stylesheet" href="../../../assets/css/portfolio.css">
     <link rel="stylesheet" href="../../tifany/dist/tifany.min.css">
 
@@ -32,9 +36,8 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 
-    <!-- Shared sidebar-nav component -->
+    <!-- Sidebar nav component -->
     <script src="../../../assets/components/sidebar-nav.js"></script>
-    <!-- Shared portfolio JS (optional, for any portfolio-wide init) -->
     <script src="../../../assets/js/portfolio.js"></script>
 </head>
 
@@ -42,7 +45,7 @@
     <div class="app-container">
 
         <!-- ======================================================
-         HEADER; TIFANY-style banner
+         HEADER
          ====================================================== -->
         <header class="tifany-header">
             <div class="logo">
@@ -51,14 +54,11 @@
                         canwork<span class="logo-accent">studios</span>
                     </a>
                 </h1>
-                <small class="tool-subtitle">SVG Wiring Editor</small>
+                <small class="tool-subtitle">Schematics Editor</small>
             </div>
 
             <nav class="nav" style="flex:1; justify-content: center;">
-                <!-- Icon-rail sidebar navigation -->
                 <div id="sidebar-nav-mount"></div>
-                <!-- <a href="../../../index.html#contact"  class="nav-link">Contact</a>
-            <a href="https://github.com/bonzai2carn" target="_blank" class="nav-link">GitHub</a> -->
             </nav>
 
             <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light" aria-label="Toggle dark mode">
@@ -67,7 +67,7 @@
         </header>
 
         <!-- ======================================================
-         SECONDARY TOOLBAR; Trace switch + utility buttons
+         SECONDARY TOOLBAR — Utility actions
          ====================================================== -->
         <div class="custom-bar header-right">
             <div class="header-right" style="padding:4px 8px;width:100%;">
@@ -83,8 +83,14 @@
                         <span class="panel-content">Redo</span>
                     </button>
 
+                    <!-- New Canvas -->
+                    <button class="btn" id="newCanvasBtn" title="New blank canvas">
+                        <iconify-icon icon="material-symbols:add-box-outline"></iconify-icon>
+                        <span class="panel-content">New</span>
+                    </button>
+
                     <!-- Load -->
-                    <button class="btn" id="loadFileBtn" title="Load SVG File">
+                    <button class="btn" id="loadFileBtn" title="Load file (SVG, PDF, HPGL, PNG…)">
                         <iconify-icon icon="material-symbols:folder-open-outline"></iconify-icon>
                         <span class="panel-content">Load</span>
                     </button>
@@ -95,7 +101,8 @@
                         <span class="panel-content">Toolbar</span>
                     </button>
                 </div>
-                <!-- Wire trace toggle -->
+
+                <!-- Wire-trace toggle -->
                 <small class="switch-content">
                     <iconify-icon icon="material-symbols:bolt" style="font-size:14px;color:#4facfe;"></iconify-icon>
                     Trace
@@ -105,12 +112,11 @@
                     <span class="switch-slider"></span>
                 </div>
 
-
             </div>
         </div>
 
         <!-- ======================================================
-         ACCORDION TOOLBAR; Wiring / Export / Edit sections
+         ACCORDION TOOLBAR — Wiring / Edit / Export sections
          ====================================================== -->
         <div class="custom-bar">
 
@@ -131,6 +137,108 @@
                     <iconify-icon icon="material-symbols:clear-all"></iconify-icon>
                     <span class="panel-content">Clear</span>
                 </button>
+            </div>
+
+            <!-- ── EDIT SECTION ─────────────────────────────── -->
+            <button class="accordion active slide-bar" aria-label="Edit tools">
+                <h3>Edit</h3>
+            </button>
+            <div class="panel control-group-flex" id="editToolbar">
+
+                <!-- Select -->
+                <button class="btn draw-tool-btn active" id="tool_select" data-tool="select" title="Select (V)">
+                    <iconify-icon icon="material-symbols:arrow-selector-tool-outline"></iconify-icon>
+                    <span class="panel-content">Select</span>
+                </button>
+
+                <!-- Draw separator label -->
+                <span class="toolbar-sep">Draw</span>
+
+                <!-- Pen -->
+                <button class="btn draw-tool-btn" id="tool_pen" data-tool="pen" title="Pen – freehand (P)">
+                    <iconify-icon icon="material-symbols:draw-outline"></iconify-icon>
+                    <span class="panel-content">Pen</span>
+                </button>
+
+                <!-- Line -->
+                <button class="btn draw-tool-btn" id="tool_line" data-tool="line" title="Line (L)">
+                    <iconify-icon icon="material-symbols:remove"></iconify-icon>
+                    <span class="panel-content">Line</span>
+                </button>
+
+                <!-- Rect -->
+                <button class="btn draw-tool-btn" id="tool_rect" data-tool="rect" title="Rectangle (R)">
+                    <iconify-icon icon="material-symbols:rectangle-outline"></iconify-icon>
+                    <span class="panel-content">Rect</span>
+                </button>
+
+                <!-- Ellipse -->
+                <button class="btn draw-tool-btn" id="tool_ellipse" data-tool="ellipse" title="Ellipse (E)">
+                    <iconify-icon icon="material-symbols:circle-outline"></iconify-icon>
+                    <span class="panel-content">Ellipse</span>
+                </button>
+
+                <!-- Polygon -->
+                <button class="btn draw-tool-btn" id="tool_polygon" data-tool="polygon"
+                    title="Polygon – click to add vertices, dblclick to close">
+                    <iconify-icon icon="material-symbols:pentagon-outline"></iconify-icon>
+                    <span class="panel-content">Polygon</span>
+                </button>
+
+                <!-- Text -->
+                <button class="btn draw-tool-btn" id="tool_text" data-tool="text" title="Text (T)">
+                    <iconify-icon icon="material-symbols:text-fields"></iconify-icon>
+                    <span class="panel-content">Text</span>
+                </button>
+
+                <!-- Wire -->
+                <button class="btn draw-tool-btn" id="tool_wire" data-tool="wire" title="Wire – Manhattan routing (W)">
+                    <iconify-icon icon="material-symbols:route-outline"></iconify-icon>
+                    <span class="panel-content">Wire</span>
+                </button>
+
+                <!-- Smooth toggle -->
+                <button class="btn" id="smoothTraceBtn" title="Toggle Smooth Trace (45° bends)">
+                    <iconify-icon icon="material-symbols:waves"></iconify-icon>
+                    <span class="panel-content">Smooth</span>
+                </button>
+
+                <!-- Separator: Arrange -->
+                <span class="toolbar-sep">Arrange</span>
+
+                <!-- Group -->
+                <button class="btn" id="groupBtn" title="Group (Ctrl+G)">
+                    <iconify-icon icon="material-symbols:group-work-outline"></iconify-icon>
+                    <span class="panel-content">Group</span>
+                </button>
+
+                <!-- Ungroup -->
+                <button class="btn" id="ungroupBtn" title="Ungroup (Ctrl+Shift+G)">
+                    <iconify-icon icon="material-symbols:grid-view-outline"></iconify-icon>
+                    <span class="panel-content">Ungroup</span>
+                </button>
+
+                <!-- Delete -->
+                <button class="btn" id="deleteBtn" title="Delete selected (Del)">
+                    <iconify-icon icon="material-symbols:delete-outline"></iconify-icon>
+                    <span class="panel-content">Delete</span>
+                </button>
+
+                <!-- Separator: Style quick-set -->
+                <span class="toolbar-sep">Style</span>
+
+                <label class="prop-label" title="Stroke color"
+                    style="display:flex;align-items:center;gap:4px;font-size:11px;">
+                    <!-- <iconify-icon icon="material-symbols:border-color-outline" style="font-size:14px;"></iconify-icon> -->
+                    <input type="color" id="drawStyleStroke" value="#4facfe"
+                        style="width:28px;height:22px;border:none;padding:0;cursor:pointer;background:none;">
+                </label>
+
+                <label class="prop-label" title="Stroke width"
+                    style="display:flex;align-items:center;gap:4px;font-size:11px;">
+                    <input type="number" id="drawStyleStrokeW" value="2" min="0.5" max="20" step="0.5"
+                        style="width:36px;background:rgba(79,172,254,0.12);border:1px solid rgba(79,172,254,0.3);border-radius:4px;color:inherit;font-size:11px;padding:2px 4px;">
+                </label>
             </div>
 
             <!-- Export section -->
@@ -156,22 +264,10 @@
                 </button>
             </div>
 
-            <!-- Edit section (coming soon) -->
-            <button class="accordion active slide-bar" aria-label="Edit tools">
-                <h3>Edit</h3>
-            </button>
-            <div class="panel control-group-flex">
-                <span
-                    style="font-size:11px;color:rgb(129 133 148);padding:6px 8px;display:flex;align-items:center;gap:4px;">
-                    <iconify-icon icon="material-symbols:edit-outline" style="font-size:13px;"></iconify-icon>
-                    Coming soon
-                </span>
-            </div>
-
-        </div>
+        </div><!-- /.custom-bar accordion toolbar -->
 
         <!-- ======================================================
-         MAIN AREA; Sidebar nav + SVG viewer
+         MAIN AREA
          ====================================================== -->
         <div class="main-layout">
 
@@ -179,7 +275,7 @@
             <main class="svg-viewer">
                 <div class="svg-container" id="svgContainer">
                     <div class="svg-wrapper" id="svgWrapper">
-                        <svg id="svgDisplay" width="400" height="300" viewBox="0 0 400 300">
+                        <svg id="svgDisplay" width="1200" height="800" viewBox="0 0 1200 800">
                             <defs>
                                 <filter id="glow">
                                     <feGaussianBlur stdDeviation="3" result="coloredBlur" />
@@ -196,18 +292,20 @@
                                     </feMerge>
                                 </filter>
                             </defs>
-                            <text x="200" y="145" text-anchor="middle" fill="rgba(0,0,0,0.35)" font-size="14"
+                            <!-- Placeholder text -->
+                            <text x="600" y="385" text-anchor="middle" fill="gray" font-size="15"
                                 font-family="Inter,sans-serif">
-                                Tap Load to upload your wiring diagram
+                                Click <tspan fill="#4facfe">New</tspan> to create a blank canvas, or <tspan
+                                    fill="#4facfe">Load</tspan> to import a file
                             </text>
-                            <text x="200" y="165" text-anchor="middle" fill="rgba(0,0,0,0.2)" font-size="11"
+                            <text x="600" y="410" text-anchor="middle" fill="gray" font-size="11"
                                 font-family="Inter,sans-serif">
-                                Supports .svg files
+                                Supports SVG · PDF · HPGL/PLT · PNG · JPG · DWF
                             </text>
                         </svg>
                     </div>
                     <div class="loading" id="loadingIndicator" style="display:none;color:rgba(255,255,255,0.7);">
-                        Loading diagram...
+                        Loading…
                     </div>
                 </div>
             </main>
@@ -215,7 +313,7 @@
         </div><!-- /.main-layout -->
 
         <!-- ======================================================
-         TIMELINE PANEL; thumbnail filmstrip, toggled by Timeline btn
+         TIMELINE PANEL
          ====================================================== -->
         <div class="timeline-panel" id="timelinePanel">
             <div class="timeline-tracks" id="timelineTracks">
@@ -264,6 +362,18 @@
                 <div>Rotate L</div>
             </div>
 
+            <div class="control-btn" id="gridToggleBtn" title="Toggle Grid (G)">
+                <div class="icon"><iconify-icon icon="material-symbols:grid-on" style="font-size:20px;"></iconify-icon>
+                </div>
+                <div>Grid</div>
+            </div>
+
+            <div class="control-btn" id="snapToggleBtn" title="Toggle Snap">
+                <div class="icon"><iconify-icon icon="material-symbols:location-searching"
+                        style="font-size:20px;"></iconify-icon></div>
+                <div>Snap</div>
+            </div>
+
             <div class="control-btn" id="transformBtn" title="Transform / Side Panel">
                 <div class="icon"><iconify-icon icon="material-symbols:transform"
                         style="font-size:20px;"></iconify-icon></div>
@@ -276,13 +386,13 @@
                 <div>Measure</div>
             </div>
 
-            <div class="control-btn" id="layersBtn" title="Layers Panel">
+            <div class="control-btn" id="layersBtn" title="Layers / Properties Panel">
                 <div class="icon"><iconify-icon icon="material-symbols:layers-outline"
                         style="font-size:20px;"></iconify-icon></div>
                 <div>Layers</div>
             </div>
 
-            <div class="control-btn" id="timelineBtn" title="Timeline; all loaded diagrams">
+            <div class="control-btn" id="timelineBtn" title="Timeline – all loaded diagrams">
                 <div class="icon"><iconify-icon icon="material-symbols:video-library-outline"
                         style="font-size:20px;"></iconify-icon></div>
                 <div>Timeline</div>
@@ -291,27 +401,35 @@
         </div><!-- /.bottom-controls -->
 
         <!-- ======================================================
-         SIDE PANEL; Layers + View Controls
+         SIDE PANEL — Layers + Properties (tabbed)
          ====================================================== -->
         <div class="side-panel" id="sidePanel">
             <button class="side-panel-close" id="closePanelBtn" title="Close panel">
                 <iconify-icon icon="material-symbols:close"></iconify-icon>
             </button>
 
+            <!-- Tab strip -->
+            <div class="side-panel-tabs" style="margin-top:44px;">
+                <button class="side-tab active" id="sidePanelTabLayers">
+                    <iconify-icon icon="material-symbols:layers-outline"></iconify-icon> Layers
+                </button>
+                <button class="side-tab" id="sidePanelTabProperties">
+                    <iconify-icon icon="material-symbols:tune"></iconify-icon> Properties
+                </button>
+            </div>
+
             <!-- Layers tree -->
-            <div class="control-group" style="margin-top:44px;">
-                <h3 style="display:flex;align-items:center;gap:6px;">
-                    <iconify-icon icon="material-symbols:layers-outline"></iconify-icon>
-                    Layers
-                </h3>
+            <div class="control-group" id="layersPanelWrap">
                 <div id="layersPanel" class="layers-tree"
-                    style="max-height:280px;overflow-y:auto;border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:6px;margin-top:6px;">
+                    style="max-height:340px;overflow-y:auto;border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:6px;margin-top:6px;">
                     <!-- Populated by layers.js -->
                 </div>
             </div>
 
+            <!-- Property panel injected here by propertyPanel.js -->
+
             <!-- View controls (2D + 3D sliders) -->
-            <div class="control-group">
+            <div class="control-group" id="viewControlsGroup">
                 <h3>View Controls</h3>
 
                 <div class="slider-group">
@@ -344,14 +462,24 @@
                         value="1500">
                     <div class="value-display">Distance: <span id="perspectiveValue">1500</span>px</div>
                 </div>
+
+                <!-- Grid settings -->
+                <div class="slider-group">
+                    <label>Grid Size (px)</label>
+                    <select id="gridSizeSelect" class="prop-select" style="width:100%;margin-top:4px;">
+                        <option value="10">10px (fine)</option>
+                        <option value="20" selected>20px (default)</option>
+                        <option value="50">50px (coarse)</option>
+                    </select>
+                </div>
             </div>
-        </div>
+        </div><!-- /#sidePanel -->
 
         <!-- Toast -->
         <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
         <!-- ======================================================
-         MEASURE MODAL; unit scale setup
+         MEASURE MODAL
          ====================================================== -->
         <div class="modal-backdrop" id="measureModal" role="dialog" aria-modal="true" aria-label="Measure unit scale">
             <div class="modal">
@@ -360,14 +488,12 @@
                     Measure Scale
                 </h3>
 
-                <!-- System tabs -->
                 <div class="measure-tabs">
                     <button class="measure-tab active" data-system="px">Pixels</button>
                     <button class="measure-tab" data-system="metric">Metric</button>
                     <button class="measure-tab" data-system="imperial">Imperial</button>
                 </div>
 
-                <!-- Pixel (no-scale) group -->
                 <div class="measure-unit-group" data-system="px">
                     <div class="measure-unit-btns">
                         <button class="measure-unit-btn active" data-unit="px">px</button>
@@ -375,7 +501,6 @@
                     <p class="measure-hint">Distances shown in raw screen pixels.</p>
                 </div>
 
-                <!-- Metric group -->
                 <div class="measure-unit-group" data-system="metric" style="display:none;">
                     <div class="measure-unit-btns">
                         <button class="measure-unit-btn" data-unit="mm">mm</button>
@@ -384,7 +509,6 @@
                     </div>
                 </div>
 
-                <!-- Imperial group -->
                 <div class="measure-unit-group" data-system="imperial" style="display:none;">
                     <div class="measure-unit-btns">
                         <button class="measure-unit-btn" data-unit="in">in</button>
@@ -393,7 +517,6 @@
                     </div>
                 </div>
 
-                <!-- Shared scale row (hidden when px tab active) -->
                 <div class="measure-scale-row" id="measureScaleRow" style="display:none;">
                     <input type="number" id="measurePxVal" class="measure-scale-input" value="1" min="0.001" step="any">
                     <span class="measure-scale-sep">px =</span>
@@ -409,18 +532,65 @@
             </div>
         </div>
 
+        <!-- ======================================================
+         NEW CANVAS MODAL
+         ====================================================== -->
+        <div class="modal-backdrop" id="newCanvasModal" role="dialog" aria-modal="true" aria-label="New canvas">
+            <div class="modal">
+                <h3 class="modal-title">
+                    <iconify-icon icon="material-symbols:add-box-outline" style="font-size:16px;"></iconify-icon>
+                    New Canvas
+                </h3>
+
+                <div class="prop-grid-2" style="gap:12px;">
+                    <label class="prop-label">Name
+                        <input type="text" id="newCanvasName" class="prop-input" style="width:100%;margin-top:4px;"
+                            placeholder="My Schematic" value="New Canvas">
+                    </label>
+                    <div></div>
+                    <label class="prop-label">Width (px)
+                        <input type="number" id="newCanvasW" class="prop-input" style="width:100%;margin-top:4px;"
+                            value="1200" min="100" max="10000">
+                    </label>
+                    <label class="prop-label">Height (px)
+                        <input type="number" id="newCanvasH" class="prop-input" style="width:100%;margin-top:4px;"
+                            value="800" min="100" max="10000">
+                    </label>
+                </div>
+
+                <p class="measure-hint">
+                    You can import files onto an existing canvas using the <strong>Load</strong> button.
+                </p>
+
+                <div class="modal-actions">
+                    <button class="btn btn-ghost" id="newCanvasModalCancel">Cancel</button>
+                    <button class="btn btn-primary" id="newCanvasModalOk">Create Canvas</button>
+                </div>
+            </div>
+        </div>
+
     </div><!-- /.app-container -->
 
-    <!-- Hidden file input; multiple for batch upload -->
+    <!-- Hidden file input -->
     <input type="file" id="hiddenFileInput" multiple
         accept=".svg,.svgz,image/svg+xml,.pdf,application/pdf,.png,image/png,.jpg,.jpeg,image/jpeg,.bmp,image/bmp,.tif,.tiff,image/tiff,.plt,.hpgl,.dwf,.dwfx"
         style="display:none;">
 
     <!-- ============================================================
-     JS; feature files loaded in dependency order
-     core → features → init
+     JS — loaded in dependency order: core → canvas → features → init
      ============================================================ -->
+    <!-- Core -->
     <script src="js/core/svgEditor.js"></script>
+
+    <!-- Canvas modules (Phase 1) -->
+    <script src="js/canvas/snapGrid.js"></script>
+    <script src="js/canvas/canvasEngine.js"></script>
+    <script src="js/canvas/drawingTools.js"></script>
+    <script src="js/canvas/clipboard.js"></script>
+    <script src="js/canvas/alignDistribute.js"></script>
+    <script src="js/canvas/propertyPanel.js"></script>
+
+    <!-- Features -->
     <script src="js/features/viewTransform.js"></script>
     <script src="js/features/wiringDiagram.js"></script>
     <script src="js/features/wireTracing.js"></script>
@@ -433,12 +603,28 @@
         $(document).ready(function () {
             window.editor = new MobileSVGEditor();
 
-            // Sidebar nav; mark SVG Editor as the active tool
+            // Sidebar nav
             if (window.SidebarNav) {
                 SidebarNav.render('#sidebar-nav-mount', 'SVG Editor');
             }
 
-            // Service Worker (offline capability)
+            // Grid size selector in side panel
+            $('#gridSizeSelect').on('change', function () {
+                window.editor.setGridSize($(this).val());
+            });
+
+            // Group / Ungroup / Delete buttons
+            $('#groupBtn').on('click', () => window.editor.groupSelected());
+            $('#ungroupBtn').on('click', () => window.editor.ungroupSelected());
+            $('#deleteBtn').on('click', () => window.editor.deleteSelected());
+
+            // Side panel tab styling
+            $(document).on('click', '.side-tab', function () {
+                $('.side-tab').removeClass('active');
+                $(this).addClass('active');
+            });
+
+            // Service Worker
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').catch(() => { });
             }

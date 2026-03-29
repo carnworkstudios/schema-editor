@@ -1,52 +1,58 @@
 /* ============================================================
-   SVG Wiring Editor; Core Class
-   Constructor, element init, gesture setup, event binding
+   SVG Wiring Editor — Core Class   (Phase 1 — Edit Mode)
+   Constructor, element init, gesture setup, event binding,
+   tool registry, keyboard shortcuts, "New Canvas" modal
    ============================================================ */
 
 class MobileSVGEditor {
     constructor() {
-        // View state
-        this.currentZoom = 1;
-        this.currentRotation = 0;
+        // ── View state ────────────────────────────────────────
+        this.currentZoom      = 1;
+        this.currentRotation  = 0;
         this.currentTranslate = { x: 0, y: 0 };
-        this.currentPitch = 0;
-        this.currentYaw = 0;
-        this.dragStart = { x: 0, y: 0 };
+        this.currentPitch     = 0;
+        this.currentYaw       = 0;
+        this.dragStart        = { x: 0, y: 0 };
 
-        // Interaction flags
-        this.isDragging = false;
-        this.isCtrlHeld = false;
-        this.isShiftHeld = false;
-        this.isWireTracing = false;
+        // ── Interaction flags ─────────────────────────────────
+        this.isDragging       = false;
+        this.isCtrlHeld       = false;
+        this.isShiftHeld      = false;
+        this.isWireTracing    = false;
         this.isConnectionWire = false;
-        this.isComponentBox = false;
+        this.isComponentBox   = false;
 
-        // SVG data
-        this.wires = [];
-        this.components = [];
-        this.wireConnections = [];
+        // ── Tool / Mode state (Phase 1) ───────────────────────
+        this.activeTool       = 'select';     // 'select'|'pen'|'line'|'rect'|'ellipse'|'polygon'|'text'|'wire'
+        this.activeMode       = 'general';    // 'general'|'electrical'|'uml'|'floorplan'
+        this._smoothTrace     = false;        // Manhattan (false) vs 45° bends (true)
+
+        // ── SVG data ──────────────────────────────────────────
+        this.wires          = [];
+        this.components     = [];
+        this.wireConnections= [];
         this.selectedElements = [];
-        this.originalViewBox = null;
+        this.originalViewBox  = null;
 
-        // Misc
-        this.miniMapVisible = false;
-        this.clickTimeout = null;
-        this.toastTimeout = null;
+        // ── Misc ──────────────────────────────────────────────
+        this.miniMapVisible   = false;
+        this.clickTimeout     = null;
+        this.toastTimeout     = null;
 
-        // Measure state
-        this._measuring = false;
-        this._measurePoints = [];
-        this._measureUnit = 'px';
-        this._measureScaleFactor = null;
-        this._measurePxVal = 1;
-        this._measureUnitVal = 1;
+        // ── Measure state ─────────────────────────────────────
+        this._measuring         = false;
+        this._measurePoints     = [];
+        this._measureUnit       = 'px';
+        this._measureScaleFactor= null;
+        this._measurePxVal      = 1;
+        this._measureUnitVal    = 1;
 
-        // History (populated by history.js)
-        this._historyStack = [];
-        this._historyIndex = -1;
+        // ── History ───────────────────────────────────────────
+        this._historyStack  = [];
+        this._historyIndex  = -1;
 
-        // Multi-display
-        this.displays = [];
+        // ── Multi-display ─────────────────────────────────────
+        this.displays       = [];
         this.activeDisplayIdx = -1;
 
         this.SVG_NS = 'http://www.w3.org/2000/svg';
@@ -54,25 +60,34 @@ class MobileSVGEditor {
         this.initializeElements();
         this.setupGestures();
         this.bindEvents();
+        this.bindEditModeEvents();       // Phase 1
         this.setupTouchFeedback();
+
+        // ── Phase 1 canvas modules ────────────────────────────
+        this.initSnapGrid();            // snapGrid.js
+        this.initCanvasEngine();        // canvasEngine.js
+        this.initDrawingTools();        // drawingTools.js
+        this.initClipboard();           // clipboard.js
+        this.initAlignDistribute();     // alignDistribute.js
+        this.initPropertyPanel();       // propertyPanel.js
     }
 
     initializeElements() {
-        this.$svgViewer      = $('#svgViewer');
-        this.$svgContainer   = $('#svgContainer');
-        this.$svgWrapper     = $('#svgWrapper');
-        this.$svgDisplay     = $('#svgDisplay');
-        this.$sidePanel      = $('#sidePanel');
-        this.$bottomControls = $('#bottomControls');
-        this.$miniMap        = $('#miniMap');
-        this.$miniMapSvg     = $('#miniMapSvg');
-        this.$miniMapViewport = $('#miniMapViewport');
-        this.$toast          = $('#toast');
-        this.$zoomSlider     = $('#zoomSlider');
-        this.$rotationSlider = $('#rotationSlider');
-        this.$pitchSlider    = $('#pitchSlider');
-        this.$rotateYSlider  = $('#rotateYSlider');
-        this.$perspectiveSlider = $('#perspectiveSlider');
+        this.$svgViewer        = $('#svgViewer');
+        this.$svgContainer     = $('#svgContainer');
+        this.$svgWrapper       = $('#svgWrapper');
+        this.$svgDisplay       = $('#svgDisplay');
+        this.$sidePanel        = $('#sidePanel');
+        this.$bottomControls   = $('#bottomControls');
+        this.$miniMap          = $('#miniMap');
+        this.$miniMapSvg       = $('#miniMapSvg');
+        this.$miniMapViewport  = $('#miniMapViewport');
+        this.$toast            = $('#toast');
+        this.$zoomSlider       = $('#zoomSlider');
+        this.$rotationSlider   = $('#rotationSlider');
+        this.$pitchSlider      = $('#pitchSlider');
+        this.$rotateYSlider    = $('#rotateYSlider');
+        this.$perspectiveSlider= $('#perspectiveSlider');
     }
 
     setupGestures() {
@@ -97,12 +112,14 @@ class MobileSVGEditor {
         };
 
         hammer.on('pinchstart rotatestart panstart', (ev) => {
+            // Don't pan/pinch while in a drawing tool
+            if (this.activeTool !== 'select') return;
             gesture.active = true;
-            gesture.baseZoom = this.currentZoom;
-            gesture.baseRotation = this.currentRotation;
-            gesture.baseTranslate = { ...this.currentTranslate };
+            gesture.baseZoom       = this.currentZoom;
+            gesture.baseRotation   = this.currentRotation;
+            gesture.baseTranslate  = { ...this.currentTranslate };
             gesture.prevHammerRotation = ev.rotation || 0;
-            gesture.prevHammerScale = ev.scale || 1;
+            gesture.prevHammerScale    = ev.scale    || 1;
             gesture.prevDelta = { x: ev.deltaX || 0, y: ev.deltaY || 0 };
         });
 
@@ -140,11 +157,11 @@ class MobileSVGEditor {
         hammer.on('pinchend rotateend panend', () => {
             gesture.active = false;
             gesture.prevHammerRotation = 0;
-            gesture.prevHammerScale = 1;
-            gesture.prevDelta = { x: 0, y: 0 };
-            gesture.baseZoom = this.currentZoom;
-            gesture.baseRotation = this.currentRotation;
-            gesture.baseTranslate = { ...this.currentTranslate };
+            gesture.prevHammerScale    = 1;
+            gesture.prevDelta          = { x: 0, y: 0 };
+            gesture.baseZoom           = this.currentZoom;
+            gesture.baseRotation       = this.currentRotation;
+            gesture.baseTranslate      = { ...this.currentTranslate };
         });
     }
 
@@ -164,25 +181,30 @@ class MobileSVGEditor {
         $('#loadFileBtn').on('click', () => $('#hiddenFileInput').click());
         $('#svgFileInput, #hiddenFileInput').on('change', (e) => this.loadSVGFiles(e));
 
+        // New canvas
+        $('#newCanvasBtn').on('click', () => this._showNewCanvasModal());
+
         // Timeline filmstrip
         $('#timelineBtn').on('click', () => this.showTimeline());
 
-        // Trace wire switch; fixed: no broken $(this) in arrow fn
+        // Trace wire switch
         $('#traceWireBtn').on('click', () => this.toggleWireTracing());
 
         // Toolbar
         $('#toggleControlsBtn').on('click', () => this.toggleBottomControls());
-        $('#resetViewBtn').on('click', () => this.resetView());
+        $('#resetViewBtn').on('click',  () => this.resetView());
 
         // Bottom controls
-        $('#zoomInBtn').on('click',    () => this.zoomIn());
-        $('#zoomOutBtn').on('click',   () => this.zoomOut());
-        $('#fitViewBtn').on('click',   () => this.fitToView());
-        $('#rotateBtn').on('click',    () => this.rotateView());
-        $('#rotateLeftBtn').on('click',() => this.rotateViewLeft());
-        $('#layersBtn').on('click',    () => this.toggleSidePanel());
-        $('#measureBtn').on('click',   () => this.toggleMeasureTool());
-        $('#transformBtn').on('click', () => this.toggleSidePanel());
+        $('#zoomInBtn').on('click',     () => this.zoomIn());
+        $('#zoomOutBtn').on('click',    () => this.zoomOut());
+        $('#fitViewBtn').on('click',    () => this.fitToView());
+        $('#rotateBtn').on('click',     () => this.rotateView());
+        $('#rotateLeftBtn').on('click', () => this.rotateViewLeft());
+        $('#layersBtn').on('click',     () => this.toggleSidePanel());
+        $('#measureBtn').on('click',    () => this.toggleMeasureTool());
+        $('#transformBtn').on('click',  () => this.toggleSidePanel());
+        $('#gridToggleBtn').on('click', () => this.toggleGrid());
+        $('#snapToggleBtn').on('click', () => this.toggleSnap());
 
         // Wiring toolbar
         $('#highlightComponentsBtn').on('click', () => {
@@ -205,52 +227,79 @@ class MobileSVGEditor {
 
         $('#clearHighlightsBtn').on('click', () => this.clearAllHighlights());
 
-        // Export / display
-        $('#exportViewBtn').on('click',    () => this.exportCurrentView());
-        $('#exportHtmlBtn').on('click',    () => this.exportAsHtml());
-        $('#exportJsonBtn').on('click',    () => this.exportAsJson());
-        $('#batchExportBtn').on('click',   () => this.batchExport());
-        $('#toggleMiniMapBtn').on('click', () => this.toggleMiniMap());
-        $('#darkModeBtn').on('click',      () => this.toggleDarkMode());
+        // Export
+        $('#exportViewBtn').on('click',   () => this.exportCurrentView());
+        $('#exportHtmlBtn').on('click',   () => this.exportAsHtml());
+        $('#exportJsonBtn').on('click',   () => this.exportAsJson());
+        $('#batchExportBtn').on('click',  () => this.batchExport());
+        $('#toggleMiniMapBtn').on('click',() => this.toggleMiniMap());
+        $('#darkModeBtn').on('click',     () => this.toggleDarkMode());
 
         // Side panel
         $('#closePanelBtn').on('click', () => this.closeSidePanel());
+
+        // Side panel tabs
+        $('#sidePanelTabLayers').on('click',     () => this._switchSidePanelTab('layers'));
+        $('#sidePanelTabProperties').on('click', () => this._switchSidePanelTab('properties'));
 
         // Undo / redo
         $('#undoBtn').on('click', () => this.undo());
         $('#redoBtn').on('click', () => this.redo());
 
         // Sliders
-        $('#zoomSlider').on('input',       (e) => this.setZoom(parseFloat(e.target.value)));
-        $('#rotationSlider').on('input',   (e) => this.setRotation(parseFloat(e.target.value)));
-        $('#pitchSlider').on('input',      (e) => this.setPitch(parseFloat(e.target.value)));
-        $('#rotateYSlider').on('input',    (e) => this.setYRotation(parseFloat(e.target.value)));
-        $('#perspectiveSlider').on('input', (e) => {
+        $('#zoomSlider').on('input',         (e) => this.setZoom(parseFloat(e.target.value)));
+        $('#rotationSlider').on('input',     (e) => this.setRotation(parseFloat(e.target.value)));
+        $('#pitchSlider').on('input',        (e) => this.setPitch(parseFloat(e.target.value)));
+        $('#rotateYSlider').on('input',      (e) => this.setYRotation(parseFloat(e.target.value)));
+        $('#perspectiveSlider').on('input',  (e) => {
             const val = parseFloat(e.target.value);
             $('#perspectiveValue').text(val);
             this.$svgWrapper.css('perspective', val + 'px');
         });
 
-        // Mouse drag
-        this.$svgContainer.on('mousedown', (e) => this.startDrag(e));
-        $(document).on('mousemove', (e) => this.drag(e));
-        $(document).on('mouseup',  () => this.endDrag());
+        // Mouse drag (only in select mode — drawing tools handle their own)
+        this.$svgContainer.on('mousedown', (e) => {
+            if (this.activeTool === 'select') this.startDrag(e);
+        });
+        $(document).on('mousemove', (e) => { if (this.activeTool === 'select') this.drag(e); });
+        $(document).on('mouseup',  ()  => this.endDrag());
 
         // Wheel zoom
         this.$svgContainer.on('wheel', (e) => this.handleWheel(e));
 
-        // Keyboard modifiers + undo/redo shortcuts
+        // Keyboard: modifiers + global shortcuts
         $(document).on('keydown', (e) => {
-            if (e.key === 'Shift') this.isShiftHeld = true;
+            if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+
+            if (e.key === 'Shift')   this.isShiftHeld = true;
             if (e.key === 'Control' || e.key === 'Meta') this.isCtrlHeld = true;
 
             const ctrl = e.ctrlKey || e.metaKey;
+
+            // Undo / redo
             if (ctrl && !e.shiftKey && e.key === 'z') { e.preventDefault(); this.undo(); }
             if (ctrl && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); this.redo(); }
+
+            // Delete selected
+            if ((e.key === 'Delete' || e.key === 'Backspace') && this._selection?.length) {
+                e.preventDefault(); this.deleteSelected();
+            }
+
+            // Ctrl+A = select all
+            if (ctrl && e.key === 'a') { e.preventDefault(); this.selectAll(); }
+
+            // Ctrl+G / Ctrl+Shift+G = group/ungroup
+            if (ctrl && !e.shiftKey && e.key === 'g') { e.preventDefault(); this.groupSelected(); }
+            if (ctrl && e.shiftKey  && e.key === 'G') { e.preventDefault(); this.ungroupSelected(); }
+
+            // Escape = select tool
+            if (e.key === 'Escape' && this.activeTool !== 'select') {
+                this.setActiveTool('select');
+            }
         });
 
         $(document).on('keyup', (e) => {
-            if (e.key === 'Shift') this.isShiftHeld = false;
+            if (e.key === 'Shift')   this.isShiftHeld = false;
             if (e.key === 'Control' || e.key === 'Meta') this.isCtrlHeld = false;
         });
 
@@ -259,7 +308,7 @@ class MobileSVGEditor {
             $(this).toggleClass('active');
         });
 
-        // Click outside side panel closes it
+        // Click outside side panel
         $(document).on('click', (e) => {
             const $t = $(e.target);
             if (!$t.closest('#sidePanel').length &&
@@ -269,27 +318,23 @@ class MobileSVGEditor {
             }
         });
 
-        // Prevent context menu on long press
         this.$svgContainer.on('contextmenu', (e) => e.preventDefault());
 
-        // Measure modal; tab switching
+        // Measure modal
         $(document).on('click', '.measure-tab', (e) => {
             const system = $(e.currentTarget).data('system');
             $('.measure-tab').removeClass('active');
             $(e.currentTarget).addClass('active');
             $('.measure-unit-group').hide();
             $(`.measure-unit-group[data-system="${system}"]`).show();
-            // Select first unit in group
             const $first = $(`.measure-unit-group[data-system="${system}"] .measure-unit-btn`).first();
             $('.measure-unit-btn').removeClass('active');
             $first.addClass('active');
-            // Show/hide scale row
             const showScale = system !== 'px';
             $('#measureScaleRow').toggle(showScale);
             if (showScale) $('#measureScaleUnitLabel').text($first.data('unit'));
         });
 
-        // Measure modal; unit button selection
         $(document).on('click', '.measure-unit-btn', (e) => {
             $('.measure-unit-btn').removeClass('active');
             $(e.currentTarget).addClass('active');
@@ -297,38 +342,95 @@ class MobileSVGEditor {
             if (unit !== 'px') $('#measureScaleUnitLabel').text(unit);
         });
 
-        // Measure modal; OK
         $('#measureModalOk').on('click', () => {
-            const unit = $('.measure-unit-btn.active').data('unit') || 'px';
+            const unit    = $('.measure-unit-btn.active').data('unit') || 'px';
             const pxVal   = parseFloat($('#measurePxVal').val())   || 1;
             const unitVal = parseFloat($('#measureUnitVal').val())  || 1;
-
             this._measureUnit        = unit;
             this._measurePxVal       = pxVal;
             this._measureUnitVal     = unitVal;
             this._measureScaleFactor = unit === 'px' ? null : (unitVal / pxVal);
-
             $('#measureModal').removeClass('open');
             this._startMeasuring();
         });
 
-        // Measure modal; Cancel
-        $('#measureModalCancel').on('click', () => {
-            $('#measureModal').removeClass('open');
-        });
+        $('#measureModalCancel').on('click', () => $('#measureModal').removeClass('open'));
 
-        // Measure modal; backdrop click closes
         $('#measureModal').on('click', (e) => {
             if ($(e.target).is('#measureModal')) $('#measureModal').removeClass('open');
         });
 
-        // Orientation / resize
+        // New canvas modal
+        $('#newCanvasModalOk').on('click', () => this._createNewCanvas());
+        $('#newCanvasModalCancel').on('click', () => $('#newCanvasModal').removeClass('open'));
+        $('#newCanvasModal').on('click', (e) => {
+            if ($(e.target).is('#newCanvasModal')) $('#newCanvasModal').removeClass('open');
+        });
+
         $(window).on('orientationchange resize', () => {
             setTimeout(() => this.handleOrientationChange(), 100);
         });
     }
 
-    // Utility: scale a value from one range to another
+    // ── Edit-mode events (Phase 1) ────────────────────────────
+    bindEditModeEvents() {
+        // Tool buttons in Edit toolbar
+        $(document).on('click', '.draw-tool-btn', (e) => {
+            const tool = $(e.currentTarget).data('tool');
+            if (tool) this.setActiveTool(tool);
+        });
+
+        // Smooth Trace toggle
+        $('#smoothTraceBtn').on('click', () => {
+            this._smoothTrace = !this._smoothTrace;
+            $('#smoothTraceBtn').toggleClass('active', this._smoothTrace);
+            this.showToast(this._smoothTrace ? 'Smooth Trace ON' : 'Manhattan Routing', 'success');
+        });
+
+        // Draw style presets in Edit toolbar
+        $('#drawStyleStroke').on('input', (e) => {
+            this._drawStyle.stroke = e.target.value;
+            if (this._selection?.length) {
+                this._selection.forEach(el => el.setAttribute('stroke', e.target.value));
+            }
+        });
+        $('#drawStyleStrokeW').on('input', (e) => {
+            this._drawStyle.strokeWidth = e.target.value;
+            if (this._selection?.length) {
+                this._selection.forEach(el => el.setAttribute('stroke-width', e.target.value));
+            }
+        });
+    }
+
+    // ── New Canvas ────────────────────────────────────────────
+    _showNewCanvasModal() {
+        $('#newCanvasModal').addClass('open');
+    }
+
+    _createNewCanvas() {
+        const w = parseInt($('#newCanvasW').val(), 10) || 1200;
+        const h = parseInt($('#newCanvasH').val(), 10) || 800;
+        const name = $('#newCanvasName').val().trim() || 'New Canvas';
+
+        const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">
+  <rect width="${w}" height="${h}" fill="transparent"/>
+</svg>`;
+
+        const firstNewIdx = this.displays.length;
+        this.displays.push({
+            id: `disp_${Date.now()}`,
+            name,
+            svgContent,
+        });
+        this.switchDisplay(firstNewIdx);
+        $('#newCanvasModal').removeClass('open');
+        this.showToast(`New canvas: ${w}×${h}`, 'success');
+
+        // Start with grid visible on a blank canvas
+        if (!this._grid.visible) this.toggleGrid();
+    }
+
+    // ── Utility ───────────────────────────────────────────────
     scaleValue(value, fromMin, fromMax, toMin, toMax) {
         return ((value - fromMin) / (fromMax - fromMin)) * (toMax - toMin) + toMin;
     }

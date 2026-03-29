@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24">
+  <!-- Pen nib pointing at top-left -->
+  <path d="M4 20 L10 10 L14 14 Z" fill="#4facfe" stroke="#fff" stroke-width="0.8"/>
+  <path d="M10 10 L18 2 L22 6 L14 14 Z" fill="#1a1a2e" stroke="#4facfe" stroke-width="0.8"/>
+  <circle cx="4" cy="20" r="1.5" fill="#4facfe"/>
+</svg>
