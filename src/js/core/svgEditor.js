@@ -26,6 +26,7 @@ class MobileSVGEditor {
         this.activeTool       = 'select';     // 'select'|'pen'|'line'|'rect'|'ellipse'|'polygon'|'text'|'wire'
         this.activeMode       = 'general';    // 'general'|'electrical'|'uml'|'floorplan'
         this._smoothTrace     = false;        // Manhattan (false) vs 45° bends (true)
+        this._domainKits      = {};           // pre-init so kits can register before initDomainManager()
 
         // ── SVG data ──────────────────────────────────────────
         this.wires          = [];
@@ -303,9 +304,14 @@ class MobileSVGEditor {
             if (e.key === 'Control' || e.key === 'Meta') this.isCtrlHeld = false;
         });
 
-        // Accordion toggle
+        // Accordion toggle — auto-close siblings
         $(document).on('click', '.accordion.slide-bar', function () {
-            $(this).toggleClass('active');
+            const $clicked = $(this);
+            const isActive = $clicked.hasClass('active');
+            // Close all accordions
+            $('.accordion.slide-bar').removeClass('active');
+            // If it wasn't active, open it; if it was, leave it closed (toggle)
+            if (!isActive) $clicked.addClass('active');
         });
 
         // Click outside side panel

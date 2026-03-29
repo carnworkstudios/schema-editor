@@ -30,6 +30,7 @@
     <!-- Tool-specific styles -->
     <link rel="stylesheet" href="css/svgEditorUI.css">
     <link rel="stylesheet" href="css/wiringDiagram.css">
+    <link rel="stylesheet" href="css/domainKits.css">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -67,10 +68,47 @@
         </header>
 
         <!-- ======================================================
+         SYMBOL PALETTE SIDEBAR (Phase 2)
+         ====================================================== -->
+        <div id="symbolPalettePanel">
+            <div class="palette-header">
+                <h4>
+                    <iconify-icon icon="material-symbols:category-outline"></iconify-icon>
+                    Symbols
+                </h4>
+                <button class="palette-close-btn" id="palettePanelClose" title="Close palette">
+                    <iconify-icon icon="material-symbols:close"></iconify-icon>
+                </button>
+            </div>
+            <div id="symbolPalette"></div>
+        </div>
+
+        <!-- Floating palette toggle button -->
+        <button id="paletteToggleBtn" title="Toggle symbol palette">
+            <iconify-icon icon="material-symbols:category-outline" style="font-size:16px;"></iconify-icon>
+        </button>
+
+        <!-- ======================================================
          SECONDARY TOOLBAR — Utility actions
          ====================================================== -->
         <div class="custom-bar header-right">
             <div class="header-right" style="padding:4px 8px;width:100%;">
+
+                <!-- Mode Switcher (Phase 2) -->
+                <div class="mode-switcher" id="modeSwitcher" title="Canvas domain mode">
+                    <button class="mode-pill active" data-mode="general" title="General drawing mode">
+                        <iconify-icon icon="material-symbols:draw-outline"></iconify-icon> General
+                    </button>
+                    <button class="mode-pill" data-mode="electrical" title="Electrical / PCB mode">
+                        <iconify-icon icon="material-symbols:bolt"></iconify-icon> Electrical
+                    </button>
+                    <button class="mode-pill" data-mode="uml" title="UML / Software Architecture mode">
+                        <iconify-icon icon="material-symbols:schema-outline"></iconify-icon> UML
+                    </button>
+                    <button class="mode-pill" data-mode="floorplan" title="Floorplan / Architecture mode">
+                        <iconify-icon icon="material-symbols:floor-lamp-outline"></iconify-icon> Floorplan
+                    </button>
+                </div>
 
                 <div class="control-group-flex" style="margin-left:auto;">
                     <!-- Undo / Redo -->
@@ -590,6 +628,12 @@
     <script src="js/canvas/alignDistribute.js"></script>
     <script src="js/canvas/propertyPanel.js"></script>
 
+    <!-- Domain Kits (Phase 2) -->
+    <script src="js/domains/domainManager.js"></script>
+    <script src="js/domains/electricalKit.js"></script>
+    <script src="js/domains/umlKit.js"></script>
+    <script src="js/domains/floorplanKit.js"></script>
+
     <!-- Features -->
     <script src="js/features/viewTransform.js"></script>
     <script src="js/features/wiringDiagram.js"></script>
@@ -607,6 +651,37 @@
             if (window.SidebarNav) {
                 SidebarNav.render('#sidebar-nav-mount', 'SVG Editor');
             }
+
+            // ── Phase 2: Domain Manager init ──────────────────
+            window.editor.initDomainManager();
+
+            // Palette toggle button
+            $('#paletteToggleBtn').on('click', function () {
+                const isOpen = $('#symbolPalettePanel').hasClass('open');
+                $('#symbolPalettePanel').toggleClass('open');
+                $(this).toggleClass('shifted', !isOpen);
+                // Show palette for current mode if opening
+                if (!isOpen && window.editor.activeMode !== 'general') {
+                    window.editor._renderSymbolPalette(window.editor.activeMode);
+                }
+            });
+
+            $('#palettePanelClose').on('click', function () {
+                $('#symbolPalettePanel').removeClass('open');
+                $('#paletteToggleBtn').removeClass('shifted');
+            });
+
+            // Auto-open palette when switching to a domain mode
+            $(document).on('click', '.mode-pill', function () {
+                const mode = $(this).data('mode');
+                if (mode && mode !== 'general') {
+                    $('#symbolPalettePanel').addClass('open');
+                    $('#paletteToggleBtn').addClass('shifted');
+                } else {
+                    $('#symbolPalettePanel').removeClass('open');
+                    $('#paletteToggleBtn').removeClass('shifted');
+                }
+            });
 
             // Grid size selector in side panel
             $('#gridSizeSelect').on('change', function () {
