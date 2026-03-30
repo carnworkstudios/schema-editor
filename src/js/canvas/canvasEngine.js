@@ -203,15 +203,14 @@ Object.assign(MobileSVGEditor.prototype, {
 
     _getSelectionBBox() {
         if (!this._selection.length) return null;
-        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
         this._selection.forEach(el => {
-            try {
-                const bb = el.getBBox();
-                minX = Math.min(minX, bb.x);
-                minY = Math.min(minY, bb.y);
-                maxX = Math.max(maxX, bb.x + bb.width);
-                maxY = Math.max(maxY, bb.y + bb.height);
-            } catch (_) {}
+            // Prefer BBox map cache (no reflow) → fall back to live getBBox()
+            const cached = this._bboxMap?.get(el.id);
+            const bb     = cached ?? (() => { try { return el.getBBox(); } catch(_){} return null; })();
+            if (!bb) return;
+            minX = Math.min(minX, bb.x);          minY = Math.min(minY, bb.y);
+            maxX = Math.max(maxX, bb.x + bb.width); maxY = Math.max(maxY, bb.y + bb.height);
         });
         if (!isFinite(minX)) return null;
         return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
@@ -255,7 +254,14 @@ Object.assign(MobileSVGEditor.prototype, {
                     } else {
                         this._applyResize(startTransforms, startBB, type, dx, dy, ev.shiftKey);
                     }
-                    this._renderHandles();
+                    // rAF-gated handle redraw — don't call _renderHandles() directly
+                    if (!this._handleRafPending) {
+                        this._handleRafPending = true;
+                        requestAnimationFrame(() => {
+                            this._handleRafPending = false;
+                            this._renderHandles();
+                        });
+                    }
                 };
 
                 const onUp = () => {
@@ -404,18 +410,53 @@ Object.assign(MobileSVGEditor.prototype, {
         });
     },
 
-    // ── Full-state capture (for upgraded history) ─────────────
+    // ── Per-command attribute diff history (replaces full innerHTML) ───
+
+    /** Capture a lightweight snapshot: just the attributes of every SVG element. */
     _captureFullState() {
-        return this.$svgDisplay[0].innerHTML;
+        const els = {};
+        this.$svgDisplay[0].querySelectorAll('*').forEach(el => {
+            if (!el.id) return;
+            const attrs = {};
+            for (const a of el.attributes) attrs[a.name] = a.value;
+            els[el.id] = { tag: el.tagName, attrs, parentId: el.parentElement?.id || '' };
+        });
+        return JSON.stringify(els);
     },
 
-    _restoreFullState(html) {
-        this.$svgDisplay[0].innerHTML = html;
-        this._selection = [];
-        this._selectionBox = null;
-        // Re-analyze after restore
-        if (typeof this.analyzeWiringDiagram === 'function') {
-            this.analyzeWiringDiagram();
+    /** Restore from a snapshot: apply attribute diffs only, no innerHTML teardown. */
+    _restoreFullState(snapshot) {
+        let state;
+        try { state = JSON.parse(snapshot); } catch (_) {
+            // Legacy innerHTML restore path (old history entries)
+            this.$svgDisplay[0].innerHTML = snapshot;
+            this._selection = [];
+            this._selectionBox = null;
+            if (typeof this.analyzeWiringDiagram === 'function') this.analyzeWiringDiagram();
+            return;
         }
+
+        const svg = this.$svgDisplay[0];
+        // Remove elements not in snapshot
+        svg.querySelectorAll('[id]').forEach(el => {
+            if (!state[el.id]) el.remove();
+        });
+        // Apply attribute diffs
+        Object.entries(state).forEach(([id, { tag, attrs, parentId }]) => {
+            let el = svg.querySelector(`#${CSS.escape(id)}`);
+            if (!el) {
+                el = document.createElementNS(this.SVG_NS, tag);
+                el.id = id;
+                const parent = parentId ? (svg.querySelector(`#${CSS.escape(parentId)}`) || svg) : svg;
+                parent.appendChild(el);
+            }
+            // Sync attributes
+            const existing = new Set(Array.from(el.attributes).map(a => a.name));
+            Object.entries(attrs).forEach(([k, v]) => { el.setAttribute(k, v); existing.delete(k); });
+            existing.forEach(k => el.removeAttribute(k));
+        });
+
+        this._selection    = [];
+        this._selectionBox = null;
     },
 });

@@ -142,8 +142,8 @@ body {
    Buttons
    ============================================================ */
 .btn {
-    background: rgba(79, 172, 254, 0.12);
-    border: 1px solid rgba(79, 172, 254, 0.3);
+    background: rgba(0, 0, 0, 0.05);
+    border: 1px solid rgba(0, 0, 0, 0.14);
     color: #1a1a1a;
     padding: 5px 10px;
     border-radius: 20px;
@@ -158,11 +158,16 @@ body {
     gap: 4px;
 }
 
-.btn:hover,
-.btn.active {
-    background: rgba(79, 172, 254, 0.28);
-    border-color: #4facfe;
+.btn:hover {
+    background: rgba(0, 0, 0, 0.1);
+    border-color: rgba(0, 0, 0, 0.25);
     transform: translateY(-1px);
+}
+
+.btn.active {
+    background: rgba(79, 172, 254, 0.18);
+    border-color: #4facfe;
+    color: #0066cc;
 }
 
 .btn:disabled,
@@ -282,21 +287,32 @@ body {
     width: 100%;
     height: 100%;
     position: relative;
+    overflow: hidden;      /* Fix #2: clips content that moves outside bounds */
     cursor: grab;
     touch-action: none;
-    display: flex;
-    justify-content: center;
-    align-items: center;
 }
 
-.svg-container:active {
-    cursor: grabbing;
-}
+.svg-container:active { cursor: grabbing; }
 
+/* #svgWrapper is the element that receives CSS transform.
+   transform-origin MUST be 0 0 (top-left) so zoom-at-point
+   math is correct. viewTransform.js sets this dynamically
+   but we declare it here as default. */
 .svg-wrapper {
-    transform-origin: center center;
-    transition: transform 0.1s ease-out;
+    position: absolute;
+    top:  0;
+    left: 0;
+    width:  100%;
+    height: 100%;
+    transform-origin: 0 0;     /* Fix #6: top-left origin for cursor zoom */
     will-change: transform;
+}
+
+/* SVG fills wrapper; viewBox controls the logical coordinate space */
+.svg-wrapper svg {
+    width:  100%;
+    height: 100%;
+    display: block;
 }
 
 /* ============================================================
@@ -496,6 +512,86 @@ body {
 .layer-name-input:focus {
     background: rgba(79, 172, 254, 0.2);
     box-shadow: 0 0 0 2px rgba(79, 172, 254, 0.3);
+}
+
+/* ── Topology layer groups ──────────────────────────────── */
+.layer-group {
+    margin-bottom: 6px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid rgba(0,0,0,0.07);
+}
+
+.layer-group-header {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    padding: 5px 7px;
+    background: rgba(0,0,0,0.04);
+    cursor: pointer;
+    user-select: none;
+    transition: background 0.15s;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.layer-group-header:hover {
+    background: rgba(0,0,0,0.08);
+}
+
+.layer-group-arrow {
+    font-size: 9px;
+    color: rgba(0,0,0,0.4);
+    width: 10px;
+    flex-shrink: 0;
+}
+
+.layer-group-label {
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.6px;
+}
+
+.layer-group-count {
+    font-size: 9px;
+    background: rgba(0,0,0,0.1);
+    border-radius: 10px;
+    padding: 1px 5px;
+    color: rgba(0,0,0,0.5);
+    font-weight: 500;
+}
+
+.layer-group-body {
+    max-height: 600px;
+    overflow: hidden;
+    transition: max-height 0.25s ease;
+}
+
+.layer-group-body.collapsed {
+    max-height: 0;
+}
+
+/* Topology item row */
+.topo-item {
+    padding: 4px 7px 4px 10px;
+    gap: 6px;
+}
+
+.layer-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    opacity: 0.85;
+}
+
+.layer-extra {
+    font-size: 9px;
+    color: rgba(0,0,0,0.35);
+    font-family: 'Courier New', monospace;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 /* ============================================================
@@ -971,6 +1067,48 @@ body.dark-mode .layer-toggle {
 
 body.dark-mode .layer-item.active {
     color: #00f2fe;
+}
+
+/* Dark mode — topology layer groups */
+body.dark-mode .layer-group {
+    border-color: rgba(255,255,255,0.07);
+}
+
+body.dark-mode .layer-group-header {
+    background: rgba(255,255,255,0.04);
+    color: rgba(255,255,255,0.85);
+}
+
+body.dark-mode .layer-group-header:hover {
+    background: rgba(255,255,255,0.08);
+}
+
+body.dark-mode .layer-group-arrow {
+    color: rgba(255,255,255,0.3);
+}
+
+body.dark-mode .layer-group-count {
+    background: rgba(255,255,255,0.1);
+    color: rgba(255,255,255,0.4);
+}
+
+body.dark-mode .topo-item {
+    background: rgba(255,255,255,0.03);
+}
+
+body.dark-mode .topo-item:hover {
+    background: rgba(255,255,255,0.07);
+    border-left-color: rgba(255,255,255,0.2);
+}
+
+body.dark-mode .topo-item.active {
+    background: rgba(79,172,254,0.15);
+    border-left-color: #4facfe;
+    color: #4facfe;
+}
+
+body.dark-mode .layer-extra {
+    color: rgba(255,255,255,0.25);
 }
 
 body.dark-mode .timeline-panel {
@@ -1532,8 +1670,143 @@ body.dark-mode .prop-textarea {
     min-width:   32px;
 }
 
+
 /* ============================================================
    PHASE 1 — New Canvas Modal
    ============================================================ */
 /* (Re-uses existing .modal, .modal-backdrop, .modal-title,
    .modal-actions, .btn-primary, .btn-ghost styles — no additions needed) */
+
+/* ============================================================
+   BUG-FIX PASS — Visual corrections
+   ============================================================ */
+
+/* ── Fix #3: Canvas background — neutral checkerboard,
+   no longer a solid blue-tinted surface ───────────────────── */
+.svg-viewer {
+    background: #dfe1e6;
+    background-image:
+        linear-gradient(45deg, rgba(0,0,0,0.04) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(0,0,0,0.04) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.04) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.04) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+body.dark-mode .svg-viewer {
+    background: #1a1b22;
+    background-image:
+        linear-gradient(45deg, rgba(255,255,255,0.025) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255,255,255,0.025) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.025) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.025) 75%);
+    background-size: 20px 20px;
+    background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
+}
+
+/* ── Fix #3: Dark mode button neutrals ──────────────────────── */
+body.dark-mode .btn {
+    background:   rgba(255,255,255,0.07);
+    border-color: rgba(255,255,255,0.14);
+    color:        rgba(255,255,255,0.85);
+}
+
+body.dark-mode .btn:hover {
+    background:   rgba(255,255,255,0.13);
+    border-color: rgba(255,255,255,0.28);
+}
+
+body.dark-mode .btn.active {
+    background:   rgba(79,172,254,0.22);
+    border-color: #4facfe;
+    color:        #4facfe;
+}
+
+body.dark-mode .btn:disabled {
+    opacity: 0.3;
+}
+
+/* ── Fix #3: Neutral snap guides (distinguish from selection) ── */
+.snap-guide {
+    stroke:         #f0a500 !important;   /* amber, not blue */
+    stroke-width:   0.75;
+    stroke-dasharray: 4,4;
+    opacity:        0.55;
+}
+
+/* ── Fix #3: Grid lines — gray, not blue ─────────────────────── */
+.grid-line-minor {
+    stroke:       rgba(128,128,128,0.2);
+    stroke-width: 0.5;
+}
+
+.grid-line-major {
+    stroke:       rgba(128,128,128,0.4);
+    stroke-width: 1;
+}
+
+/* Specifically override the grid pattern colors set by snapGrid.js */
+#snap-grid-minor { stroke: rgba(128,128,128,0.22) !important; }
+#snap-grid-major { stroke: rgba(128,128,128,0.42) !important; }
+
+/* ── Fix #5: editToolbar — horizontal scroll, hidden scrollbar ── */
+#editToolbar {
+    flex-wrap:    nowrap !important;
+    overflow-x:   auto;
+    overflow-y:   visible;
+    -webkit-overflow-scrolling: touch;
+    scroll-behavior: smooth;
+    padding-bottom: 2px;
+}
+
+#editToolbar::-webkit-scrollbar { display: none; }
+#editToolbar { -ms-overflow-style: none; scrollbar-width: none; }
+
+/* ── Fix #4: Mode switcher — mobile responsive dropdown ─────── */
+/* Desktop: show pills, hide select */
+.mode-switcher-select { display: none; }
+
+/* Mobile (<= 640px): hide pills, show native select */
+@media (max-width: 640px) {
+    .mode-switcher { display: none !important; }
+
+    .mode-switcher-select {
+        display:      block;
+        padding:      4px 8px;
+        font-size:    12px;
+        border:       1px solid rgba(79,172,254,0.35);
+        border-radius: 8px;
+        background:   rgba(79,172,254,0.1);
+        color:        inherit;
+        cursor:       pointer;
+        flex-shrink:  0;
+    }
+
+    body.dark-mode .mode-switcher-select {
+        background:   rgba(79,172,254,0.18);
+        border-color: rgba(79,172,254,0.5);
+        color:        #4facfe;
+    }
+
+    /* Secondary toolbar wraps on mobile */
+    .custom-bar.header-right .header-right {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+}
+
+/* ── Fix #2: Ensure svgWrapper never overflows or scrolls ──── */
+.svg-viewer { overflow: hidden; }
+
+/* ── Draw tool active state — keep blue for new content ─────── */
+.draw-tool-btn.active {
+    background:   rgba(79,172,254,0.22) !important;
+    border-color: #4facfe !important;
+    color:        #0066cc !important;
+    box-shadow:   0 0 6px rgba(79,172,254,0.25);
+}
+
+body.dark-mode .draw-tool-btn.active {
+    color: #4facfe !important;
+}

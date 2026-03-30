@@ -110,6 +110,14 @@
                     </button>
                 </div>
 
+                <!-- Mobile fallback: native select (shown ≤640px via CSS) -->
+                <select class="mode-switcher-select" id="modeSwitcherSelect" title="Canvas domain mode" aria-label="Select canvas mode">
+                    <option value="general">✏ General</option>
+                    <option value="electrical">⚡ Electrical</option>
+                    <option value="uml">◈ UML</option>
+                    <option value="floorplan">⬛ Floorplan</option>
+                </select>
+
                 <div class="control-group-flex" style="margin-left:auto;">
                     <!-- Undo / Redo -->
                     <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
@@ -268,7 +276,7 @@
                 <label class="prop-label" title="Stroke color"
                     style="display:flex;align-items:center;gap:4px;font-size:11px;">
                     <!-- <iconify-icon icon="material-symbols:border-color-outline" style="font-size:14px;"></iconify-icon> -->
-                    <input type="color" id="drawStyleStroke" value="#4facfe"
+                    <input type="color" id="drawStyleStroke" value="#666666"
                         style="width:28px;height:22px;border:none;padding:0;cursor:pointer;background:none;">
                 </label>
 
@@ -620,6 +628,10 @@
     <!-- Core -->
     <script src="js/core/svgEditor.js"></script>
 
+    <!-- Spatial index utilities (must load before geometryEngine) -->
+    <script src="js/core/kdTree.js"></script>
+    <script src="js/core/quadTree.js"></script>
+
     <!-- Canvas modules (Phase 1) -->
     <script src="js/canvas/snapGrid.js"></script>
     <script src="js/canvas/canvasEngine.js"></script>
@@ -627,6 +639,9 @@
     <script src="js/canvas/clipboard.js"></script>
     <script src="js/canvas/alignDistribute.js"></script>
     <script src="js/canvas/propertyPanel.js"></script>
+
+    <!-- Geometry Engine (4-phase pipeline — after canvas, before features) -->
+    <script src="js/core/geometryEngine.js"></script>
 
     <!-- Domain Kits (Phase 2) -->
     <script src="js/domains/domainManager.js"></script>
@@ -680,6 +695,27 @@
                 } else {
                     $('#symbolPalettePanel').removeClass('open');
                     $('#paletteToggleBtn').removeClass('shifted');
+                }
+                // Keep mobile select in sync
+                if (mode) $('#modeSwitcherSelect').val(mode);
+            });
+
+            // Mobile select — triggers same switchMode logic
+            $('#modeSwitcherSelect').on('change', function () {
+                const mode = $(this).val();
+                if (mode) {
+                    window.editor.switchMode(mode);
+                    // Sync pill state
+                    $('.mode-pill').removeClass('active');
+                    $(`.mode-pill[data-mode="${mode}"]`).addClass('active');
+                    // Palette visibility
+                    if (mode !== 'general') {
+                        $('#symbolPalettePanel').addClass('open');
+                        $('#paletteToggleBtn').addClass('shifted');
+                    } else {
+                        $('#symbolPalettePanel').removeClass('open');
+                        $('#paletteToggleBtn').removeClass('shifted');
+                    }
                 }
             });
 

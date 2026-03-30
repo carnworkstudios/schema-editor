@@ -16,25 +16,195 @@ Object.assign(MobileSVGEditor.prototype, {
         const $panel = $('#layersPanel');
         $panel.empty();
 
-        const rootElements = Array.from(this.$svgDisplay[0].children);
+        const rootElements = Array.from(this.$svgDisplay[0].children)
+            .filter(el => el.id !== '_gridLayer' && el.id !== '_gridDefs' &&
+                          !el.classList.contains('selection-handle-group'));
+
         if (rootElements.length === 0) {
             $panel.html('<p style="color:rgba(255,255,255,0.4);font-size:11px;padding:8px;">Load an SVG to see layers.</p>');
             return;
         }
 
-        const buildTree = (elements, depth) => {
-            elements.forEach((el, idx) => {
-                const $el      = $(el);
-                const tag      = el.tagName.toLowerCase();
-                const id       = $el.attr('id') || `${tag}_${idx}`;
-                const isGroup  = tag === 'g';
-                const childCount = isGroup ? el.children.length : 0;
+        // ── Topology-aware mode: analysis has run ─────────────
+        const hasTopology = this.wires?.length > 0 || this.components?.length > 0;
+        if (hasTopology) {
+            this._buildTopologyLayerTree($panel);
+            return;
+        }
 
-                const toggleIcon = isGroup ? (childCount > 0 ? '▾' : '◂') : '●';
+        // ── Fallback: flat DOM walk (blank canvas / pre-analysis) ──
+        this._buildFlatLayerTree($panel, rootElements);
+    },
+
+    // ── Topology layer groups (post-analysis) ─────────────────
+    _buildTopologyLayerTree($panel) {
+        // Build semantic buckets from graph data
+        const groups = {
+            wires:      { label: 'Wires',      icon: 'material-symbols:route-outline',       items: [], color: '#4facfe' },
+            connectors: { label: 'Connectors', icon: 'material-symbols:radio-button-checked', items: [], color: '#a78bfa' },
+            modules:    { label: 'Modules',    icon: 'material-symbols:memory-outline',       items: [], color: '#34d399' },
+            junctions:  { label: 'Junctions',  icon: 'material-symbols:hub-outline',          items: [], color: '#fbbf24' },
+            other:      { label: 'Other',      icon: 'material-symbols:layers-outline',       items: [], color: '#94a3b8' },
+        };
+
+        // Populate wires bucket
+        this.wires.forEach(w => {
+            groups.wires.items.push({
+                el:    w.element,
+                id:    w.id,
+                label: `${w.id}  ${w.color !== 'black' ? `· ${w.color}` : ''}  ${w.length ? `· ${w.length.toFixed(0)}px` : ''}`,
+                extra: w.linearity != null ? `lin: ${w.linearity.toFixed(2)}` : '',
+            });
+        });
+
+        // Populate component buckets by type
+        this.components.forEach(c => {
+            const label = `${c.id}  · ${c.type}`;
+            const extra = c.circularity != null ? `C: ${c.circularity.toFixed(2)}` : '';
+            const item  = { el: c.element, id: c.id, label, extra };
+            if (c.type === 'connector' || c.type === 'connector')
+                groups.connectors.items.push(item);
+            else if (c.type === 'module' || c.type === 'resistor' ||
+                     c.type === 'capacitor' || c.type === 'relay' || c.type === 'switch')
+                groups.modules.items.push(item);
+            else
+                groups.other.items.push(item);
+        });
+
+        // Populate junction bucket from graph
+        if (this.graph?.nodes) {
+            this.graph.nodes.forEach(node => {
+                if (node.kind === 'junction') {
+                    groups.junctions.items.push({
+                        el:    null,
+                        id:    node.id,
+                        label: `${node.id}  · deg ${node.degree}`,
+                        extra: `(${node.x.toFixed(1)}, ${node.y.toFixed(1)})`,
+                    });
+                }
+            });
+        }
+
+        // Render each group
+        Object.values(groups).forEach(group => {
+            if (!group.items.length) return;   // skip empty groups
+
+            const groupId = `lg_${group.label.toLowerCase()}`;
+            const $group  = $(`
+                <div class="layer-group" id="${groupId}">
+                    <div class="layer-group-header" data-group="${groupId}">
+                        <span class="layer-group-arrow">▾</span>
+                        <iconify-icon icon="${group.icon}" style="font-size:13px;color:${group.color};"></iconify-icon>
+                        <span class="layer-group-label" style="color:${group.color};">${group.label}</span>
+                        <span class="layer-group-count">${group.items.length}</span>
+                        <button class="layer-group-vis" title="Toggle group visibility"
+                                style="margin-left:auto;background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.5);font-size:11px;"
+                                data-vis-group="${groupId}">
+                            <iconify-icon icon="material-symbols:visibility-outline" style="font-size:12px;"></iconify-icon>
+                        </button>
+                    </div>
+                    <div class="layer-group-body" id="${groupId}_body"></div>
+                </div>
+            `);
+
+            // Group collapse/expand
+            $group.find('.layer-group-header').on('click', e => {
+                if ($(e.target).closest('.layer-group-vis').length) return;
+                const $arrow = $group.find('.layer-group-arrow');
+                const $body  = $group.find('.layer-group-body');
+                const collapsed = $body.hasClass('collapsed');
+                $body.toggleClass('collapsed', !collapsed);
+                $arrow.text(collapsed ? '▾' : '▸');
+            });
+
+            // Group visibility toggle — hides all DOM elements in this bucket
+            $group.find('.layer-group-vis').on('click', e => {
+                e.stopPropagation();
+                const $body   = $group.find('.layer-group-body');
+                const hidden  = $group.data('hidden');
+                group.items.forEach(item => {
+                    if (item.el) $(item.el).css('display', hidden ? '' : 'none');
+                });
+                $group.data('hidden', !hidden).css('opacity', hidden ? 1 : 0.45);
+            });
+
+            // Render individual items inside the group
+            const $body = $group.find(`#${groupId}_body`);
+            group.items.forEach(item => {
+                const $item = $(`
+                    <div class="layer-item topo-item" data-element-id="${item.id}"
+                         title="${item.label}  ${item.extra}">
+                        <span class="layer-dot" style="background:${group.color};"></span>
+                        <span class="layer-name">${item.label}</span>
+                        ${item.extra ? `<span class="layer-extra">${item.extra}</span>` : ''}
+                        <button class="layer-toggle layer-vis-btn" title="Toggle visibility"
+                                style="margin-left:auto;background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.4);">
+                            <iconify-icon icon="material-symbols:visibility-outline" style="font-size:11px;"></iconify-icon>
+                        </button>
+                    </div>
+                `);
+
+                // Click → select element in canvas
+                $item.on('click', e => {
+                    if ($(e.target).closest('.layer-vis-btn').length) return;
+                    if (item.el) {
+                        this.deselectAll?.();
+                        this.selectEl?.(item.el);
+                        // Animate scroll to element
+                        item.el.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+                    }
+                    $('.topo-item').removeClass('active');
+                    $item.addClass('active');
+                });
+
+                // Hover preview
+                if (item.el) {
+                    $item.on('mouseenter', () => $(item.el).addClass('layer-hover-highlight'))
+                         .on('mouseleave', () => $(item.el).removeClass('layer-hover-highlight'));
+                }
+
+                // Per-item visibility toggle
+                $item.find('.layer-vis-btn').on('click', e => {
+                    e.stopPropagation();
+                    if (!item.el) return;
+                    const hidden = $(item.el).css('display') === 'none';
+                    $(item.el).css('display', hidden ? '' : 'none');
+                    $item.css('opacity', hidden ? 1 : 0.4);
+                });
+
+                $body.append($item);
+            });
+
+            $panel.append($group);
+        });
+
+        // Topology stats footer
+        const nodeCount = this.graph?.nodes?.size || 0;
+        const edgeCount = this.graph?.edges?.size || 0;
+        $panel.append(`
+            <div style="margin-top:10px;padding:6px 8px;border-top:1px solid rgba(255,255,255,0.07);
+                        font-size:10px;color:rgba(255,255,255,0.3);line-height:1.7;">
+                <iconify-icon icon="material-symbols:schema-outline" style="font-size:11px;"></iconify-icon>
+                Graph: ${nodeCount} nodes · ${edgeCount} edges ·
+                ${this._quadTree ? '<span style="color:#34d399;">QuadTree active</span>' : 'QuadTree inactive'}
+            </div>
+        `);
+    },
+
+    // ── Flat DOM walk fallback (blank canvas / pre-analysis) ──
+    _buildFlatLayerTree($panel, rootElements) {
+        const build = (elements, depth) => {
+            elements.forEach((el, idx) => {
+                const $el        = $(el);
+                const tag        = el.tagName.toLowerCase();
+                const id         = $el.attr('id') || `${tag}_${idx}`;
+                const isGroup    = tag === 'g';
+                const childCount = isGroup ? el.children.length : 0;
+                const icon       = isGroup ? (childCount > 0 ? '▾' : '◂') : '●';
 
                 const $item = $(`
                     <div class="layer-item" data-element-id="${id}" style="margin-left:${depth * 10}px;">
-                        <button class="layer-toggle" data-toggle="${id}">${toggleIcon}</button>
+                        <button class="layer-toggle" data-toggle="${id}">${icon}</button>
                         <button class="layer-toggle" data-visibility="${id}" title="Toggle visibility">
                             <iconify-icon icon="material-symbols:visibility-outline" style="font-size:12px;"></iconify-icon>
                         </button>
@@ -43,40 +213,32 @@ Object.assign(MobileSVGEditor.prototype, {
                 `);
 
                 $item.on('click', () => this.selectLayer(el, $item));
+                $item.on('mouseenter', () => { if (!$item.hasClass('active')) $(el).addClass('layer-hover-highlight'); })
+                     .on('mouseleave',  () => $(el).removeClass('layer-hover-highlight'));
 
-                $item.on('mouseenter', () => {
-                    if (!$item.hasClass('active')) $(el).addClass('layer-hover-highlight');
-                }).on('mouseleave', () => {
-                    $(el).removeClass('layer-hover-highlight');
-                });
-
-                $item.find(`[data-toggle="${id}"]`).on('click', (e) => {
+                $item.find(`[data-toggle="${id}"]`).on('click', e => {
                     e.stopPropagation();
                     $item.toggleClass('collapsed');
                     $item.find(`[data-toggle="${id}"]`).text($item.hasClass('collapsed') ? '▸' : '▾');
                 });
 
-                $item.find(`[data-visibility="${id}"]`).on('click', (e) => {
+                $item.find(`[data-visibility="${id}"]`).on('click', e => {
                     e.stopPropagation();
                     const hidden = $(el).css('display') === 'none';
                     $(el).css('display', hidden ? '' : 'none');
                     $item.css('opacity', hidden ? 1 : 0.4);
                 });
 
-                $item.find('.layer-name').on('dblclick', (e) => {
+                $item.find('.layer-name').on('dblclick', e => {
                     e.stopPropagation();
                     this.startLayerRename(el, $item, $(e.currentTarget));
                 });
 
                 $panel.append($item);
-
-                if (isGroup && childCount > 0) {
-                    buildTree(Array.from(el.children), depth + 1);
-                }
+                if (isGroup && childCount > 0) build(Array.from(el.children), depth + 1);
             });
         };
-
-        buildTree(rootElements, 0);
+        build(rootElements, 0);
     },
 
     selectLayer(element, $layerItem) {

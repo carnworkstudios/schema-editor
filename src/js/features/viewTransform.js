@@ -1,6 +1,7 @@
 /* ============================================================
-   SVG Wiring Editor; View Transform Feature
-   Zoom, pan, rotate, pitch/yaw, drag, wheel, sliders
+   SVG Wiring Editor — View Transform  (Bug-fix pass)
+   – Fix #6: wheel zoom at cursor position (not center)
+   – Fix #2: drag only moves when in select mode / no draw tool active
    ============================================================ */
 
 Object.assign(MobileSVGEditor.prototype, {
@@ -36,20 +37,34 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     // ── Transform Computation ────────────────────────────────
+    //   Applied to #svgWrapper (the inner div), NOT the container.
+    //   Origin is always top-left (0 0) so zoom-at-point math works.
 
     updateTransform() {
-        const t = `
-            translate(${this.currentTranslate.x}px, ${this.currentTranslate.y}px)
-            scale(${this.currentZoom})
-            rotateZ(${this.currentRotation}deg)
-            skewX(${this.currentPitch}deg)
-            rotateY(${this.currentYaw}deg)
-        `;
+        const t = [
+            `translate(${this.currentTranslate.x}px, ${this.currentTranslate.y}px)`,
+            `scale(${this.currentZoom})`,
+            `rotateZ(${this.currentRotation}deg)`,
+            `skewX(${this.currentPitch}deg)`,
+            `rotateY(${this.currentYaw}deg)`,
+        ].join(' ');
+
         this.$svgWrapper.css({
-            'transform': t,
-            'transform-origin': 'center center',
-            'transform-style': 'preserve-3d',
-            'perspective': '1500px',
+            'transform':        t,
+            'transform-origin': '0 0',   // ← critical: top-left origin
+            'transform-style':  'preserve-3d',
+        });
+    },
+
+    // ── rAF scheduler: batches pending transform state ────────
+    //   Call _scheduleTransform(state) instead of updateTransform()
+    //   directly during continuous events (drag, wheel).
+    _scheduleTransform(state) {
+        Object.assign(this, state);          // write pending state immediately
+        if (this._transformRafHandle) return; // already queued
+        this._transformRafHandle = requestAnimationFrame(() => {
+            this._transformRafHandle = null;
+            this.updateTransform();
         });
     },
 
@@ -66,31 +81,60 @@ Object.assign(MobileSVGEditor.prototype, {
 
     animateZoom(targetZoom) {
         gsap.to(this, {
-            duration: 0.45,
-            ease: 'power2.out',
+            duration: 0.35,
+            ease:     'power2.out',
             currentZoom: targetZoom,
-            onUpdate: () => this.setZoom(this.currentZoom),
+            onUpdate:    () => this.setZoom(this.currentZoom),
         });
     },
 
-    zoomIn() {
-        this.animateZoom(Math.min(100, this.currentZoom * 1.5));
-    },
-
-    zoomOut() {
-        this.animateZoom(Math.max(0.1, this.currentZoom / 1.5));
-    },
+    zoomIn()  { this.animateZoom(Math.min(100, this.currentZoom * 1.5)); },
+    zoomOut() { this.animateZoom(Math.max(0.1, this.currentZoom / 1.5)); },
 
     fitToView() {
+        const svgEl = this.$svgDisplay[0];
+        const ctnr  = this.$svgContainer[0];
+        if (!svgEl || !ctnr) return;
+
+        // Try to compute natural SVG dimensions from viewBox
+        const vb = svgEl.getAttribute('viewBox');
+        let svgW = svgEl.getAttribute('width')  ? parseFloat(svgEl.getAttribute('width'))  : 0;
+        let svgH = svgEl.getAttribute('height') ? parseFloat(svgEl.getAttribute('height')) : 0;
+        if (vb) {
+            const parts = vb.split(/[\s,]+/).map(Number);
+            if (parts.length === 4) { svgW = parts[2]; svgH = parts[3]; }
+        }
+
+        const cW = ctnr.clientWidth;
+        const cH = ctnr.clientHeight;
+
+        let targetZoom = 1;
+        if (svgW > 0 && svgH > 0) {
+            targetZoom = Math.min(cW / svgW, cH / svgH) * 0.92;
+        }
+
+        const targetTx = (cW - svgW * targetZoom) / 2;
+        const targetTy = (cH - svgH * targetZoom) / 2;
+
         gsap.to(this, {
-            duration: 0.8,
-            ease: 'power2.inOut',
-            currentZoom: 1,
-            currentRotation: 0,
+            duration: 0.6,
+            ease:     'power2.inOut',
+            currentZoom:        targetZoom,
+            currentRotation:    0,
+            currentPitch:       0,
+            currentYaw:         0,
             onUpdate: () => {
-                this.currentTranslate = { x: 0, y: 0 };
+                this.currentTranslate = {
+                    x: this.currentTranslate.x + (targetTx - this.currentTranslate.x) * 0.1,
+                    y: this.currentTranslate.y + (targetTy - this.currentTranslate.y) * 0.1,
+                };
                 this.setZoom(this.currentZoom);
                 this.setRotation(this.currentRotation);
+            },
+            onComplete: () => {
+                this.currentTranslate = { x: targetTx, y: targetTy };
+                this.updateTransform();
+                this.updateSliders();
             },
         });
     },
@@ -98,9 +142,7 @@ Object.assign(MobileSVGEditor.prototype, {
     rotateView() {
         const target = (this.currentRotation + 90) % 360;
         gsap.to(this, {
-            duration: 0.6,
-            ease: 'power2.inOut',
-            currentRotation: target,
+            duration: 0.6, ease: 'power2.inOut', currentRotation: target,
             onUpdate: () => this.setRotation(this.currentRotation),
         });
     },
@@ -108,28 +150,26 @@ Object.assign(MobileSVGEditor.prototype, {
     rotateViewLeft() {
         const target = (this.currentRotation - 90 + 360) % 360;
         gsap.to(this, {
-            duration: 0.6,
-            ease: 'power2.inOut',
-            currentRotation: target,
+            duration: 0.6, ease: 'power2.inOut', currentRotation: target,
             onUpdate: () => this.setRotation(this.currentRotation),
         });
     },
 
     resetView() {
         gsap.to(this, {
-            duration: 0.8,
-            ease: 'power2.inOut',
-            currentZoom: 1,
-            currentRotation: 0,
-            currentPitch: 0,
-            currentYaw: 0,
+            duration: 0.6, ease: 'power2.inOut',
+            currentZoom: 1, currentRotation: 0, currentPitch: 0, currentYaw: 0,
             onUpdate: () => {
                 this.currentTranslate = { x: 0, y: 0 };
                 this.setZoom(this.currentZoom);
                 this.setRotation(this.currentRotation);
             },
+            onComplete: () => {
+                this.currentTranslate = { x: 0, y: 0 };
+                this.updateTransform();
+            },
         });
-        this.clearAllHighlights();
+        this.clearAllHighlights?.();
         this.isWireTracing = false;
         $('#traceWireBtn').removeClass('active');
     },
@@ -137,55 +177,76 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Mouse Drag ───────────────────────────────────────────
 
     startDrag(event) {
+        // Only pan when no draw tool is active (draw tools handle their own events)
+        if (this.activeTool !== 'select') return;
         this.isDragging = true;
         this.dragStart = {
-            x: event.clientX,
-            y: event.clientY,
+            x:         event.clientX,
+            y:         event.clientY,
             translate: { ...this.currentTranslate },
-            rotation: this.currentRotation,
-            pitch: this.currentPitch,
+            rotation:  this.currentRotation,
+            pitch:     this.currentPitch,
         };
         this.$svgContainer.css('cursor', 'grabbing');
     },
 
     drag(event) {
-        if (!this.isDragging) return;
+        if (!this.isDragging || this.activeTool !== 'select') return;
 
-        const deltaX = event.clientX - this.dragStart.x;
-        const deltaY = event.clientY - this.dragStart.y;
+        const dX = event.clientX - this.dragStart.x;
+        const dY = event.clientY - this.dragStart.y;
 
         if (event.shiftKey) {
-            this.setRotation(this.dragStart.rotation + deltaX * 0.4);
+            this._scheduleTransform({ currentRotation: (this.dragStart.rotation + dX * 0.4) % 360 });
+            this.$rotationSlider?.val(this.currentRotation);
         } else if (event.ctrlKey) {
-            this.setPitch(Math.max(-60, Math.min(60, this.dragStart.pitch + deltaX * 0.4)));
+            this._scheduleTransform({ currentPitch: Math.max(-60, Math.min(60, this.dragStart.pitch + dX * 0.4)) });
         } else {
-            this.currentTranslate = {
-                x: this.dragStart.translate.x + deltaX,
-                y: this.dragStart.translate.y + deltaY,
-            };
-            this.updateTransform();
+            this._scheduleTransform({
+                currentTranslate: {
+                    x: this.dragStart.translate.x + dX,
+                    y: this.dragStart.translate.y + dY,
+                },
+            });
         }
     },
 
     endDrag() {
         if (!this.isDragging) return;
         this.isDragging = false;
-        this.$svgContainer.css('cursor', 'grab');
+        this.$svgContainer.css('cursor', this.activeTool === 'select' ? 'grab' : 'default');
     },
 
-    // ── Wheel Zoom ───────────────────────────────────────────
+    // ── Fix #6: Wheel Zoom AT cursor position ─────────────────
 
     handleWheel(event) {
         event.preventDefault();
-        const delta = event.originalEvent.deltaY;
-        const factor = delta > 0 ? 0.9 : 1.1;
-        this.setZoom(Math.max(0.1, Math.min(100, this.currentZoom * factor)));
+        const e       = event.originalEvent || event;
+        const factor  = e.deltaY > 0 ? 0.92 : 1.08;
+        const newZoom = Math.max(0.1, Math.min(100, this.currentZoom * factor));
+
+        const ctnrRect = this.$svgContainer[0].getBoundingClientRect();
+        const mx = e.clientX - ctnrRect.left;
+        const my = e.clientY - ctnrRect.top;
+
+        // Zoom-at-point: keep the content pixel under the cursor fixed
+        const ratio = newZoom / this.currentZoom;
+        this._scheduleTransform({
+            currentZoom:      newZoom,
+            currentTranslate: {
+                x: mx - ratio * (mx - this.currentTranslate.x),
+                y: my - ratio * (my - this.currentTranslate.y),
+            },
+        });
+        // Update slider label eagerly (cheap text write)
+        this.$zoomSlider?.val(newZoom);
+        $('#zoomValue').text(newZoom.toFixed(1));
     },
 
     handleOrientationChange() {
         setTimeout(() => {
             this.updateTransform();
-            this.updateMiniMap();
+            this.updateMiniMap?.();
         }, 100);
     },
 });

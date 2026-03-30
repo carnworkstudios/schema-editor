@@ -15,7 +15,13 @@ Object.assign(MobileSVGEditor.prototype, {
         Promise.all(files.map(f => this._fileToSvgString(f).then(svg => ({ name: f.name, svgContent: svg }))))
             .then(results => {
                 const firstNewIdx = this.displays.length;
-                results.forEach(r => this.displays.push({ id: `disp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`, ...r }));
+                results.forEach(r => this.displays.push({ 
+                    id: `disp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
+                    analyzed: false,
+                    snapshot: null,
+                    sourceFormat: r.name.split('.').pop().toLowerCase(),
+                    ...r 
+                }));
                 this.switchDisplay(firstNewIdx);
             })
             .catch(err => this.showToast('Load error: ' + err.message, 'error'))
@@ -181,17 +187,51 @@ Object.assign(MobileSVGEditor.prototype, {
         const svgElement = svgDoc.querySelector('svg');
         if (!svgElement) throw new Error('Invalid SVG content');
 
+        // ── Clear and rebuild DOM ──────────────────────────────
         this.$svgDisplay.empty();
+
+        // Apply viewBox from loaded SVG (defines coordinate space)
         const viewBox = svgElement.getAttribute('viewBox');
-        if (viewBox) { this.$svgDisplay.attr('viewBox', viewBox); this.originalViewBox = viewBox; }
-        $(svgElement).children().each((_, child) => { this.$svgDisplay.append($(child).clone()); });
+        if (viewBox) {
+            this.$svgDisplay.attr('viewBox', viewBox);
+            this.originalViewBox = viewBox;
+        } else {
+            // Synthesise a viewBox from width/height attributes if present
+            const w = svgElement.getAttribute('width');
+            const h = svgElement.getAttribute('height');
+            if (w && h) {
+                const vb = `0 0 ${parseFloat(w)} ${parseFloat(h)}`;
+                this.$svgDisplay.attr('viewBox', vb);
+                this.originalViewBox = vb;
+            }
+        }
+
+        // SVG MUST fill the wrapper — let viewBox + CSS handle the scale.
+        // DO NOT hard-code pixel width/height here; that's what caused bug #1.
+        this.$svgDisplay.attr('width', '100%').attr('height', '100%');
+
+        $(svgElement).children().each((_, child) => {
+            this.$svgDisplay.append($(child).clone());
+        });
 
         this.setupSVGInteractions();
-        this.resetView();
-        this.updateMiniMap();
+
+        // Reset view state then fit content into viewport
+        this.currentZoom      = 1;
+        this.currentRotation  = 0;
+        this.currentPitch     = 0;
+        this.currentYaw       = 0;
+        this.currentTranslate = { x: 0, y: 0 };
+        this.updateTransform();
+
+        // Delay fitToView so the DOM has painted and getBoundingClientRect is accurate
+        setTimeout(() => this.fitToView(), 80);
+
+        this.updateMiniMap?.();
         this.showToast(toastMsg, 'success');
         this.closeSidePanel();
     },
+
 
 
     /* 
@@ -303,64 +343,116 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     setupSVGInteractions() {
-        this.analyzeWiringDiagram();
+        // Run analysis — lazy: skip if this display was already analyzed
+        const d = this.displays[this.activeDisplayIdx];
+        if (!d?.analyzed) {
+            this.analyzeWiringDiagram();
+        } else {
+            // Restore cached analysis state without re-running
+            this.wires          = d._wires      || [];
+            this.components     = d._components || [];
+            this.graph          = d._graph      || { nodes: new Map(), edges: new Map(), adjacency: new Map() };
+            this._bboxMap       = d._bboxMap    || new Map();
+        }
 
         if ('ontouchstart' in window) return;
 
-        this.$svgDisplay.find('path, line, polyline, polygon, circle, ellipse, rect, g').each((_, el) => {
-            const $el = $(el);
-            $el.on('mouseenter', () => {
-                if (!this.selectedElements.includes(el)) this.highlightElement($el, true);
+        // ── O(1) delegated listeners (not per-element) ───────────
+        const WIRE_SELECTORS = 'path,line,polyline,polygon,circle,ellipse,rect';
+        this.$svgDisplay
+            .off('.interact')
+            .on('mouseenter.interact', WIRE_SELECTORS, (e) => {
+                if (!this.selectedElements.includes(e.target))
+                    this.highlightElement($(e.target), true);
+            })
+            .on('mouseleave.interact', WIRE_SELECTORS, (e) => {
+                if (!this.selectedElements.includes(e.target))
+                    this.highlightElement($(e.target), false);
             });
-            $el.on('mouseleave', () => {
-                if (!this.selectedElements.includes(el)) this.highlightElement($el, false);
-            });
-        });
     },
 
     analyzeWiringDiagram() {
-        this.wires = [];
-        this.components = [];
-        this.connections = [];
+        // ── Delegate to 4-phase geometry engine if available ─
+        if (typeof this._deNestTransforms === 'function') {
+            // geometryEngine.js is loaded — run full pipeline
+            // (The mixin method analyzeWiringDiagram on the prototype was overridden
+            //  by geometryEngine.js which does the real work; this call never recurses
+            //  because geometryEngine uses _deNestTransforms as the guard check.)
 
+            // Cache results back into display record for lazy re-mount
+            const d = this.displays[this.activeDisplayIdx];
+            if (d) {
+                d._wires      = this.wires;
+                d._components = this.components;
+                d._graph      = this.graph;
+                d._bboxMap    = this._bboxMap;
+            }
+            return;
+        }
+
+        // ── Legacy fallback (tag-name heuristics) ─────────────
+        this._legacyAnalyze();
+    },
+
+    _legacyAnalyze() {
+        this.wires = []; this.components = []; this.connections = [];
         const SVG_NS = this.SVG_NS;
 
-        // ── Wire detection ──────────────────────────────────
         this.$svgDisplay.find(
             'line, path[d*="L"], path[d*="l"], path[d*="v"], path[d*="V"], path[d*="h"], path[d*="H"], polyline'
         ).each((index, origEl) => {
             const $orig = $(origEl);
-            const originalStroke = $orig.attr('stroke') || 'black';
+            const originalStroke      = $orig.attr('stroke') || 'black';
             const originalStrokeWidth = parseFloat($orig.attr('stroke-width') || '1');
-
-            // Wrap in a group with a hitbox overlay
             const group = document.createElementNS(SVG_NS, 'g');
             group.setAttribute('class', 'wire-group');
             group.setAttribute('data-wire-id', `wire_${index}`);
-
             const cloneVisual = origEl.cloneNode(true);
-
             const cloneHitbox = origEl.cloneNode(true);
             cloneHitbox.setAttribute('stroke', originalStroke);
             cloneHitbox.setAttribute('stroke-opacity', '0');
             cloneHitbox.setAttribute('fill', 'none');
             cloneHitbox.setAttribute('class', 'wire-hitbox');
             cloneHitbox.setAttribute('data-wire-id', `wire_${index}`);
-
-            group.appendChild(cloneVisual);
-            group.appendChild(cloneHitbox);
+            group.appendChild(cloneVisual); group.appendChild(cloneHitbox);
             origEl.parentNode.replaceChild(group, origEl);
-
-            this.wires.push({
-                element: cloneVisual,
-                $element: $(cloneVisual),
-                $hitbox: $(cloneHitbox),
-                $group: $(group),
-                id: `wire_${index}`,
-                color: originalStroke,
-                width: originalStrokeWidth,
-            });
+            this.wires.push({ element: cloneVisual, $element: $(cloneVisual),
+                $hitbox: $(cloneHitbox), $group: $(group),
+                id: `wire_${index}`, color: originalStroke, width: originalStrokeWidth });
         });
+
+        this.$svgDisplay.find(
+            'circle, rect, polygon, ellipse, path[d*="c"], path[d*="C"], path[d*="s"], path[d*="S"], g'
+        ).not('.wire-group, .wire-group *, .component-group, .component-group *').each((index, origEl) => {
+            const $orig = $(origEl);
+            const bbox = origEl.getBBox ? origEl.getBBox() : { x:0, y:0, width:0, height:0 };
+            if (bbox.width <= 10 && bbox.height <= 10) return;
+            const tag = origEl.tagName.toLowerCase();
+            const compId = `component_${index}`;
+            const group  = document.createElementNS(SVG_NS, 'g');
+            group.setAttribute('class',            'component-group');
+            group.setAttribute('data-component-id', compId);
+            const cloneVisual = origEl.cloneNode(true);
+            let   cloneHitbox;
+            if (tag === 'g') {
+                cloneHitbox = document.createElementNS(SVG_NS, 'rect');
+                cloneHitbox.setAttribute('x',      String(bbox.x));
+                cloneHitbox.setAttribute('y',      String(bbox.y));
+                cloneHitbox.setAttribute('width',  String(bbox.width));
+                cloneHitbox.setAttribute('height', String(bbox.height));
+            } else { cloneHitbox = origEl.cloneNode(true); }
+            cloneHitbox.setAttribute('fill-opacity',   '0');
+            cloneHitbox.setAttribute('stroke-opacity',  '0');
+            cloneHitbox.setAttribute('pointer-events',  'all');
+            cloneHitbox.setAttribute('class',           'component-hitbox');
+            cloneHitbox.setAttribute('data-component-id', compId);
+            group.appendChild(cloneVisual); group.appendChild(cloneHitbox);
+            origEl.parentNode.replaceChild(group, origEl);
+            this.components.push({ element: cloneVisual, $element: $(cloneVisual),
+                $hitbox: $(cloneHitbox), $group: $(group), id: compId, bbox,
+                type: this.identifyComponentType($orig) });
+        });
+        console.log(`[Legacy] wires=${this.wires.length} comps=${this.components.length}`);
 
         // ── Component detection ─────────────────────────────
         this.$svgDisplay.find(

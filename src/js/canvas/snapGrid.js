@@ -8,16 +8,25 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Grid state ────────────────────────────────────────────
     initSnapGrid() {
         this._grid = {
-            visible:   false,
-            snapOn:    true,
-            size:      20,       // px per cell
-            majorEvery: 5,       // every N cells = major line
-            color:     'rgba(79,172,254,0.12)',
-            majorColor:'rgba(79,172,254,0.28)',
+            visible:    false,
+            snapOn:     true,
+            size:       20,
+            majorEvery: 5,
+            color:      'rgba(120,120,130,0.18)',   // neutral gray minor
+            majorColor: 'rgba(100,100,110,0.38)',   // neutral gray major
         };
         this._snapGuides = { h: null, v: null };
         this._renderGridPattern();
         this._bindGridKeys();
+
+        // Default draw style — neutral gray (blue reserved for selection)
+        this._drawStyle = {
+            stroke:      '#666666',
+            strokeWidth: 2,
+            fill:        'none',
+        };
+        // Keep the toolbar color input in sync
+        $('#drawStyleStroke').val(this._drawStyle.stroke);
     },
 
     // ── SVG <defs> pattern ────────────────────────────────────
@@ -122,34 +131,41 @@ Object.assign(MobileSVGEditor.prototype, {
         const snapped = this.snapPoint(x, y);
         const THRESH  = 6;
 
-        // Check element edges / centers
-        const elements = Array.from(this.$svgDisplay[0].querySelectorAll(
-            'rect, circle, ellipse, line, path, polygon, polyline, text'
-        )).filter(el =>
-            !el.id.startsWith('_grid') &&
-            !el.classList.contains('selection-handle') &&
-            !el.classList.contains('draw-preview') &&
-            !el.classList.contains('snap-guide') &&
-            !excludeIds.includes(el.id)
-        );
+        // Use BBox map cache if available (no getBBox reflow)
+        const bboxSource = this._bboxMap?.size
+            ? [...this._bboxMap.entries()]
+                .filter(([id]) => !excludeIds.includes(id))
+                .map(([, bb]) => bb)
+            : null;
+
+        // Fall back to live querySelectorAll+getBBox only when cache is empty
+        const bboxes = bboxSource ?? (() => {
+            return Array.from(this.$svgDisplay[0].querySelectorAll(
+                'rect, circle, ellipse, line, path, polygon, polyline, text'
+            )).filter(el =>
+                !el.id.startsWith('_grid') &&
+                !el.classList.contains('selection-handle') &&
+                !el.classList.contains('draw-preview') &&
+                !el.classList.contains('snap-guide') &&
+                !excludeIds.includes(el.id)
+            ).map(el => { try { return el.getBBox(); } catch(_) { return null; } })
+             .filter(Boolean);
+        })();
 
         let bestDist = THRESH;
         let result   = snapped;
 
-        elements.forEach(el => {
-            try {
-                const bb = el.getBBox();
-                if (!bb.width && !bb.height) return;
-                const points = [
-                    { x: bb.x,               y: bb.y },
-                    { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 },
-                    { x: bb.x + bb.width,      y: bb.y + bb.height },
-                ];
-                points.forEach(pt => {
-                    const d = Math.hypot(snapped.x - pt.x, snapped.y - pt.y);
-                    if (d < bestDist) { bestDist = d; result = { x: pt.x, y: pt.y }; }
-                });
-            } catch (_) {}
+        bboxes.forEach(bb => {
+            if (!bb.width && !bb.height) return;
+            const points = [
+                { x: bb.x,               y: bb.y               },
+                { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 },
+                { x: bb.x + bb.width,     y: bb.y + bb.height   },
+            ];
+            points.forEach(pt => {
+                const d = Math.hypot(snapped.x - pt.x, snapped.y - pt.y);
+                if (d < bestDist) { bestDist = d; result = { x: pt.x, y: pt.y }; }
+            });
         });
 
         return result;

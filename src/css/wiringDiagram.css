@@ -7,6 +7,7 @@
    SVG Display
    ============================================================ */
 #svgDisplay {
+    background-color: #fff;
     image-rendering: optimizeQuality;
     shape-rendering: geometricPrecision;
     text-rendering: geometricPrecision;
@@ -48,8 +49,15 @@
 }
 
 @keyframes wire-pulse {
-    0%, 100% { opacity: 1; }
-    50% { opacity: 0.55; }
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.55;
+    }
 }
 
 /* ============================================================
@@ -125,10 +133,12 @@
    Layer panel hover; highlights corresponding SVG element
    ============================================================ */
 .layer-hover-highlight:hover path {
-  stroke: rgba(79, 172, 254, 0.9);
-  stroke-width: 2px;
-  paint-order: stroke; /* Ensures the stroke is behind the fill */
+    stroke: rgba(79, 172, 254, 0.9);
+    stroke-width: 2px;
+    paint-order: stroke;
+    /* Ensures the stroke is behind the fill */
 }
+
 /* ============================================================
    Canvas-mode overlays (PDF, TIFF, raster files)
    Invisible by default; revealed through interaction states.
@@ -139,9 +149,11 @@
 .canvas-wire-overlay {
     stroke-opacity: 0;
     fill: none;
-    pointer-events: none;     /* hitbox sibling handles pointer events */
+    pointer-events: none;
+    /* hitbox sibling handles pointer events */
     transition: stroke-opacity 0.2s ease;
 }
+
 .canvas-wire-hitbox {
     pointer-events: stroke;
     cursor: pointer;
@@ -154,6 +166,7 @@
     stroke: #ff6b6b !important;
     filter: drop-shadow(0 0 4px rgba(255, 107, 107, 0.8)) !important;
 }
+
 .canvas-wire-overlay.selected-element {
     stroke-opacity: 0.85 !important;
 }
@@ -166,12 +179,14 @@
     cursor: pointer;
     transition: fill-opacity 0.2s ease, stroke-opacity 0.2s ease;
 }
+
 .canvas-component-overlay.component-highlight {
     fill: rgba(255, 215, 0, 0.25) !important;
     stroke: #ffa500 !important;
     stroke-width: 2 !important;
     stroke-opacity: 1 !important;
 }
+
 .canvas-component-overlay.selected-element {
     stroke: #4facfe !important;
     stroke-width: 2 !important;
@@ -214,64 +229,79 @@
    ============================================================ */
 
 .selection-rect {
-    fill:         none;
-    stroke:       #4facfe;
+    fill: none;
+    stroke: #4facfe;
     stroke-width: 1.5;
-    stroke-dasharray: 5,3;
+    stroke-dasharray: 5, 3;
     pointer-events: none;
 }
 
 .selection-handle {
-    fill:   #1a1a2e;
+    fill: #1a1a2e;
     stroke: #4facfe;
     stroke-width: 1.5;
     pointer-events: all;
     transition: fill 0.15s ease;
 }
 
-.selection-handle:hover { fill: #4facfe; }
+.selection-handle:hover {
+    fill: #4facfe;
+}
 
 .selection-handle[data-handle="n"],
-.selection-handle[data-handle="s"]  { cursor: ns-resize; }
+.selection-handle[data-handle="s"] {
+    cursor: ns-resize;
+}
+
 .selection-handle[data-handle="e"],
-.selection-handle[data-handle="w"]  { cursor: ew-resize; }
+.selection-handle[data-handle="w"] {
+    cursor: ew-resize;
+}
+
 .selection-handle[data-handle="nw"],
-.selection-handle[data-handle="se"] { cursor: nwse-resize; }
+.selection-handle[data-handle="se"] {
+    cursor: nwse-resize;
+}
+
 .selection-handle[data-handle="ne"],
-.selection-handle[data-handle="sw"] { cursor: nesw-resize; }
+.selection-handle[data-handle="sw"] {
+    cursor: nesw-resize;
+}
 
 .rotation-line {
-    stroke:       #4facfe;
+    stroke: #4facfe;
     stroke-width: 1;
-    stroke-dasharray: 3,2;
+    stroke-dasharray: 3, 2;
     pointer-events: none;
 }
 
 .rotation-handle {
-    fill:   #00f2fe;
+    fill: #00f2fe;
     stroke: #1a1a2e;
     stroke-width: 1.5;
     cursor: crosshair;
     pointer-events: all;
     transition: fill 0.15s ease;
-    filter: drop-shadow(0 0 4px rgba(0,242,254,0.5));
+    filter: drop-shadow(0 0 4px rgba(0, 242, 254, 0.5));
 }
 
-.rotation-handle:hover { fill: #fff; }
+.rotation-handle:hover {
+    fill: #fff;
+}
 
 .se-selected {
-    filter: drop-shadow(0 0 3px rgba(79,172,254,0.6)) !important;
+    filter: drop-shadow(0 0 3px rgba(79, 172, 254, 0.6)) !important;
 }
 
 /* ============================================================
    PHASE 1 — SnapGrid: Guide lines
    ============================================================ */
 .snap-guide {
-    stroke:         #4facfe;
-    stroke-width:   0.8;
-    stroke-dasharray: 4,4;
+    stroke: #4facfe;
+    stroke-width: 0.8;
+    stroke-dasharray: 4, 4;
     pointer-events: none;
-    opacity:        0.6;
+    opacity: 0.6;
 }
 
 /* ============================================================
@@ -279,31 +309,38 @@
    ============================================================ */
 .draw-preview {
     pointer-events: none;
-    opacity:        0.7;
-    stroke-dasharray: 6,3;
+    opacity: 0.7;
+    stroke-dasharray: 6, 3;
     animation: draw-preview-pulse 1.2s ease-in-out infinite;
 }
 
 @keyframes draw-preview-pulse {
-    0%, 100% { opacity: 0.7; }
-    50%       { opacity: 0.4; }
+
+    0%,
+    100% {
+        opacity: 0.7;
+    }
+
+    50% {
+        opacity: 0.4;
+    }
 }
 
 /* ============================================================
    PHASE 1 — Draw tool active state
    ============================================================ */
 .draw-tool-btn.active {
-    background:   rgba(79,172,254,0.35) !important;
+    background: rgba(79, 172, 254, 0.35) !important;
     border-color: #4facfe !important;
-    color:        #4facfe !important;
-    box-shadow:   0 0 8px rgba(79,172,254,0.3);
+    color: #4facfe !important;
+    box-shadow: 0 0 8px rgba(79, 172, 254, 0.3);
 }
 
 .toolbar-sep {
-    font-size:   9px;
-    color:       rgba(255,255,255,0.3);
-    padding:     0 6px;
-    display:     flex;
+    font-size: 9px;
+    color: rgba(255, 255, 255, 0.3);
+    padding: 0 6px;
+    display: flex;
     align-items: center;
     white-space: nowrap;
     text-transform: uppercase;
@@ -311,17 +348,21 @@
     flex-shrink: 0;
 }
 
-body:not(.dark-mode) .toolbar-sep { color: rgba(0,0,0,0.3); }
+body:not(.dark-mode) .toolbar-sep {
+    color: rgba(0, 0, 0, 0.3);
+}
 
 /* ============================================================
    PHASE 1 — Pin marker
    ============================================================ */
 .pin-point {
-    fill:   #1a1a2e;
+    fill: #1a1a2e;
     stroke: #4facfe;
     stroke-width: 1.5;
     cursor: crosshair;
     transition: fill 0.15s;
 }
 
-.pin-point.connected { fill: #4facfe; }
+.pin-point.connected {
+    fill: #4facfe;
+}

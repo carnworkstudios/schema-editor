@@ -1,0 +1,846 @@
+/* ============================================================
+   Schematics Editor — Geometry Engine
+   4-phase analysis pipeline replacing analyzeWiringDiagram().
+
+   Phase 1 — Canonicalization
+     • Matrix de-nesting → global coordinate space
+     • Compound path segregation (split at extra M commands)
+     • Bézier flattening (De Casteljau, ε-adaptive)
+
+   Phase 2 — Geometric Classification
+     • Isoperimetric Quotient  C = 4πA / P²  (circularity)
+     • Linearity ratio  = endpoint-span / path-length
+     • BBox aspect ratio (supplementary)
+
+   Phase 3 — Topology
+     • All wire endpoints into KD-Tree
+     • Vertex snapping within ε (heals shattered PDF coords)
+     • Port discovery: wire endpoints on component perimeters
+
+   Phase 4 — Adjacency Graph
+     • ComponentNode, JunctionNode, WireEdge
+     • this.graph { nodes, edges, adjacency }
+   ============================================================ */
+
+/* ── Embedded path-data utility ─────────────────────────────
+   Converts SVG path `d` strings into structured command arrays.
+   All output commands are absolute; H/V are expanded to L.
+   ────────────────────────────────────────────────────────── */
+const PathData = {
+
+    /** Parse `d` → [{cmd, args}] – all absolute, H/V → L */
+    parse(d) {
+        // Tokenize into command letters and numbers
+        const TOKEN = /([MmZzLlHhVvCcSsQqTtAa])|(-?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?)/g;
+        const tokens = [];
+        let m;
+        while ((m = TOKEN.exec(d)) !== null)
+            tokens.push(m[1] !== undefined ? m[1] : parseFloat(m[2]));
+
+        const cmds = [];
+        let i = 0, cx = 0, cy = 0, sx = 0, sy = 0;
+
+        const nums = () => {
+            const a = [];
+            while (i < tokens.length && typeof tokens[i] === 'number') a.push(tokens[i++]);
+            return a;
+        };
+
+        while (i < tokens.length) {
+            const cmd = tokens[i++];
+            if (typeof cmd !== 'string') continue;
+            const rel = cmd === cmd.toLowerCase() && cmd !== 'Z' && cmd !== 'z';
+            const k   = cmd.toUpperCase();
+
+            switch (k) {
+                case 'M': {
+                    let first = true;
+                    const a = nums();
+                    for (let j = 0; j < a.length; j += 2) {
+                        cx = rel && !first ? cx + a[j] : (rel ? cx + a[j] : a[j]);
+                        cy = rel && !first ? cy + a[j+1] : (rel ? cy + a[j+1] : a[j+1]);
+                        if (first) { sx = cx; sy = cy; first = false;
+                            cmds.push({ cmd: 'M', args: [cx, cy] }); }
+                        else cmds.push({ cmd: 'L', args: [cx, cy] });
+                    }
+                    break;
+                }
+                case 'L': {
+                    const a = nums();
+                    for (let j = 0; j < a.length; j += 2) {
+                        cx = rel ? cx + a[j] : a[j];
+                        cy = rel ? cy + a[j+1] : a[j+1];
+                        cmds.push({ cmd: 'L', args: [cx, cy] });
+                    }
+                    break;
+                }
+                case 'H': {     // expand to L (needs current Y)
+                    const a = nums();
+                    for (const v of a) {
+                        cx = rel ? cx + v : v;
+                        cmds.push({ cmd: 'L', args: [cx, cy] });
+                    }
+                    break;
+                }
+                case 'V': {     // expand to L (needs current X)
+                    const a = nums();
+                    for (const v of a) {
+                        cy = rel ? cy + v : v;
+                        cmds.push({ cmd: 'L', args: [cx, cy] });
+                    }
+                    break;
+                }
+                case 'C': {
+                    const a = nums();
+                    for (let j = 0; j < a.length; j += 6) {
+                        const x1 = rel ? cx+a[j]   : a[j],   y1 = rel ? cy+a[j+1] : a[j+1];
+                        const x2 = rel ? cx+a[j+2] : a[j+2], y2 = rel ? cy+a[j+3] : a[j+3];
+                        cx = rel ? cx+a[j+4] : a[j+4]; cy = rel ? cy+a[j+5] : a[j+5];
+                        cmds.push({ cmd: 'C', args: [x1, y1, x2, y2, cx, cy] });
+                    }
+                    break;
+                }
+                case 'Q': {
+                    const a = nums();
+                    for (let j = 0; j < a.length; j += 4) {
+                        const x1 = rel ? cx+a[j]   : a[j],   y1 = rel ? cy+a[j+1] : a[j+1];
+                        cx = rel ? cx+a[j+2] : a[j+2]; cy = rel ? cy+a[j+3] : a[j+3];
+                        cmds.push({ cmd: 'Q', args: [x1, y1, cx, cy] });
+                    }
+                    break;
+                }
+                // S, T, A — approximate to line-to endpoint
+                case 'S': { const a = nums();
+                    for (let j = 0; j < a.length; j += 4) {
+                        cx = rel ? cx+a[j+2] : a[j+2]; cy = rel ? cy+a[j+3] : a[j+3];
+                        cmds.push({ cmd: 'L', args: [cx, cy] }); } break; }
+                case 'T': { const a = nums();
+                    for (let j = 0; j < a.length; j += 2) {
+                        cx = rel ? cx+a[j] : a[j]; cy = rel ? cy+a[j+1] : a[j+1];
+                        cmds.push({ cmd: 'L', args: [cx, cy] }); } break; }
+                case 'A': { const a = nums();
+                    for (let j = 0; j < a.length; j += 7) {
+                        cx = rel ? cx+a[j+5] : a[j+5]; cy = rel ? cy+a[j+6] : a[j+6];
+                        cmds.push({ cmd: 'L', args: [cx, cy] }); } break; }
+                case 'Z':
+                    cmds.push({ cmd: 'Z', args: [] });
+                    cx = sx; cy = sy; break;
+            }
+        }
+        return cmds;
+    },
+
+    /** Split parsed commands at each extra M → array of subpath command arrays */
+    splitSubpaths(cmds) {
+        const subs = [];
+        let cur = [];
+        for (const c of cmds) {
+            if (c.cmd === 'M' && cur.length) { subs.push(cur); cur = []; }
+            cur.push(c);
+        }
+        if (cur.length) subs.push(cur);
+        return subs;
+    },
+
+    /** Serialize command array back to `d` string */
+    serialize(cmds) {
+        return cmds.map(({ cmd, args }) => args.length ? `${cmd} ${args.join(' ')}` : cmd).join(' ');
+    },
+
+    /** Apply DOMMatrix to all coordinates in a parsed command array */
+    transformCmds(cmds, matrix) {
+        const T = (x, y) => {
+            const p = new DOMPoint(x, y).matrixTransform(matrix);
+            return [+p.x.toFixed(3), +p.y.toFixed(3)];
+        };
+        return cmds.map(({ cmd, args }) => {
+            if (cmd === 'Z') return { cmd: 'Z', args: [] };
+            const out = [];
+            for (let i = 0; i < args.length; i += 2) out.push(...T(args[i], args[i + 1]));
+            return { cmd, args: out };
+        });
+    },
+
+    // ── De Casteljau flatten ─────────────────────────────────
+    _flatCubic(x0, y0, x1, y1, x2, y2, x3, y3, eps, pts) {
+        const d1 = Math.abs((x1-x0)*(y3-y0) - (x3-x0)*(y1-y0));
+        const d2 = Math.abs((x2-x0)*(y3-y0) - (x3-x0)*(y2-y0));
+        if ((d1+d2)*(d1+d2) < eps*eps*16) { pts.push(x3, y3); return; }
+        const mx1=(x0+x1)/2, my1=(y0+y1)/2, mx2=(x1+x2)/2, my2=(y1+y2)/2,
+              mx3=(x2+x3)/2, my3=(y2+y3)/2, mx4=(mx1+mx2)/2, my4=(my1+my2)/2,
+              mx5=(mx2+mx3)/2, my5=(my2+my3)/2, cx=(mx4+mx5)/2, cy=(my4+my5)/2;
+        this._flatCubic(x0,y0,mx1,my1,mx4,my4,cx,cy,eps,pts);
+        this._flatCubic(cx,cy,mx5,my5,mx3,my3,x3,y3,eps,pts);
+    },
+
+    _flatQuad(x0, y0, x1, y1, x2, y2, eps, pts) {
+        const d = Math.abs((x1-x0)*(y2-y0) - (x2-x0)*(y1-y0));
+        if (d*d < eps*eps*4) { pts.push(x2, y2); return; }
+        const mx1=(x0+x1)/2, my1=(y0+y1)/2, mx2=(x1+x2)/2, my2=(y1+y2)/2,
+              cx=(mx1+mx2)/2, cy=(my1+my2)/2;
+        this._flatQuad(x0,y0,mx1,my1,cx,cy,eps,pts);
+        this._flatQuad(cx,cy,mx2,my2,x2,y2,eps,pts);
+    },
+
+    /** Convert a command array to a flat [x,y,x,y,...] coordinate list */
+    toPoints(cmds, eps = 0.5) {
+        const flat = [];
+        let cx = 0, cy = 0, sx = 0, sy = 0;
+        for (const { cmd, args } of cmds) {
+            switch (cmd) {
+                case 'M': cx=args[0]; cy=args[1]; sx=cx; sy=cy; flat.push(cx,cy); break;
+                case 'L': cx=args[0]; cy=args[1]; flat.push(cx,cy); break;
+                case 'C':
+                    this._flatCubic(cx,cy,args[0],args[1],args[2],args[3],args[4],args[5],eps,flat);
+                    cx=args[4]; cy=args[5]; break;
+                case 'Q':
+                    this._flatQuad(cx,cy,args[0],args[1],args[2],args[3],eps,flat);
+                    cx=args[2]; cy=args[3]; break;
+                case 'Z': flat.push(sx,sy); cx=sx; cy=sy; break;
+            }
+        }
+        return flat;   // [x0,y0, x1,y1, ...]
+    },
+};
+
+/* ── Geometry Engine mixin ───────────────────────────────── */
+Object.assign(MobileSVGEditor.prototype, {
+
+    initGeometryEngine() {
+        this._bboxMap   = new Map();   // elementId → {x,y,width,height}
+        this.graph      = { nodes: new Map(), edges: new Map(), adjacency: new Map() };
+        this._quadTree  = null;        // built lazily if nodes > 500
+    },
+
+    // ══════════════════════════════════════════════════════════
+    //  MAIN ORCHESTRATOR  (replaces old analyzeWiringDiagram)
+    // ══════════════════════════════════════════════════════════
+    analyzeWiringDiagram() {
+        this.wires      = [];
+        this.components = [];
+        this.connections= [];
+        this.graph      = { nodes: new Map(), edges: new Map(), adjacency: new Map() };
+        this._bboxMap   = new Map();
+
+        const svgEl = this.$svgDisplay[0];
+
+        // ── Determine epsilon by source format ────────────────
+        const fmt = this.displays[this.activeDisplayIdx]?.sourceFormat || 'svg';
+        const EPS = fmt === 'pdf' ? 2.0 : 0.5;
+
+        // ── Phase 1: canonicalize ─────────────────────────────
+        this._deNestTransforms(svgEl);
+        this._segregatePaths(svgEl);
+        // (curve flattening happens inside _classifyElements per-element)
+
+        // ── Phase 2: classify ─────────────────────────────────
+        const { wireEls, compEls } = this._classifyElements(svgEl);
+
+        // ── Phase 3: topology ─────────────────────────────────
+        const { wires, components, ports } = this._buildTopology(wireEls, compEls, EPS);
+
+        // ── Phase 4: graph ────────────────────────────────────
+        this._buildAdjacencyGraph(wires, components, ports);
+
+        // ── DOM: create hitbox groups ─────────────────────────
+        this._createWireHitboxes(wires);
+        this._createComponentHitboxes(components);
+
+        // ── BBox map & optional QuadTree ──────────────────────
+        this._buildBBoxMap();
+        const totalNodes = this.wires.length + this.components.length;
+        if (totalNodes > 500) this._buildQuadTree();
+
+        // ── Mark display as analyzed ──────────────────────────
+        const d = this.displays[this.activeDisplayIdx];
+        if (d) {
+            d.analyzed  = true;
+            d.svgContent = new XMLSerializer().serializeToString(svgEl);
+        }
+
+        console.log(
+            `[GeoEngine] wires=${this.wires.length} comps=${this.components.length}` +
+            ` junctions=${[...this.graph.nodes.values()].filter(n=>n.kind==='junction').length}` +
+            ` eps=${EPS} quadTree=${!!this._quadTree}`
+        );
+    },
+
+    // ==========================================================
+    //  PHASE 1 — CANONICALIZATION
+    // ==========================================================
+
+    /** De-nest <g transform="..."> → apply matrix to children, remove <g>.
+     *  Preserves user-created groups (id starts with "group_"). */
+    _deNestTransforms(svgEl) {
+        let groups = Array.from(svgEl.querySelectorAll('g[transform]'));
+        // Iterate until no more transform-carrying groups remain
+        let safety = 20;
+        while (groups.length && safety-- > 0) {
+            for (const g of groups) {
+                // Skip user-created groups
+                if (g.id && g.id.startsWith('group_')) continue;
+                // Skip editor overlay groups
+                if (g.classList.contains('wire-group') ||
+                    g.classList.contains('component-group') ||
+                    g.classList.contains('selection-handle-group')) continue;
+
+                let matrix;
+                try { matrix = new DOMMatrix(g.getAttribute('transform')); }
+                catch (_) { continue; }
+
+                const parent   = g.parentNode;
+                const children = Array.from(g.childNodes);
+                for (const child of children) {
+                    if (child.nodeType !== 1) { parent.insertBefore(child, g); continue; }
+                    this._applyMatrixToElement(child, matrix);
+                    parent.insertBefore(child, g);
+                }
+                parent.removeChild(g);
+            }
+            groups = Array.from(svgEl.querySelectorAll('g[transform]'))
+                         .filter(g => !g.id?.startsWith('group_') &&
+                                      !g.classList.contains('wire-group') &&
+                                      !g.classList.contains('component-group'));
+        }
+    },
+
+    /** Bake a DOMMatrix into an element's geometry attributes (type-specific). */
+    _applyMatrixToElement(el, matrix) {
+        const tag = el.tagName?.toLowerCase();
+        const T = (x, y) => {
+            const p = new DOMPoint(x, y).matrixTransform(matrix);
+            return { x: +p.x.toFixed(3), y: +p.y.toFixed(3) };
+        };
+
+        try {
+            if (tag === 'path') {
+                const d = el.getAttribute('d');
+                if (d) {
+                    const cmds = PathData.parse(d);
+                    const tCmds = PathData.transformCmds(cmds, matrix);
+                    el.setAttribute('d', PathData.serialize(tCmds));
+                }
+            } else if (tag === 'line') {
+                const p1 = T(+el.getAttribute('x1')||0, +el.getAttribute('y1')||0);
+                const p2 = T(+el.getAttribute('x2')||0, +el.getAttribute('y2')||0);
+                el.setAttribute('x1',p1.x); el.setAttribute('y1',p1.y);
+                el.setAttribute('x2',p2.x); el.setAttribute('y2',p2.y);
+            } else if (tag === 'rect') {
+                // Transform all four corners, recompute axis-aligned bbox
+                const x=+el.getAttribute('x')||0, y=+el.getAttribute('y')||0;
+                const w=+el.getAttribute('width')||0, h=+el.getAttribute('height')||0;
+                const corners = [T(x,y),T(x+w,y),T(x+w,y+h),T(x,y+h)];
+                const xs=corners.map(c=>c.x), ys=corners.map(c=>c.y);
+                el.setAttribute('x',     Math.min(...xs).toFixed(3));
+                el.setAttribute('y',     Math.min(...ys).toFixed(3));
+                el.setAttribute('width', (Math.max(...xs)-Math.min(...xs)).toFixed(3));
+                el.setAttribute('height',(Math.max(...ys)-Math.min(...ys)).toFixed(3));
+                el.removeAttribute('transform');
+            } else if (tag === 'circle' || tag === 'ellipse') {
+                const c = T(+el.getAttribute('cx')||0, +el.getAttribute('cy')||0);
+                el.setAttribute('cx', c.x); el.setAttribute('cy', c.y);
+            } else if (tag === 'polyline' || tag === 'polygon') {
+                const pts = (el.getAttribute('points')||'').trim().split(/[\s,]+/).map(Number);
+                const out = [];
+                for (let j=0;j<pts.length;j+=2) { const p=T(pts[j],pts[j+1]); out.push(p.x,p.y); }
+                el.setAttribute('points', out.join(' '));
+            }
+            // Consolidate remaining transform (matrix chain from parent)
+            const existing = el.getAttribute('transform') || '';
+            if (existing) {
+                try {
+                    const m2 = new DOMMatrix(existing);
+                    const combined = matrix.multiply(m2);
+                    el.setAttribute('transform', combined.toString());
+                } catch (_) { el.removeAttribute('transform'); }
+            }
+        } catch (_) { /* silently skip malformed elements */ }
+    },
+
+    /** Split compound <path> elements (multiple M sub-commands) into individual <path>s. */
+    _segregatePaths(svgEl) {
+        const paths = Array.from(svgEl.querySelectorAll('path'));
+        for (const path of paths) {
+            if (path.classList.contains('wire-group') ||
+                path.classList.contains('draw-preview')) continue;
+            const d = path.getAttribute('d') || '';
+            const cmds = PathData.parse(d);
+            const subs = PathData.splitSubpaths(cmds);
+            if (subs.length < 2) continue;
+
+            const parent = path.parentNode;
+            // Clone style attributes for each sub-path segment
+            for (const sub of subs) {
+                const np = document.createElementNS(this.SVG_NS, 'path');
+                np.setAttribute('d', PathData.serialize(sub));
+                ['stroke','stroke-width','fill','fill-opacity','stroke-dasharray','class','style']
+                    .forEach(a => { const v=path.getAttribute(a); if(v) np.setAttribute(a,v); });
+                parent.insertBefore(np, path);
+            }
+            parent.removeChild(path);
+        }
+    },
+
+    // ==========================================================
+    //  PHASE 2 — GEOMETRIC CLASSIFICATION
+    // ==========================================================
+
+    _classifyElements(svgEl) {
+        const wireEls = [], compEls = [];
+        const SKIP = new Set(['defs','script','style','title','desc','linearGradient',
+                               'radialGradient','pattern','filter','marker','symbol','use']);
+
+        const iter = document.createNodeIterator(svgEl, NodeFilter.SHOW_ELEMENT);
+        let node;
+        while ((node = iter.nextNode())) {
+            if (node === svgEl) continue;
+            const tag = node.tagName?.toLowerCase();
+            if (!tag || SKIP.has(tag)) continue;
+            if (node.id === '_gridLayer' || node.id === '_gridDefs') continue;
+            if (node.classList.contains('wire-group')  ||
+                node.classList.contains('component-group') ||
+                node.classList.contains('selection-handle-group') ||
+                node.closest?.('.wire-group, .component-group')) continue;
+            // Skip pure container <g>s that have no direct geometry
+            if (tag === 'g') continue;
+
+            const score = this._scoreElement(node);
+            if (!score) continue;   // degenerate / zero-size
+
+            if (score.linearity >= 0.88) {
+                wireEls.push({ el: node, score });
+            } else if (score.circularity >= 0.55 || score.linearity < 0.55) {
+                compEls.push({ el: node, score });
+            } else {
+                // Ambiguous — use aspect ratio as tiebreaker
+                if (score.aspect >= 4) wireEls.push({ el: node, score });
+                else                   compEls.push({ el: node, score });
+            }
+        }
+        return { wireEls, compEls };
+    },
+
+    /** Compute geometric scores for any SVG element. Returns null if degenerate. */
+    _scoreElement(el) {
+        const pts = this._getElementPoints(el);  // flat [x,y,...] in global coords
+        if (pts.length < 4) return null;         // need at least 2 points
+
+        const n = pts.length / 2;
+
+        // Bounding box from points
+        let minX=Infinity,minY=Infinity,maxX=-Infinity,maxY=-Infinity;
+        for (let i=0;i<pts.length;i+=2) {
+            if(pts[i]<minX)minX=pts[i]; if(pts[i]>maxX)maxX=pts[i];
+            if(pts[i+1]<minY)minY=pts[i+1]; if(pts[i+1]>maxY)maxY=pts[i+1];
+        }
+        const bw=maxX-minX, bh=maxY-minY;
+        if (bw < 1 && bh < 1) return null;
+
+        const bbox = { x: minX, y: minY, width: bw, height: bh };
+        const aspect = bw > 0 && bh > 0 ? Math.max(bw,bh)/Math.min(bw,bh) : Infinity;
+
+        // Path length + endpoint span
+        let pathLen = 0;
+        for (let i=2;i<pts.length;i+=2)
+            pathLen += Math.hypot(pts[i]-pts[i-2], pts[i+1]-pts[i-1]);
+        const dx = pts[pts.length-2]-pts[0], dy = pts[pts.length-1]-pts[1];
+        const span = Math.hypot(dx, dy);
+        const linearity = pathLen > 0 ? span / pathLen : 0;
+
+        // Isoperimetric Quotient (circularity) — only meaningful for closed shapes
+        let circularity = 0;
+        const closed = pts[0]===pts[pts.length-2] && pts[1]===pts[pts.length-1];
+        if (closed && n >= 3) {
+            // Shoelace area
+            let area = 0;
+            for (let i=0;i<pts.length-2;i+=2)
+                area += pts[i]*pts[i+3] - pts[i+2]*pts[i+1];
+            area = Math.abs(area) / 2;
+            if (pathLen > 0) circularity = (4 * Math.PI * area) / (pathLen * pathLen);
+        }
+
+        return { bbox, aspect, linearity, circularity, pathLen, span, pts };
+    },
+
+    /** Extract a flat [x,y,...] point array from any SVG element (no getBBox). */
+    _getElementPoints(el) {
+        const tag = el.tagName?.toLowerCase();
+        const EPS = 0.5;
+        try {
+            if (tag === 'path') {
+                const cmds = PathData.parse(el.getAttribute('d') || '');
+                return PathData.toPoints(cmds, EPS);
+            }
+            if (tag === 'line') {
+                return [+el.getAttribute('x1')||0, +el.getAttribute('y1')||0,
+                        +el.getAttribute('x2')||0, +el.getAttribute('y2')||0];
+            }
+            if (tag === 'polyline' || tag === 'polygon') {
+                const raw = (el.getAttribute('points')||'').trim().split(/[\s,]+/).map(Number);
+                if (tag === 'polygon' && raw.length >= 2)
+                    return [...raw, raw[0], raw[1]];   // close the polygon
+                return raw;
+            }
+            if (tag === 'rect') {
+                const x=+el.getAttribute('x')||0, y=+el.getAttribute('y')||0;
+                const w=+el.getAttribute('width')||0, h=+el.getAttribute('height')||0;
+                return [x,y, x+w,y, x+w,y+h, x,y+h, x,y];
+            }
+            if (tag === 'circle') {
+                const cx=+el.getAttribute('cx')||0, cy=+el.getAttribute('cy')||0;
+                const r =+el.getAttribute('r') ||0;
+                // 12-point polygon approximation of circle
+                const pts=[];
+                for(let a=0;a<12;a++){const θ=a*Math.PI/6; pts.push(cx+r*Math.cos(θ),cy+r*Math.sin(θ));}
+                pts.push(pts[0],pts[1]);
+                return pts;
+            }
+            if (tag === 'ellipse') {
+                const cx=+el.getAttribute('cx')||0, cy=+el.getAttribute('cy')||0;
+                const rx=+el.getAttribute('rx')||0, ry=+el.getAttribute('ry')||0;
+                const pts=[];
+                for(let a=0;a<12;a++){const θ=a*Math.PI/6; pts.push(cx+rx*Math.cos(θ),cy+ry*Math.sin(θ));}
+                pts.push(pts[0],pts[1]);
+                return pts;
+            }
+        } catch (_) {}
+        return [];
+    },
+
+    // ==========================================================
+    //  PHASE 3 — TOPOLOGY: KD-Tree + Vertex Snapping + Ports
+    // ==========================================================
+
+    _buildTopology(wireEls, compEls, eps) {
+        // Extract all wire endpoints into KD-Tree
+        const rawEndpoints = [];
+        wireEls.forEach(({ el, score }, i) => {
+            const pts = score.pts;
+            if (pts.length < 4) return;
+            // First point
+            rawEndpoints.push({ x: pts[0],              y: pts[1],              wireIdx: i, role: 'start' });
+            // Last point
+            rawEndpoints.push({ x: pts[pts.length - 2], y: pts[pts.length - 1], wireIdx: i, role: 'end'   });
+        });
+
+        // Build balanced KD-Tree
+        const kdt = rawEndpoints.length
+            ? KDTree2D.fromPoints(rawEndpoints)
+            : new KDTree2D();
+
+        // Vertex snapping: assign canonical coordinates to clusters
+        const canonical = new Float32Array(rawEndpoints.length * 2);
+        const assigned  = new Uint8Array(rawEndpoints.length);
+        let canonIdx = 0;
+
+        rawEndpoints.forEach((ep, i) => {
+            if (assigned[i]) return;
+            const neighbors = kdt.rangeQuery(ep.x, ep.y, eps);
+            // Compute centroid of cluster
+            let cx = 0, cy = 0;
+            neighbors.forEach(n => { cx += n.x; cy += n.y; });
+            cx /= neighbors.length; cy /= neighbors.length;
+            // Mark all neighbors with this canonical coord
+            neighbors.forEach(n => {
+                const ni = rawEndpoints.indexOf(n);
+                if (ni >= 0 && !assigned[ni]) {
+                    canonical[ni * 2]     = cx;
+                    canonical[ni * 2 + 1] = cy;
+                    assigned[ni] = 1;
+                }
+            });
+            canonIdx++;
+        });
+
+        // Build wire records with snapped endpoints
+        const wires = wireEls.map(({ el, score }, i) => {
+            const pts = score.pts;
+            const startIdx = i * 2;
+            const endIdx   = i * 2 + 1;
+            const sx = assigned[startIdx] ? canonical[startIdx*2]   : pts[0];
+            const sy = assigned[startIdx] ? canonical[startIdx*2+1] : pts[1];
+            const ex = assigned[endIdx]   ? canonical[endIdx*2]     : pts[pts.length-2];
+            const ey = assigned[endIdx]   ? canonical[endIdx*2+1]   : pts[pts.length-1];
+            return {
+                el, id: `wire_${i}`,
+                color:  el.getAttribute('stroke') || 'black',
+                width:  parseFloat(el.getAttribute('stroke-width') || '1'),
+                endpoints: [{ x: sx, y: sy }, { x: ex, y: ey }],
+                length:    score.pathLen,
+                linearity: score.linearity,
+                bbox:      score.bbox,
+            };
+        });
+
+        // Component records with bbox from geometry (no getBBox call)
+        const components = compEls.map(({ el, score }, i) => ({
+            el, id: `component_${i}`,
+            bbox:        score.bbox,
+            circularity: score.circularity,
+            type:        this._classifyComponentType(el, score.circularity),
+            ports:       [],
+        }));
+
+        // Port discovery: wire endpoints near component perimeters
+        const ports = [];
+        const MARGIN = eps * 3;
+        wires.forEach(wire => {
+            wire.endpoints.forEach(ep => {
+                components.forEach(comp => {
+                    const b = comp.bbox;
+                    // Expand bbox by MARGIN = "inference zone"
+                    if (ep.x >= b.x - MARGIN && ep.x <= b.x + b.width  + MARGIN &&
+                        ep.y >= b.y - MARGIN && ep.y <= b.y + b.height + MARGIN) {
+                        const port = { compId: comp.id, wireId: wire.id, x: ep.x, y: ep.y };
+                        comp.ports.push(port);
+                        ports.push(port);
+                    }
+                });
+            });
+        });
+
+        return { wires, components, ports };
+    },
+
+    // ==========================================================
+    //  PHASE 4 — GRAPH / ADJACENCY LIST
+    // ==========================================================
+
+    _buildAdjacencyGraph(wires, components, ports) {
+        const nodes     = this.graph.nodes;
+        const edges     = this.graph.edges;
+        const adjacency = this.graph.adjacency;
+
+        // Register component nodes
+        components.forEach(comp => {
+            nodes.set(comp.id, { kind: 'component', ...comp });
+            adjacency.set(comp.id, []);
+        });
+
+        // Detect junction dots (3+ wires at same snapped point)
+        const epMap = new Map();   // "x,y" → [wireId, ...]
+        wires.forEach(wire => {
+            wire.endpoints.forEach(ep => {
+                const key = `${ep.x.toFixed(2)},${ep.y.toFixed(2)}`;
+                if (!epMap.has(key)) epMap.set(key, []);
+                epMap.get(key).push(wire.id);
+            });
+        });
+
+        let junctionIdx = 0;
+        epMap.forEach((wireIds, key) => {
+            if (wireIds.length >= 3) {
+                const [x, y] = key.split(',').map(Number);
+                const jid = `junction_${junctionIdx++}`;
+                nodes.set(jid, { kind: 'junction', id: jid, x, y, degree: wireIds.length });
+                adjacency.set(jid, []);
+            }
+        });
+
+        // Register wire edges and link to component nodes via ports
+        wires.forEach(wire => {
+            const portMatches = ports.filter(p => p.wireId === wire.id);
+            const fromNode    = portMatches.find(p => {
+                const ep = wire.endpoints[0];
+                return Math.hypot(p.x - ep.x, p.y - ep.y) < 1;
+            })?.compId || null;
+            const toNode      = portMatches.find(p => {
+                const ep = wire.endpoints[1];
+                return Math.hypot(p.x - ep.x, p.y - ep.y) < 1;
+            })?.compId || null;
+
+            edges.set(wire.id, {
+                id: wire.id, from: fromNode, to: toNode,
+                color: wire.color, length: wire.length,
+                signalType: null,
+            });
+
+            // Update adjacency
+            if (fromNode && toNode && fromNode !== toNode) {
+                adjacency.get(fromNode)?.push(toNode);
+                adjacency.get(toNode)?.push(fromNode);
+            }
+        });
+    },
+
+    // ==========================================================
+    //  POST-ANALYSIS: DOM HITBOXES
+    // ==========================================================
+
+    _createWireHitboxes(wires) {
+        const NS = this.SVG_NS;
+        wires.forEach(wire => {
+            const { el, id, color } = wire;
+            const group = document.createElementNS(NS, 'g');
+            group.setAttribute('class', 'wire-group');
+            group.setAttribute('data-wire-id', id);
+
+            const visual  = el.cloneNode(true);
+            const hitbox  = el.cloneNode(true);
+            hitbox.setAttribute('stroke', color);
+            hitbox.setAttribute('stroke-opacity', '0');
+            hitbox.setAttribute('stroke-width',
+                String(Math.max(12, parseFloat(el.getAttribute('stroke-width')||'1') * 6)));
+            hitbox.setAttribute('fill', 'none');
+            hitbox.setAttribute('class', 'wire-hitbox');
+            hitbox.setAttribute('data-wire-id', id);
+
+            group.appendChild(visual);
+            group.appendChild(hitbox);
+            el.parentNode?.replaceChild(group, el);
+
+            // Update the wire record to point to new DOM nodes
+            wire.element  = visual;
+            wire.$element = $(visual);
+            wire.$hitbox  = $(hitbox);
+            wire.$group   = $(group);
+
+            this.wires.push(wire);
+        });
+    },
+
+    _createComponentHitboxes(components) {
+        const NS = this.SVG_NS;
+        components.forEach(comp => {
+            const { el, id, bbox } = comp;
+            const tag = el.tagName?.toLowerCase();
+            const group = document.createElementNS(NS, 'g');
+            group.setAttribute('class', 'component-group');
+            group.setAttribute('data-component-id', id);
+
+            const visual = el.cloneNode(true);
+
+            let hitbox;
+            if (tag === 'g' || bbox.width > 0) {
+                hitbox = document.createElementNS(NS, 'rect');
+                hitbox.setAttribute('x',      String(bbox.x));
+                hitbox.setAttribute('y',      String(bbox.y));
+                hitbox.setAttribute('width',  String(bbox.width));
+                hitbox.setAttribute('height', String(bbox.height));
+            } else {
+                hitbox = el.cloneNode(true);
+            }
+            hitbox.setAttribute('fill-opacity',   '0');
+            hitbox.setAttribute('stroke-opacity',  '0');
+            hitbox.setAttribute('pointer-events',  'all');
+            hitbox.setAttribute('class',           'component-hitbox');
+            hitbox.setAttribute('data-component-id', id);
+
+            group.appendChild(visual);
+            group.appendChild(hitbox);
+            el.parentNode?.replaceChild(group, el);
+
+            comp.element  = visual;
+            comp.$element = $(visual);
+            comp.$hitbox  = $(hitbox);
+            comp.$group   = $(group);
+
+            this.components.push(comp);
+        });
+    },
+
+    // ==========================================================
+    //  BBox MAP + QuadTree
+    // ==========================================================
+
+    _buildBBoxMap() {
+        this._bboxMap.clear();
+        [...this.wires, ...this.components].forEach(item => {
+            if (item.bbox && item.id)
+                this._bboxMap.set(item.id, item.bbox);
+            // Also index by DOM element id for canvas engine lookups
+            const domId = item.element?.id;
+            if (domId && item.bbox) this._bboxMap.set(domId, item.bbox);
+        });
+    },
+
+    _buildQuadTree() {
+        const svgEl = this.$svgDisplay[0];
+        const vb    = (svgEl.getAttribute('viewBox')||'0 0 2000 2000').split(/\s+/).map(Number);
+        const bounds = { x: vb[0]||0, y: vb[1]||0, width: vb[2]||2000, height: vb[3]||2000 };
+        this._quadTree = new QuadTree2D(bounds, 8);
+
+        [...this.wires, ...this.components].forEach(item => {
+            if (!item.bbox) return;
+            const { x, y, width: w, height: h } = item.bbox;
+            this._quadTree.insert({ x: x + w/2, y: y + h/2, data: item });
+        });
+    },
+
+    // ==========================================================
+    //  COMPONENT TYPE CLASSIFICATION (geometry-aware)
+    // ==========================================================
+
+    _classifyComponentType(el, circularity) {
+        const tag = el.tagName?.toLowerCase();
+        const cls = el.getAttribute('class') || '';
+        const id  = el.getAttribute('id')    || '';
+
+        // Semantic hints take priority
+        if (cls.includes('resistor'))  return 'resistor';
+        if (cls.includes('capacitor')) return 'capacitor';
+        if (cls.includes('switch'))    return 'switch';
+        if (id.includes('relay'))      return 'relay';
+
+        // Geometric fallback
+        if (tag === 'circle' || circularity >= 0.7) return 'connector';
+        if (tag === 'rect')                          return 'module';
+        if (circularity >= 0.45)                     return 'connector';
+        return 'component';
+    },
+
+    // ==========================================================
+    //  BACKWARD-COMPATIBLE HELPERS
+    // ==========================================================
+
+    /** Returns snapped endpoints for a wire element (was: parsed from path `d`). */
+    getWireEndPoints($wire) {
+        const el = $wire[0];
+        const rec = this.wires.find(w => w.element === el || w.$hitbox?.[0] === el);
+        if (rec?.endpoints) return rec.endpoints;
+
+        // Fallback to attribute parsing (for user-drawn wires not in the analysis set)
+        if (el.tagName === 'line') {
+            return [
+                { x: parseFloat($wire.attr('x1')), y: parseFloat($wire.attr('y1')) },
+                { x: parseFloat($wire.attr('x2')), y: parseFloat($wire.attr('y2')) },
+            ];
+        }
+        const m = ($wire.attr('d') || '').match(/[\d.]+/g);
+        if (m && m.length >= 4)
+            return [
+                { x: parseFloat(m[0]), y: parseFloat(m[1]) },
+                { x: parseFloat(m[m.length-2]), y: parseFloat(m[m.length-1]) },
+            ];
+        return [];
+    },
+
+    /** Graph-based connected component lookup (replaces O(n²) linear scan). */
+    highlightConnectedComponents($wireElement) {
+        const el    = $wireElement[0];
+        const wire  = this.wires.find(w => w.element === el || w.$hitbox?.[0] === el);
+        if (!wire) return;
+
+        // Look up the edge in the graph
+        const edge  = this.graph.edges.get(wire.id);
+        if (!edge) return;
+
+        const highlight = (nodeId) => {
+            if (!nodeId) return;
+            const comp = this.components.find(c => c.id === nodeId);
+            comp?.$element?.addClass('component-highlight');
+        };
+
+        highlight(edge.from);
+        highlight(edge.to);
+
+        // Also highlight by adjacency list (for junction-connected comps)
+        const adj = this.graph.adjacency.get(edge.from) || [];
+        adj.forEach(nid => highlight(nid));
+    },
+
+    isWire($element) {
+        const el = $element[0];
+        return this.wires.some(w => w.element === el || w.$hitbox?.[0] === el);
+    },
+});

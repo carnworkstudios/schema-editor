@@ -35,10 +35,18 @@ class MobileSVGEditor {
         this.selectedElements = [];
         this.originalViewBox  = null;
 
-        // ── Misc ──────────────────────────────────────────────
+        // ── Misc ────────────────────────────────────────────────────
         this.miniMapVisible   = false;
         this.clickTimeout     = null;
         this.toastTimeout     = null;
+
+        // ── rAF batching handle (viewTransform) ──────────────────
+        this._transformRafHandle = null;
+
+        // ── Spatial indices (geometryEngine / canvasEngine) ───────
+        this._bboxMap   = new Map();    // elementId → {x,y,width,height}
+        this.graph      = { nodes: new Map(), edges: new Map(), adjacency: new Map() };
+        this._quadTree  = null;         // QuadTree2D, built lazily when nodes > 500
 
         // ── Measure state ─────────────────────────────────────
         this._measuring         = false;
@@ -71,6 +79,7 @@ class MobileSVGEditor {
         this.initClipboard();           // clipboard.js
         this.initAlignDistribute();     // alignDistribute.js
         this.initPropertyPanel();       // propertyPanel.js
+        this.initGeometryEngine();      // geometryEngine.js  (spatial indices)
     }
 
     initializeElements() {
@@ -419,7 +428,15 @@ class MobileSVGEditor {
         const name = $('#newCanvasName').val().trim() || 'New Canvas';
 
         const svgContent = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}">
-  <rect width="${w}" height="${h}" fill="transparent"/>
+  <!-- Canvas page background: white so it stands out from the dark editor -->
+  <rect id="_canvasBg" width="${w}" height="${h}" fill="white"
+    stroke="rgba(0,0,0,0.15)" stroke-width="1"
+    filter="url(#_pageShadow)"/>
+  <defs>
+    <filter id="_pageShadow" x="-2%" y="-2%" width="104%" height="104%">
+      <feDropShadow dx="0" dy="2" stdDeviation="6" flood-color="rgba(0,0,0,0.3)"/>
+    </filter>
+  </defs>
 </svg>`;
 
         const firstNewIdx = this.displays.length;
