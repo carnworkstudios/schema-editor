@@ -354,8 +354,8 @@ Object.assign(MobileSVGEditor.prototype, {
             if (this.activeTool !== 'select') return;
 
             const target = e.target;
-            const ignored = ['svg', '_gridLayer', '_gridDefs'];
-            const isIgnored = ignored.includes(target.id) ||
+            const ignored = ['svg', 'svgDisplay', '_gridLayer', '_gridDefs'];
+            const isIgnored = ignored.includes(target.id) || target.tagName.toLowerCase() === 'svg' ||
                 target.classList.contains('snap-guide') ||
                 target.classList.contains('draw-preview') ||
                 target.closest('.selection-handle-group');
@@ -373,10 +373,23 @@ Object.assign(MobileSVGEditor.prototype, {
                 el = el.previousElementSibling || el;
             }
 
-            if (el.id === '_gridLayer') { this.deselectAll(); return; }
+            if (el.id === '_gridLayer' || el.id === 'svgDisplay' || el.tagName.toLowerCase() === 'svg') { 
+                this.deselectAll(); 
+                return; 
+            }
 
             e.stopPropagation();
             this.selectEl(el, e.shiftKey || e.ctrlKey || e.metaKey);
+
+            // Execute Trace mode simultaneously if active
+            if (this.isWireTracing) {
+                const wire = this.wires?.find(w => w.id === el.id);
+                if (wire) this.traceWirePath(wire);
+                else {
+                    const comp = this.components?.find(c => c.id === el.id);
+                    if (comp) this.traceComponent(comp);
+                }
+            }
 
             if (this._selection.includes(el)) {
                 this._startMoveSelected(e.clientX, e.clientY);

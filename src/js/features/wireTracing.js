@@ -18,27 +18,12 @@ Object.assign(MobileSVGEditor.prototype, {
     startWireTracing() {
         this.isWireTracing = true;
         this.showToast('Wire tracing ON; tap a wire or component to trace', 'success');
-
-        this.wires.forEach(wire => {
-            wire.$hitbox.on('click.tracing', (e) => {
-                e.stopPropagation();
-                this.traceWirePath(wire);
-            });
-        });
-
-        this.components.forEach(comp => {
-            comp.$hitbox.on('click.tracing', (e) => {
-                e.stopPropagation();
-                this.traceComponent(comp);
-            });
-        });
+        // Selection engine (canvasEngine.js) now reads this.isWireTracing natively
     },
 
     stopWireTracing() {
         this.isWireTracing = false;
         this.showToast('Wire tracing OFF', 'success');
-        this.wires.forEach(wire => wire.$hitbox.off('click.tracing'));
-        this.components.forEach(comp => comp.$hitbox.off('click.tracing'));
         this.clearAllHighlights();
     },
 
