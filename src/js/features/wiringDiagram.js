@@ -5,21 +5,22 @@
 
 Object.assign(MobileSVGEditor.prototype, {
 
-    // ── Multi-file batch load ─────────────────────────────────
     loadSVGFiles(event) {
         const files = Array.from(event.target.files);
         event.target.value = ''; // reset so same file can be re-added
         if (!files.length) return;
         this.showLoading(true);
 
-        Promise.all(files.map(f => this._fileToSvgString(f).then(svg => ({ name: f.name, svgContent: svg }))))
-            .then(results => {
+        Promise.all(files.map(f => this._fileToSvgString(f)))
+            .then(resultsArray => {
+                const flattened = resultsArray.flat();
+                if (!flattened.length) return;
+                
                 const firstNewIdx = this.displays.length;
-                results.forEach(r => this.displays.push({ 
+                flattened.forEach(r => this.displays.push({ 
                     id: `disp_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`,
                     analyzed: false,
                     snapshot: null,
-                    sourceFormat: r.name.split('.').pop().toLowerCase(),
                     ...r 
                 }));
                 this.switchDisplay(firstNewIdx);
@@ -41,19 +42,20 @@ Object.assign(MobileSVGEditor.prototype, {
         if ($('#timelinePanel').hasClass('open')) this.buildTimeline();
     },
 
-    // ── Promise-based format dispatcher ──────────────────────
     _fileToSvgString(file) {
         const ext = file.name.split('.').pop().toLowerCase();
+        const wrap = (promise) => promise.then(svg => [{ name: file.name, svgContent: svg, sourceFormat: ext }]);
+
         if (ext === 'svg' || ext === 'svgz' || file.type === 'image/svg+xml')
-            return this._readTextFile(file);
+            return wrap(this._readTextFile(file));
         if (ext === 'pdf' || file.type === 'application/pdf')
-            return this._pdfFileToSvg(file);
+            return this._pdfFileToSvg(file, ext);
         if (ext === 'plt' || ext === 'hpgl')
-            return this._readTextFile(file).then(text => this._hpglToSvg(text));
+            return wrap(this._readTextFile(file).then(text => this._hpglToSvg(text)));
         if (ext === 'dwf' || ext === 'dwfx')
-            return this._dwfFileToSvg(file);
+            return wrap(this._dwfFileToSvg(file));
         if (['png', 'jpg', 'jpeg', 'bmp', 'tif', 'tiff'].includes(ext) || file.type.startsWith('image/'))
-            return this._rasterFileToSvg(file);
+            return wrap(this._rasterFileToSvg(file));
         return Promise.reject(new Error(`Unsupported format: .${ext}`));
     },
 
@@ -66,25 +68,65 @@ Object.assign(MobileSVGEditor.prototype, {
         });
     },
 
-    _pdfFileToSvg(file) {
+    _pdfFileToSvg(file, sourceExt = 'pdf') {
         if (typeof pdfjsLib === 'undefined') return Promise.reject(new Error('PDF renderer not available'));
         const url = URL.createObjectURL(file);
 
         return pdfjsLib.getDocument(url).promise
-            .then(pdf => pdf.getPage(1)) // Process first page
-            .then(page => {
-                const viewport = page.getViewport({ scale: 1.0 }); // Native units
-                return page.getOperatorList().then(opList => {
-                    const svgGfx = new pdfjsLib.SVGGraphics(page.commonObjs, page.objs);
-                    // Generate SVG element using official backend
-                    return svgGfx.getSVG(opList, viewport);
-                });
-            })
-            .then(svgElement => {
-                // Flatten hierarchy so every path/line is top-level and has its own transform
-                this.ungroupAll(svgElement);
-                // Serialize back to string for the existing pipeline (_mountParsedSvg)
-                return new XMLSerializer().serializeToString(svgElement);
+            .then(async pdf => {
+                const numPages = pdf.numPages;
+                const pages = [];
+                for (let i = 1; i <= numPages; i++) {
+                    try {
+                        const page = await pdf.getPage(i);
+                        const viewport = page.getViewport({ scale: 1.0 }); // Native units
+                        const opList = await page.getOperatorList();
+                        
+                        // SANITIZE: Remove shading ops which crash the experimental SVG renderer
+                        if (pdfjsLib.OPS && pdfjsLib.OPS.shadingFill !== undefined) {
+                            const bypassOps = [ pdfjsLib.OPS.shadingFill ];
+                            const filteredFn = [];
+                            const filteredArgs = [];
+                            for (let j = 0; j < opList.fnArray.length; j++) {
+                                if (!bypassOps.includes(opList.fnArray[j])) {
+                                    filteredFn.push(opList.fnArray[j]);
+                                    filteredArgs.push(opList.argsArray[j]);
+                                }
+                            }
+                            opList.fnArray = filteredFn;
+                            opList.argsArray = filteredArgs;
+                        }
+
+                        const svgGfx = new pdfjsLib.SVGGraphics(page.commonObjs, page.objs);
+                        
+                        // Catch internal SVGGraphics errors (like subarray readings on corrupt inline images)
+                        let svgElement;
+                        try {
+                            svgElement = await svgGfx.getSVG(opList, viewport);
+                        } catch (renderErr) {
+                            console.warn(`[PDF] SVGGraphics failed gracefully on P${i}:`, renderErr);
+                            continue; // Skip appending this page if getSVG hard crashes
+                        }
+                        
+                        // Flatten hierarchy so every path/line is top-level and has its own transform
+                        if (svgElement) {
+                            this.ungroupAll(svgElement);
+                            pages.push({
+                                name: numPages > 1 ? `${file.name} - P${i}` : file.name,
+                                svgContent: new XMLSerializer().serializeToString(svgElement),
+                                sourceFormat: sourceExt
+                            });
+                        }
+                    } catch (pageErr) {
+                        console.warn(`[PDF] Could not read page ${i}:`, pageErr);
+                    }
+                }
+                
+                if (pages.length === 0) {
+                    throw new Error('All pages failed to render (unsupported shading/images).');
+                }
+                
+                return pages;
             })
             .finally(() => URL.revokeObjectURL(url));
     },

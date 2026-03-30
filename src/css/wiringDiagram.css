@@ -7,6 +7,9 @@
    SVG Display
    ============================================================ */
 #svgDisplay {
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background-color: #fff;
     image-rendering: optimizeQuality;
     shape-rendering: geometricPrecision;
