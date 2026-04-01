@@ -18,6 +18,7 @@ class MobileSVGEditor {
         this.isDragging       = false;
         this.isCtrlHeld       = false;
         this.isShiftHeld      = false;
+        this._spaceHeld       = false;
         this.isWireTracing    = false;
         this.isConnectionWire = false;
         this.isComponentBox   = false;
@@ -132,8 +133,10 @@ class MobileSVGEditor {
         };
 
         hammer.on('pinchstart rotatestart panstart', (ev) => {
-            // Don't pan/pinch while in a drawing tool
+            // Don't pan/pinch while in a drawing tool or when viewport is locked (edit mode)
             if (this.activeTool !== 'select') return;
+            if (this._isViewportLocked && this._isViewportLocked()) return;
+            
             gesture.active = true;
             gesture.baseZoom       = this.currentZoom;
             gesture.baseRotation   = this.currentRotation;
@@ -293,6 +296,7 @@ class MobileSVGEditor {
 
             if (e.key === 'Shift')   this.isShiftHeld = true;
             if (e.key === 'Control' || e.key === 'Meta') this.isCtrlHeld = true;
+            if (e.key === ' ') { e.preventDefault(); this._spaceHeld = true; }
 
             const ctrl = e.ctrlKey || e.metaKey;
 
@@ -321,6 +325,7 @@ class MobileSVGEditor {
         $(document).on('keyup', (e) => {
             if (e.key === 'Shift')   this.isShiftHeld = false;
             if (e.key === 'Control' || e.key === 'Meta') this.isCtrlHeld = false;
+            if (e.key === ' ') this._spaceHeld = false;
         });
 
         // Accordion toggle — auto-close siblings

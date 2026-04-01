@@ -47,6 +47,10 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Setters ──────────────────────────────────────────────
 
     setZoom(zoom) {
+        if (this._isViewportLocked()) {
+            this.$zoomSlider.val(this.currentZoom); // snap back
+            return;
+        }
         this.currentZoom = zoom;
         this.$zoomSlider.val(zoom);
         $('#zoomValue').text(zoom.toFixed(1));
@@ -54,6 +58,10 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     setRotation(rotation) {
+        if (this._isViewportLocked()) {
+            this.$rotationSlider.val(this.currentRotation);
+            return;
+        }
         this.currentRotation = rotation % 360;
         this.$rotationSlider.val(this.currentRotation);
         $('#rotationValue').text(Math.round(this.currentRotation));
@@ -61,6 +69,10 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     setPitch(pitch) {
+        if (this._isViewportLocked()) {
+            this.$pitchSlider.val(this.currentPitch);
+            return;
+        }
         this.currentPitch = pitch;
         this.$pitchSlider.val(pitch);
         $('#pitchValue').text(Math.round(pitch));
@@ -68,6 +80,10 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     setYRotation(yaw) {
+        if (this._isViewportLocked()) {
+            this.$rotateYSlider.val(this.currentYaw);
+            return;
+        }
         this.currentYaw = yaw;
         this.$rotateYSlider.val(yaw);
         $('#rotateYValue').text(Math.round(yaw));
@@ -146,6 +162,7 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Animated Actions ─────────────────────────────────────
 
     animateZoom(targetZoom) {
+        if (this._isViewportLocked()) return;
         gsap.to(this, {
             duration: 0.35,
             ease: 'power2.out',
@@ -158,6 +175,7 @@ Object.assign(MobileSVGEditor.prototype, {
     zoomOut() { this.animateZoom(Math.max(0.1, this.currentZoom / 1.5)); },
 
     fitToView() {
+        if (this._isViewportLocked()) return;
         const container = this.$svgContainer[0];
         if (!container) return;
 
@@ -194,6 +212,7 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     rotateView() {
+        if (this._isViewportLocked()) return;
         const target = (this.currentRotation + 90) % 360;
         gsap.to(this, {
             duration: 0.6, ease: 'power2.inOut', currentRotation: target,
@@ -202,6 +221,7 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     rotateViewLeft() {
+        if (this._isViewportLocked()) return;
         const target = (this.currentRotation - 90 + 360) % 360;
         gsap.to(this, {
             duration: 0.6, ease: 'power2.inOut', currentRotation: target,
@@ -228,10 +248,20 @@ Object.assign(MobileSVGEditor.prototype, {
         $('#traceWireBtn').removeClass('active');
     },
 
+    // ── Edit-mode check ─────────────────────────────────────
+    //   When objects are selected the viewport is locked so
+    //   drag / wheel / rotate act on the selection, not the
+    //   canvas.  Hold Space to temporarily unlock viewport.
+
+    _isViewportLocked() {
+        return this._selection?.length > 0 && !this._spaceHeld;
+    },
+
     // ── Mouse Drag ───────────────────────────────────────────
 
     startDrag(event) {
         if (this.activeTool !== 'select') return;
+        if (this._isViewportLocked()) return;   // edit-mode: no viewport pan
 
         const target = event.target;
         const targetId = target.id || '';
@@ -279,6 +309,7 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Wheel Zoom at cursor position ────────────────────────
 
     handleWheel(event) {
+        if (this._isViewportLocked()) return;   // edit-mode: no viewport zoom
         event.preventDefault();
         const e = event.originalEvent || event;
         const factor  = e.deltaY > 0 ? 0.92 : 1.08;
