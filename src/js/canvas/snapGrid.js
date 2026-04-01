@@ -81,14 +81,14 @@ Object.assign(MobileSVGEditor.prototype, {
 
         svg.insertBefore(defs, svg.firstChild);
 
-        // Grid layer rect (stretched to viewBox)
-        const vb = (svg.getAttribute('viewBox') || '0 0 2000 2000').split(/\s+/).map(Number);
+        // Grid layer rect — sized generously so it covers the full
+        // panning range (viewBox changes dynamically with zoom/pan)
         const layer = document.createElementNS(NS, 'rect');
         layer.id    = '_gridLayer';
-        layer.setAttribute('x',      String(vb[0] || 0));
-        layer.setAttribute('y',      String(vb[1] || 0));
-        layer.setAttribute('width',  String(vb[2] || 2000));
-        layer.setAttribute('height', String(vb[3] || 2000));
+        layer.setAttribute('x',      '-50000');
+        layer.setAttribute('y',      '-50000');
+        layer.setAttribute('width',  '100000');
+        layer.setAttribute('height', '100000');
         layer.setAttribute('fill',   'url(#_gridMajor)');
         layer.setAttribute('pointer-events', 'none');
         layer.style.display = this._grid.visible ? '' : 'none';

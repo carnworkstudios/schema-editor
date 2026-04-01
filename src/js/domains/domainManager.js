@@ -9,7 +9,7 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Init ──────────────────────────────────────────────────
     initDomainManager() {
         this._domainKits = {};   // name → { symbols[], onActivate, onDeactivate }
-        this.activeMode  = 'general';
+        this.activeMode = 'general';
 
         this._bindModeSwitch();
     },
@@ -96,12 +96,12 @@ Object.assign(MobileSVGEditor.prototype, {
     _startSymbolDrag(sym, startEvent) {
         const $ghost = $('<div class="palette-drag-ghost">' + sym.svgPreview + '</div>');
         $ghost.css({
-            position:  'fixed',
-            left:       startEvent.clientX - 20,
-            top:        startEvent.clientY - 20,
+            position: 'fixed',
+            left: startEvent.clientX - 20,
+            top: startEvent.clientY - 20,
             pointerEvents: 'none',
-            zIndex:    9999,
-            opacity:   0.75,
+            zIndex: 9999,
+            opacity: 0.75,
         });
         $('body').append($ghost);
 
@@ -116,9 +116,16 @@ Object.assign(MobileSVGEditor.prototype, {
             // Check if released over the SVG canvas
             const svgRect = this.$svgContainer[0].getBoundingClientRect();
             if (ev.clientX >= svgRect.left && ev.clientX <= svgRect.right &&
-                ev.clientY >= svgRect.top  && ev.clientY <= svgRect.bottom) {
+                ev.clientY >= svgRect.top && ev.clientY <= svgRect.bottom) {
                 const svgPt = this.screenToSVG(ev.clientX, ev.clientY);
                 const snapped = this.smartSnap(svgPt.x, svgPt.y);
+                this._placeSymbol(sym, snapped.x, snapped.y);
+            } else {
+                // Released outside canvas — place at visible center
+                const cx = svgRect.left + svgRect.width  / 2;
+                const cy = svgRect.top  + svgRect.height / 2;
+                const center = this.screenToSVG(cx, cy);
+                const snapped = this.smartSnap(center.x, center.y);
                 this._placeSymbol(sym, snapped.x, snapped.y);
             }
         };
@@ -129,11 +136,11 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Place a symbol SVG on the canvas ─────────────────────
     _placeSymbol(sym, x, y) {
         const before = this._captureFullState();
-        const NS     = this.SVG_NS;
+        const NS = this.SVG_NS;
         const parser = new DOMParser();
 
         const svgStr = sym.svgContent || sym.svgPreview;
-        const doc    = parser.parseFromString(
+        const doc = parser.parseFromString(
             `<svg xmlns="http://www.w3.org/2000/svg">${svgStr}</svg>`,
             'image/svg+xml'
         );
@@ -162,7 +169,7 @@ Object.assign(MobileSVGEditor.prototype, {
             label.setAttribute('text-anchor', 'middle');
             label.setAttribute('font-size', '10');
             label.setAttribute('font-family', 'Inter, monospace');
-            label.setAttribute('fill', '#4facfe');
+            label.setAttribute('fill', '#030c13ff');
             label.setAttribute('class', 'sym-value');
             label.textContent = sym.defaultValue;
             g.appendChild(label);

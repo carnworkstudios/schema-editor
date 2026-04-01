@@ -264,6 +264,7 @@ Object.assign(MobileSVGEditor.prototype, {
         this.currentPitch     = 0;
         this.currentYaw       = 0;
         this.currentTranslate = { x: 0, y: 0 };
+        this._computeBaseViewBox();     // recompute for new SVG dimensions
         this.updateTransform();
 
         // Delay fitToView so the DOM has painted and getBoundingClientRect is accurate

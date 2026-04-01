@@ -1,10 +1,48 @@
 /* ============================================================
-   SVG Wiring Editor — View Transform  (Bug-fix pass)
-   – Fix #6: wheel zoom at cursor position (not center)
-   – Fix #2: drag only moves when in select mode / no draw tool active
+   SVG Wiring Editor — View Transform  (viewBox-based rendering)
+   Zoom + pan use SVG viewBox for always-crisp vector rendering.
+   CSS transforms are only used for 3D effects (rotation, pitch, yaw).
    ============================================================ */
 
 Object.assign(MobileSVGEditor.prototype, {
+
+    // ── Compute the base viewBox that fills the container ─────
+    //    Called on init, on container resize, and after loading SVG.
+    _computeBaseViewBox() {
+        const svg       = this.$svgDisplay[0];
+        const container = this.$svgContainer[0];
+        if (!svg || !container) return;
+
+        // Original document viewBox (the "content area")
+        const raw = (this.originalViewBox || svg.getAttribute('viewBox') || '0 0 1200 800');
+        const vb  = raw.split(/[\s,]+/).map(Number);
+        this._origDocViewBox = { x: vb[0], y: vb[1], w: vb[2], h: vb[3] };
+
+        const cW = container.clientWidth  || 1;
+        const cH = container.clientHeight || 1;
+        const doc = this._origDocViewBox;
+        const docAR       = doc.w / doc.h;
+        const containerAR = cW / cH;
+
+        // Expand viewBox to match container aspect ratio → no letterboxing
+        if (containerAR > docAR) {
+            const newW = doc.h * containerAR;
+            this._baseViewBox = {
+                x: doc.x - (newW - doc.w) / 2,
+                y: doc.y,
+                w: newW,
+                h: doc.h,
+            };
+        } else {
+            const newH = doc.w / containerAR;
+            this._baseViewBox = {
+                x: doc.x,
+                y: doc.y - (newH - doc.h) / 2,
+                w: doc.w,
+                h: newH,
+            };
+        }
+    },
 
     // ── Setters ──────────────────────────────────────────────
 
@@ -37,31 +75,59 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     // ── Transform Computation ────────────────────────────────
-    //   Applied to #svgWrapper (the inner div), NOT the container.
-    //   Origin is always top-left (0 0) so zoom-at-point math works.
+    //   Zoom + pan → SVG viewBox  (crisp vector rendering at every zoom)
+    //   3D effects → CSS transform on #svgWrapper (only when active)
 
     updateTransform() {
-        const t = [
-            `translate(${this.currentTranslate.x}px, ${this.currentTranslate.y}px)`,
-            `scale(${this.currentZoom})`,
-            `rotateZ(${this.currentRotation}deg)`,
-            `skewX(${this.currentPitch}deg)`,
-            `rotateY(${this.currentYaw}deg)`,
-        ].join(' ');
+        const svg = this.$svgDisplay[0];
+        if (!svg) return;
 
-        this.$svgWrapper.css({
-            'transform':        t,
-            'transform-origin': '0 0',   // ← critical: top-left origin
-            'transform-style':  'preserve-3d',
-        });
+        if (!this._baseViewBox) this._computeBaseViewBox();
+        const base = this._baseViewBox;
+        if (!base) return;
+
+        const container = this.$svgContainer[0];
+        const cW   = container.clientWidth  || 1;
+        const zoom = this.currentZoom;
+        const tx   = this.currentTranslate.x;
+        const ty   = this.currentTranslate.y;
+
+        // ── viewBox: zoom + pan (always crisp) ──────────────
+        const vbW = base.w / zoom;
+        const vbH = base.h / zoom;
+        const svgPerPx = base.w / (zoom * cW);   // SVG units per screen pixel
+        const vbX = base.x - tx * svgPerPx;
+        const vbY = base.y - ty * svgPerPx;
+
+        svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+
+        // ── CSS: 3D effects only (no scale or translate) ────
+        const has3D = this.currentRotation !== 0 ||
+                      this.currentPitch    !== 0 ||
+                      this.currentYaw      !== 0;
+
+        if (has3D) {
+            this.$svgWrapper.css({
+                'transform': [
+                    `rotateZ(${this.currentRotation}deg)`,
+                    `skewX(${this.currentPitch}deg)`,
+                    `rotateY(${this.currentYaw}deg)`,
+                ].join(' '),
+                'transform-origin': '50% 50%',
+                'transform-style':  'preserve-3d',
+            });
+        } else {
+            this.$svgWrapper.css({
+                'transform':       'none',
+                'transform-style': 'flat',
+            });
+        }
     },
 
     // ── rAF scheduler: batches pending transform state ────────
-    //   Call _scheduleTransform(state) instead of updateTransform()
-    //   directly during continuous events (drag, wheel).
     _scheduleTransform(state) {
-        Object.assign(this, state);          // write pending state immediately
-        if (this._transformRafHandle) return; // already queued
+        Object.assign(this, state);
+        if (this._transformRafHandle) return;
         this._transformRafHandle = requestAnimationFrame(() => {
             this._transformRafHandle = null;
             this.updateTransform();
@@ -82,9 +148,9 @@ Object.assign(MobileSVGEditor.prototype, {
     animateZoom(targetZoom) {
         gsap.to(this, {
             duration: 0.35,
-            ease:     'power2.out',
+            ease: 'power2.out',
             currentZoom: targetZoom,
-            onUpdate:    () => this.setZoom(this.currentZoom),
+            onUpdate: () => this.setZoom(this.currentZoom),
         });
     },
 
@@ -92,37 +158,25 @@ Object.assign(MobileSVGEditor.prototype, {
     zoomOut() { this.animateZoom(Math.max(0.1, this.currentZoom / 1.5)); },
 
     fitToView() {
-        const svgEl = this.$svgDisplay[0];
-        const ctnr  = this.$svgContainer[0];
-        if (!svgEl || !ctnr) return;
+        const container = this.$svgContainer[0];
+        if (!container) return;
 
-        // Try to compute natural SVG dimensions from viewBox
-        const vb = svgEl.getAttribute('viewBox');
-        let svgW = svgEl.getAttribute('width')  ? parseFloat(svgEl.getAttribute('width'))  : 0;
-        let svgH = svgEl.getAttribute('height') ? parseFloat(svgEl.getAttribute('height')) : 0;
-        if (vb) {
-            const parts = vb.split(/[\s,]+/).map(Number);
-            if (parts.length === 4) { svgW = parts[2]; svgH = parts[3]; }
-        }
+        // Use original document dimensions (not the dynamic viewBox)
+        const doc = this._origDocViewBox || { x: 0, y: 0, w: 1200, h: 800 };
+        const cW  = container.clientWidth;
+        const cH  = container.clientHeight;
 
-        const cW = ctnr.clientWidth;
-        const cH = ctnr.clientHeight;
-
-        let targetZoom = 1;
-        if (svgW > 0 && svgH > 0) {
-            targetZoom = Math.min(cW / svgW, cH / svgH) * 0.92;
-        }
-
-        const targetTx = (cW - svgW * targetZoom) / 2;
-        const targetTy = (cH - svgH * targetZoom) / 2;
+        const targetZoom = Math.min(cW / doc.w, cH / doc.h) * 0.92;
+        const targetTx   = (cW - doc.w * targetZoom) / 2;
+        const targetTy   = (cH - doc.h * targetZoom) / 2;
 
         gsap.to(this, {
             duration: 0.6,
-            ease:     'power2.inOut',
-            currentZoom:        targetZoom,
-            currentRotation:    0,
-            currentPitch:       0,
-            currentYaw:         0,
+            ease: 'power2.inOut',
+            currentZoom: targetZoom,
+            currentRotation: 0,
+            currentPitch: 0,
+            currentYaw: 0,
             onUpdate: () => {
                 this.currentTranslate = {
                     x: this.currentTranslate.x + (targetTx - this.currentTranslate.x) * 0.1,
@@ -177,15 +231,20 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Mouse Drag ───────────────────────────────────────────
 
     startDrag(event) {
-        // Only pan when no draw tool is active (draw tools handle their own events)
         if (this.activeTool !== 'select') return;
+
+        const target = event.target;
+        const targetId = target.id || '';
+        const isBackground = targetId === 'svgWrapper' || targetId === '_gridLayer' || targetId === 'svgContainer' || target.tagName.toLowerCase() === 'svg' || target.tagName.toLowerCase() === 'html';
+        if (!isBackground) return;
+
         this.isDragging = true;
         this.dragStart = {
-            x:         event.clientX,
-            y:         event.clientY,
+            x: event.clientX,
+            y: event.clientY,
             translate: { ...this.currentTranslate },
-            rotation:  this.currentRotation,
-            pitch:     this.currentPitch,
+            rotation: this.currentRotation,
+            pitch: this.currentPitch,
         };
         this.$svgContainer.css('cursor', 'grabbing');
     },
@@ -217,11 +276,11 @@ Object.assign(MobileSVGEditor.prototype, {
         this.$svgContainer.css('cursor', this.activeTool === 'select' ? 'grab' : 'default');
     },
 
-    // ── Fix #6: Wheel Zoom AT cursor position ─────────────────
+    // ── Wheel Zoom at cursor position ────────────────────────
 
     handleWheel(event) {
         event.preventDefault();
-        const e       = event.originalEvent || event;
+        const e = event.originalEvent || event;
         const factor  = e.deltaY > 0 ? 0.92 : 1.08;
         const newZoom = Math.max(0.1, Math.min(100, this.currentZoom * factor));
 
@@ -229,22 +288,22 @@ Object.assign(MobileSVGEditor.prototype, {
         const mx = e.clientX - ctnrRect.left;
         const my = e.clientY - ctnrRect.top;
 
-        // Zoom-at-point: keep the content pixel under the cursor fixed
+        // Zoom-at-point: keep the SVG point under the cursor fixed
         const ratio = newZoom / this.currentZoom;
         this._scheduleTransform({
-            currentZoom:      newZoom,
+            currentZoom: newZoom,
             currentTranslate: {
                 x: mx - ratio * (mx - this.currentTranslate.x),
                 y: my - ratio * (my - this.currentTranslate.y),
             },
         });
-        // Update slider label eagerly (cheap text write)
         this.$zoomSlider?.val(newZoom);
         $('#zoomValue').text(newZoom.toFixed(1));
     },
 
     handleOrientationChange() {
         setTimeout(() => {
+            this._computeBaseViewBox();
             this.updateTransform();
             this.updateMiniMap?.();
         }, 100);

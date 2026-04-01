@@ -204,11 +204,57 @@ Object.assign(MobileSVGEditor.prototype, {
     _getSelectionBBox() {
         if (!this._selection.length) return null;
         let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+        const svg = this.$svgDisplay[0];
+
         this._selection.forEach(el => {
-            // Prefer BBox map cache (no reflow) → fall back to live getBBox()
-            const cached = this._bboxMap?.get(el.id);
-            const bb     = cached ?? (() => { try { return el.getBBox(); } catch(_){} return null; })();
+            let bb;
+            try { bb = el.getBBox(); } catch(_){}
             if (!bb) return;
+
+            // Use getCTM relative to the SVG root so nested transforms
+            // (e.g. child inside a translated <g>) are always accounted for.
+            const ctm = el.getCTM();
+            const svgCTM = svg.getCTM();
+            if (ctm && svgCTM) {
+                // localToSVG = inverse(svgCTM) * elementCTM
+                const matrix = svgCTM.inverse().multiply(ctm);
+                const corners = [
+                    {x: bb.x,            y: bb.y},
+                    {x: bb.x + bb.width, y: bb.y},
+                    {x: bb.x,            y: bb.y + bb.height},
+                    {x: bb.x + bb.width, y: bb.y + bb.height}
+                ];
+                corners.forEach(pc => {
+                    const pt = svg.createSVGPoint();
+                    pt.x = pc.x; pt.y = pc.y;
+                    const tpt = pt.matrixTransform(matrix);
+                    minX = Math.min(minX, tpt.x); minY = Math.min(minY, tpt.y);
+                    maxX = Math.max(maxX, tpt.x); maxY = Math.max(maxY, tpt.y);
+                });
+                return;
+            }
+
+            // Fallback: apply element's own transform only
+            if (el.transform && el.transform.baseVal && el.transform.baseVal.length > 0) {
+                const matrix = el.transform.baseVal.consolidate()?.matrix;
+                if (matrix) {
+                    const corners = [
+                        {x: bb.x, y: bb.y},
+                        {x: bb.x + bb.width, y: bb.y},
+                        {x: bb.x, y: bb.y + bb.height},
+                        {x: bb.x + bb.width, y: bb.y + bb.height}
+                    ];
+                    corners.forEach(pc => {
+                        const pt = svg.createSVGPoint();
+                        pt.x = pc.x; pt.y = pc.y;
+                        const tpt = pt.matrixTransform(matrix);
+                        minX = Math.min(minX, tpt.x); minY = Math.min(minY, tpt.y);
+                        maxX = Math.max(maxX, tpt.x); maxY = Math.max(maxY, tpt.y);
+                    });
+                    return;
+                }
+            }
+
             minX = Math.min(minX, bb.x);          minY = Math.min(minY, bb.y);
             maxX = Math.max(maxX, bb.x + bb.width); maxY = Math.max(maxY, bb.y + bb.height);
         });
@@ -373,10 +419,15 @@ Object.assign(MobileSVGEditor.prototype, {
                 el = el.previousElementSibling || el;
             }
 
-            if (el.id === '_gridLayer' || el.id === 'svgDisplay' || el.tagName.toLowerCase() === 'svg') { 
-                this.deselectAll(); 
-                return; 
+            if (el.id === '_gridLayer' || el.id === 'svgDisplay' || el.tagName.toLowerCase() === 'svg') {
+                this.deselectAll();
+                return;
             }
+
+            // Walk up to the parent domain-symbol group so the whole
+            // component (with its translate transform) gets selected
+            const symGroup = el.closest('.domain-symbol');
+            if (symGroup) el = symGroup;
 
             e.stopPropagation();
             this.selectEl(el, e.shiftKey || e.ctrlKey || e.metaKey);

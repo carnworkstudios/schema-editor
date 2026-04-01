@@ -130,11 +130,11 @@ body {
 /* ============================================================
    Accordion panels
    ============================================================ */
-.custom-bar .accordion + .panel {
+.custom-bar .accordion+.panel {
     display: none;
 }
 
-.custom-bar .accordion.active + .panel {
+.custom-bar .accordion.active+.panel {
     display: flex;
 }
 
@@ -200,7 +200,8 @@ body {
 }
 
 
-.sidebar-nav-rail a, .sidebar-nav-rail a:hover {
+.sidebar-nav-rail a,
+.sidebar-nav-rail a:hover {
     padding: 4px 6px;
     border-radius: 5px;
 }
@@ -287,30 +288,36 @@ body {
     width: 100%;
     height: 100%;
     position: relative;
-    overflow: hidden;      /* Fix #2: clips content that moves outside bounds */
+    overflow: hidden;
+    /* Fix #2: clips content that moves outside bounds */
     cursor: grab;
     touch-action: none;
 }
 
-.svg-container:active { cursor: grabbing; }
+.svg-container:active {
+    cursor: grabbing;
+}
 
-/* #svgWrapper is the element that receives CSS transform.
-   transform-origin MUST be 0 0 (top-left) so zoom-at-point
-   math is correct. viewTransform.js sets this dynamically
-   but we declare it here as default. */
+/* #svgWrapper receives CSS transforms only for 3D effects
+   (rotation, pitch, yaw).  Zoom + pan are handled via SVG
+   viewBox so content is always crisp at every zoom level.
+   will-change is intentionally omitted — GPU compositing
+   would rasterize the SVG and cause blurry zoom. */
 .svg-wrapper {
     position: absolute;
-    top:  0;
+    top: 0;
     left: 0;
-    width:  100%;
+    width: 100%;
     height: 100%;
-    transform-origin: 0 0;     /* Fix #6: top-left origin for cursor zoom */
-    will-change: transform;
+    transform-origin: 50% 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
 }
 
 /* SVG fills wrapper; viewBox controls the logical coordinate space */
 .svg-wrapper svg {
-    width:  100%;
+    width: 100%;
     height: 100%;
     display: block;
 }
@@ -519,7 +526,7 @@ body {
     margin-bottom: 6px;
     border-radius: 6px;
     overflow: hidden;
-    border: 1px solid rgba(0,0,0,0.07);
+    border: 1px solid rgba(0, 0, 0, 0.07);
 }
 
 .layer-group-header {
@@ -527,7 +534,7 @@ body {
     align-items: center;
     gap: 5px;
     padding: 5px 7px;
-    background: rgba(0,0,0,0.04);
+    background: rgba(0, 0, 0, 0.04);
     cursor: pointer;
     user-select: none;
     transition: background 0.15s;
@@ -536,12 +543,12 @@ body {
 }
 
 .layer-group-header:hover {
-    background: rgba(0,0,0,0.08);
+    background: rgba(0, 0, 0, 0.08);
 }
 
 .layer-group-arrow {
     font-size: 9px;
-    color: rgba(0,0,0,0.4);
+    color: rgba(0, 0, 0, 0.4);
     width: 10px;
     flex-shrink: 0;
 }
@@ -555,10 +562,10 @@ body {
 
 .layer-group-count {
     font-size: 9px;
-    background: rgba(0,0,0,0.1);
+    background: rgba(0, 0, 0, 0.1);
     border-radius: 10px;
     padding: 1px 5px;
-    color: rgba(0,0,0,0.5);
+    color: rgba(0, 0, 0, 0.5);
     font-weight: 500;
 }
 
@@ -588,7 +595,7 @@ body {
 
 .layer-extra {
     font-size: 9px;
-    color: rgba(0,0,0,0.35);
+    color: rgba(0, 0, 0, 0.35);
     font-family: 'Courier New', monospace;
     white-space: nowrap;
     flex-shrink: 0;
@@ -818,7 +825,9 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ============================================================
@@ -1071,44 +1080,44 @@ body.dark-mode .layer-item.active {
 
 /* Dark mode — topology layer groups */
 body.dark-mode .layer-group {
-    border-color: rgba(255,255,255,0.07);
+    border-color: rgba(255, 255, 255, 0.07);
 }
 
 body.dark-mode .layer-group-header {
-    background: rgba(255,255,255,0.04);
-    color: rgba(255,255,255,0.85);
+    background: rgba(255, 255, 255, 0.04);
+    color: rgba(255, 255, 255, 0.85);
 }
 
 body.dark-mode .layer-group-header:hover {
-    background: rgba(255,255,255,0.08);
+    background: rgba(255, 255, 255, 0.08);
 }
 
 body.dark-mode .layer-group-arrow {
-    color: rgba(255,255,255,0.3);
+    color: rgba(255, 255, 255, 0.3);
 }
 
 body.dark-mode .layer-group-count {
-    background: rgba(255,255,255,0.1);
-    color: rgba(255,255,255,0.4);
+    background: rgba(255, 255, 255, 0.1);
+    color: rgba(255, 255, 255, 0.4);
 }
 
 body.dark-mode .topo-item {
-    background: rgba(255,255,255,0.03);
+    background: rgba(255, 255, 255, 0.03);
 }
 
 body.dark-mode .topo-item:hover {
-    background: rgba(255,255,255,0.07);
-    border-left-color: rgba(255,255,255,0.2);
+    background: rgba(255, 255, 255, 0.07);
+    border-left-color: rgba(255, 255, 255, 0.2);
 }
 
 body.dark-mode .topo-item.active {
-    background: rgba(79,172,254,0.15);
+    background: rgba(79, 172, 254, 0.15);
     border-left-color: #4facfe;
     color: #4facfe;
 }
 
 body.dark-mode .layer-extra {
-    color: rgba(255,255,255,0.25);
+    color: rgba(255, 255, 255, 0.25);
 }
 
 body.dark-mode .timeline-panel {
@@ -1425,9 +1434,9 @@ body.dark-mode .btn-primary:hover {
    ============================================================ */
 .side-panel-tabs {
     display: flex;
-    gap:     3px;
+    gap: 3px;
     padding: 0 8px;
-    border-bottom: 1px solid rgba(0,0,0,0.1);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.1);
     flex-shrink: 0;
 }
 
@@ -1444,25 +1453,36 @@ body.dark-mode .btn-primary:hover {
     border: none;
     border-bottom: 2px solid transparent;
     cursor: pointer;
-    color: rgba(0,0,0,0.45);
+    color: rgba(0, 0, 0, 0.45);
     transition: all 0.15s ease;
     white-space: nowrap;
 }
 
-.side-tab:hover { color: rgba(0,0,0,0.75); }
+.side-tab:hover {
+    color: rgba(0, 0, 0, 0.75);
+}
 
 .side-tab.active {
-    color:        #0066cc;
+    color: #0066cc;
     border-bottom-color: #4facfe;
 }
 
 body.dark-mode .side-panel-tabs {
-    border-bottom-color: rgba(255,255,255,0.07);
+    border-bottom-color: rgba(255, 255, 255, 0.07);
 }
 
-body.dark-mode .side-tab         { color: rgba(255,255,255,0.35); }
-body.dark-mode .side-tab:hover   { color: rgba(255,255,255,0.75); }
-body.dark-mode .side-tab.active  { color: #4facfe; border-bottom-color: #4facfe; }
+body.dark-mode .side-tab {
+    color: rgba(255, 255, 255, 0.35);
+}
+
+body.dark-mode .side-tab:hover {
+    color: rgba(255, 255, 255, 0.75);
+}
+
+body.dark-mode .side-tab.active {
+    color: #4facfe;
+    border-bottom-color: #4facfe;
+}
 
 /* ============================================================
    PHASE 1 — Property Panel
@@ -1486,21 +1506,27 @@ body.dark-mode .side-tab.active  { color: #4facfe; border-bottom-color: #4facfe;
     padding: 8px 0 4px;
 }
 
-body.dark-mode .prop-section-title { color: #4facfe; }
+body.dark-mode .prop-section-title {
+    color: #4facfe;
+}
 
 .prop-section-label {
-    font-size:   10px;
+    font-size: 10px;
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.6px;
-    color:   rgba(0,0,0,0.4);
-    margin-top:  8px;
+    color: rgba(0, 0, 0, 0.4);
+    margin-top: 8px;
     margin-bottom: 2px;
 }
 
-body.dark-mode .prop-section-label { color: rgba(255,255,255,0.35); }
+body.dark-mode .prop-section-label {
+    color: rgba(255, 255, 255, 0.35);
+}
 
-.prop-section { margin-top: 4px; }
+.prop-section {
+    margin-top: 4px;
+}
 
 .prop-row {
     display: flex;
@@ -1515,40 +1541,46 @@ body.dark-mode .prop-section-label { color: rgba(255,255,255,0.35); }
 }
 
 .prop-label {
-    font-size:   10px;
-    color:       rgba(0,0,0,0.55);
-    display:     flex;
+    font-size: 10px;
+    color: rgba(0, 0, 0, 0.55);
+    display: flex;
     flex-direction: column;
-    gap:  3px;
+    gap: 3px;
 }
 
-body.dark-mode .prop-label { color: rgba(255,255,255,0.5); }
+body.dark-mode .prop-label {
+    color: rgba(255, 255, 255, 0.5);
+}
 
 .prop-input {
     width: 100%;
     padding: 4px 6px;
-    border: 1px solid rgba(0,0,0,0.15);
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 5px;
     font-size: 11px;
-    background: rgba(79,172,254,0.07);
+    background: rgba(79, 172, 254, 0.07);
     color: inherit;
     outline: none;
     transition: border-color 0.15s;
 }
 
-.prop-input:focus { border-color: #4facfe; }
-
-body.dark-mode .prop-input {
-    background:  rgba(79,172,254,0.1);
-    border-color: rgba(255,255,255,0.15);
+.prop-input:focus {
+    border-color: #4facfe;
 }
 
-body.dark-mode .prop-input:focus { border-color: #4facfe; }
+body.dark-mode .prop-input {
+    background: rgba(79, 172, 254, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
+}
+
+body.dark-mode .prop-input:focus {
+    border-color: #4facfe;
+}
 
 .prop-slider {
     width: 100%;
     height: 4px;
-    background: rgba(0,0,0,0.12);
+    background: rgba(0, 0, 0, 0.12);
     border-radius: 2px;
     outline: none;
     -webkit-appearance: none;
@@ -1558,48 +1590,51 @@ body.dark-mode .prop-input:focus { border-color: #4facfe; }
 .prop-slider::-webkit-slider-thumb {
     appearance: none;
     -webkit-appearance: none;
-    width: 12px; height: 12px;
+    width: 12px;
+    height: 12px;
     border-radius: 50%;
     background: #4facfe;
     cursor: pointer;
-    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.25);
 }
 
-body.dark-mode .prop-slider { background: rgba(255,255,255,0.15); }
+body.dark-mode .prop-slider {
+    background: rgba(255, 255, 255, 0.15);
+}
 
 .prop-pill {
-    font-size:   10px;
-    color:       #4facfe;
+    font-size: 10px;
+    color: #4facfe;
     font-weight: 600;
     white-space: nowrap;
-    min-width:   30px;
-    text-align:  right;
+    min-width: 30px;
+    text-align: right;
 }
 
 .prop-select {
-    width:  100%;
+    width: 100%;
     padding: 4px 6px;
-    border:  1px solid rgba(0,0,0,0.15);
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 5px;
     font-size: 11px;
-    background: rgba(79,172,254,0.07);
-    color:  inherit;
+    background: rgba(79, 172, 254, 0.07);
+    color: inherit;
     outline: none;
 }
 
 body.dark-mode .prop-select {
-    background:   rgba(79,172,254,0.1);
-    border-color: rgba(255,255,255,0.15);
+    background: rgba(79, 172, 254, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 .prop-color-wrap {
-    display:     flex;
+    display: flex;
     align-items: center;
-    gap:         5px;
+    gap: 5px;
 }
 
 .prop-color {
-    width:  28px;
+    width: 28px;
     height: 22px;
     border: none;
     border-radius: 4px;
@@ -1610,64 +1645,66 @@ body.dark-mode .prop-select {
 }
 
 .prop-color-hex {
-    font-size:  10px;
-    color:      rgba(0,0,0,0.5);
+    font-size: 10px;
+    color: rgba(0, 0, 0, 0.5);
     font-family: monospace;
 }
 
-body.dark-mode .prop-color-hex { color: rgba(255,255,255,0.4); }
+body.dark-mode .prop-color-hex {
+    color: rgba(255, 255, 255, 0.4);
+}
 
 .prop-textarea {
-    width:   100%;
+    width: 100%;
     padding: 5px 7px;
-    border:  1px solid rgba(0,0,0,0.15);
+    border: 1px solid rgba(0, 0, 0, 0.15);
     border-radius: 5px;
     font-size: 11px;
-    background: rgba(79,172,254,0.07);
-    color:  inherit;
+    background: rgba(79, 172, 254, 0.07);
+    color: inherit;
     outline: none;
-    resize:  vertical;
+    resize: vertical;
     font-family: inherit;
 }
 
 body.dark-mode .prop-textarea {
-    background:   rgba(79,172,254,0.1);
-    border-color: rgba(255,255,255,0.15);
+    background: rgba(79, 172, 254, 0.1);
+    border-color: rgba(255, 255, 255, 0.15);
 }
 
 .prop-no-fill-btn {
-    font-size:  10px;
-    padding:    3px 10px;
+    font-size: 10px;
+    padding: 3px 10px;
     margin-top: 2px;
 }
 
 .prop-info-row {
-    font-size:   10px;
+    font-size: 10px;
     align-items: center;
 }
 
 .prop-value-tag {
-    font-size:   10px;
+    font-size: 10px;
     font-family: monospace;
-    background:  rgba(79,172,254,0.12);
-    border:      1px solid rgba(79,172,254,0.25);
+    background: rgba(79, 172, 254, 0.12);
+    border: 1px solid rgba(79, 172, 254, 0.25);
     border-radius: 4px;
-    padding:     1px 6px;
-    color:       #4facfe;
+    padding: 1px 6px;
+    color: #4facfe;
 }
 
 /* Align button row */
 .prop-align-row {
-    display:   flex;
+    display: flex;
     flex-wrap: wrap;
-    gap:       4px;
+    gap: 4px;
     margin-top: 4px;
 }
 
 .prop-align-btn {
-    padding:     5px 7px !important;
-    font-size:   16px !important;
-    min-width:   32px;
+    padding: 5px 7px !important;
+    font-size: 16px !important;
+    min-width: 32px;
 }
 
 
@@ -1686,10 +1723,10 @@ body.dark-mode .prop-textarea {
 .svg-viewer {
     background: #dfe1e6;
     background-image:
-        linear-gradient(45deg, rgba(0,0,0,0.04) 25%, transparent 25%),
-        linear-gradient(-45deg, rgba(0,0,0,0.04) 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, rgba(0,0,0,0.04) 75%),
-        linear-gradient(-45deg, transparent 75%, rgba(0,0,0,0.04) 75%);
+        linear-gradient(45deg, rgba(0, 0, 0, 0.04) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(0, 0, 0, 0.04) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(0, 0, 0, 0.04) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(0, 0, 0, 0.04) 75%);
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
@@ -1697,30 +1734,30 @@ body.dark-mode .prop-textarea {
 body.dark-mode .svg-viewer {
     background: #1a1b22;
     background-image:
-        linear-gradient(45deg, rgba(255,255,255,0.025) 25%, transparent 25%),
-        linear-gradient(-45deg, rgba(255,255,255,0.025) 25%, transparent 25%),
-        linear-gradient(45deg, transparent 75%, rgba(255,255,255,0.025) 75%),
-        linear-gradient(-45deg, transparent 75%, rgba(255,255,255,0.025) 75%);
+        linear-gradient(45deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%),
+        linear-gradient(-45deg, rgba(255, 255, 255, 0.025) 25%, transparent 25%),
+        linear-gradient(45deg, transparent 75%, rgba(255, 255, 255, 0.025) 75%),
+        linear-gradient(-45deg, transparent 75%, rgba(255, 255, 255, 0.025) 75%);
     background-size: 20px 20px;
     background-position: 0 0, 0 10px, 10px -10px, -10px 0px;
 }
 
 /* ── Fix #3: Dark mode button neutrals ──────────────────────── */
 body.dark-mode .btn {
-    background:   rgba(255,255,255,0.07);
-    border-color: rgba(255,255,255,0.14);
-    color:        rgba(255,255,255,0.85);
+    background: rgba(255, 255, 255, 0.07);
+    border-color: rgba(255, 255, 255, 0.14);
+    color: rgba(255, 255, 255, 0.85);
 }
 
 body.dark-mode .btn:hover {
-    background:   rgba(255,255,255,0.13);
-    border-color: rgba(255,255,255,0.28);
+    background: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.28);
 }
 
 body.dark-mode .btn.active {
-    background:   rgba(79,172,254,0.22);
+    background: rgba(79, 172, 254, 0.22);
     border-color: #4facfe;
-    color:        #4facfe;
+    color: #4facfe;
 }
 
 body.dark-mode .btn:disabled {
@@ -1729,64 +1766,80 @@ body.dark-mode .btn:disabled {
 
 /* ── Fix #3: Neutral snap guides (distinguish from selection) ── */
 .snap-guide {
-    stroke:         #f0a500 !important;   /* amber, not blue */
-    stroke-width:   0.75;
-    stroke-dasharray: 4,4;
-    opacity:        0.55;
+    stroke: #f0a500 !important;
+    /* amber, not blue */
+    stroke-width: 0.75;
+    stroke-dasharray: 4, 4;
+    opacity: 0.55;
 }
 
 /* ── Fix #3: Grid lines — gray, not blue ─────────────────────── */
 .grid-line-minor {
-    stroke:       rgba(128,128,128,0.2);
+    stroke: rgba(128, 128, 128, 0.2);
     stroke-width: 0.5;
 }
 
 .grid-line-major {
-    stroke:       rgba(128,128,128,0.4);
+    stroke: rgba(128, 128, 128, 0.4);
     stroke-width: 1;
 }
 
 /* Specifically override the grid pattern colors set by snapGrid.js */
-#snap-grid-minor { stroke: rgba(128,128,128,0.22) !important; }
-#snap-grid-major { stroke: rgba(128,128,128,0.42) !important; }
+#snap-grid-minor {
+    stroke: rgba(128, 128, 128, 0.22) !important;
+}
+
+#snap-grid-major {
+    stroke: rgba(128, 128, 128, 0.42) !important;
+}
 
 /* ── Fix #5: editToolbar — horizontal scroll, hidden scrollbar ── */
 #editToolbar {
-    flex-wrap:    nowrap !important;
-    overflow-x:   auto;
-    overflow-y:   visible;
+    flex-wrap: nowrap !important;
+    overflow-x: auto;
+    overflow-y: visible;
     -webkit-overflow-scrolling: touch;
     scroll-behavior: smooth;
     padding-bottom: 2px;
 }
 
-#editToolbar::-webkit-scrollbar { display: none; }
-#editToolbar { -ms-overflow-style: none; scrollbar-width: none; }
+#editToolbar::-webkit-scrollbar {
+    display: none;
+}
+
+#editToolbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+}
 
 /* ── Fix #4: Mode switcher — mobile responsive dropdown ─────── */
 /* Desktop: show pills, hide select */
-.mode-switcher-select { display: none; }
+.mode-switcher-select {
+    display: none;
+}
 
 /* Mobile (<= 640px): hide pills, show native select */
 @media (max-width: 640px) {
-    .mode-switcher { display: none !important; }
+    .mode-switcher {
+        display: none !important;
+    }
 
     .mode-switcher-select {
-        display:      block;
-        padding:      4px 8px;
-        font-size:    12px;
-        border:       1px solid rgba(79,172,254,0.35);
+        display: block;
+        padding: 4px 8px;
+        font-size: 12px;
+        border: 1px solid rgba(79, 172, 254, 0.35);
         border-radius: 8px;
-        background:   rgba(79,172,254,0.1);
-        color:        inherit;
-        cursor:       pointer;
-        flex-shrink:  0;
+        background: rgba(79, 172, 254, 0.1);
+        color: inherit;
+        cursor: pointer;
+        flex-shrink: 0;
     }
 
     body.dark-mode .mode-switcher-select {
-        background:   rgba(79,172,254,0.18);
-        border-color: rgba(79,172,254,0.5);
-        color:        #4facfe;
+        background: rgba(79, 172, 254, 0.18);
+        border-color: rgba(79, 172, 254, 0.5);
+        color: #4facfe;
     }
 
     /* Secondary toolbar wraps on mobile */
@@ -1797,14 +1850,16 @@ body.dark-mode .btn:disabled {
 }
 
 /* ── Fix #2: Ensure svgWrapper never overflows or scrolls ──── */
-.svg-viewer { overflow: hidden; }
+.svg-viewer {
+    overflow: hidden;
+}
 
 /* ── Draw tool active state — keep blue for new content ─────── */
 .draw-tool-btn.active {
-    background:   rgba(79,172,254,0.22) !important;
+    background: rgba(79, 172, 254, 0.22) !important;
     border-color: #4facfe !important;
-    color:        #0066cc !important;
-    box-shadow:   0 0 6px rgba(79,172,254,0.25);
+    color: #0066cc !important;
+    box-shadow: 0 0 6px rgba(79, 172, 254, 0.25);
 }
 
 body.dark-mode .draw-tool-btn.active {

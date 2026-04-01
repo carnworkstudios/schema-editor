@@ -111,7 +111,8 @@
                 </div>
 
                 <!-- Mobile fallback: native select (shown ≤640px via CSS) -->
-                <select class="mode-switcher-select" id="modeSwitcherSelect" title="Canvas domain mode" aria-label="Select canvas mode">
+                <select class="mode-switcher-select" id="modeSwitcherSelect" title="Canvas domain mode"
+                    aria-label="Select canvas mode">
                     <option value="general">✏ General</option>
                     <option value="electrical">⚡ Electrical</option>
                     <option value="uml">◈ UML</option>
@@ -170,7 +171,8 @@
             <button class="accordion active slide-bar" aria-label="Wiring tools">
                 <h3>Wiring</h3>
             </button>
-            <div class="panel control-group-flex">
+            <div class="panel control-group-flex" style="overflow: auto; flex-wrap: nowrap; -ms-overflow-style: none;
+    scrollbar-width: none;">
                 <button class="btn" id="highlightComponentsBtn" title="Highlight Components">
                     <iconify-icon icon="material-symbols:highlight"></iconify-icon>
                     <span class="panel-content">Highlight</span>
@@ -186,7 +188,7 @@
             </div>
 
             <!-- ── EDIT SECTION ─────────────────────────────── -->
-            <button class="accordion active slide-bar" aria-label="Edit tools">
+            <button class="accordion slide-bar" aria-label="Edit tools">
                 <h3>Edit</h3>
             </button>
             <div class="panel control-group-flex" id="editToolbar">
@@ -739,6 +741,9 @@
             if ('serviceWorker' in navigator) {
                 navigator.serviceWorker.register('/sw.js').catch(() => { });
             }
+
+            // Fit initial placeholder to view
+            setTimeout(() => window.editor.fitToView(), 100);
         });
     </script>
 
