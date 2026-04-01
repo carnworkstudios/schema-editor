@@ -213,9 +213,9 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     // ══════════════════════════════════════════════════════════
-    //  MAIN ORCHESTRATOR  (replaces old analyzeWiringDiagram)
+    //  MAIN ORCHESTRATOR  (called from wiringDiagram.js)
     // ══════════════════════════════════════════════════════════
-    analyzeWiringDiagram() {
+    _runGeometryPipeline() {
         this.wires      = [];
         this.components = [];
         this.connections= [];
@@ -263,6 +263,12 @@ Object.assign(MobileSVGEditor.prototype, {
             ` junctions=${[...this.graph.nodes.values()].filter(n=>n.kind==='junction').length}` +
             ` eps=${EPS} quadTree=${!!this._quadTree}`
         );
+
+        // Refresh layers panel if it's already open
+        if (typeof this.buildLayersTree === 'function' &&
+            this.$sidePanel?.hasClass('open')) {
+            this.buildLayersTree();
+        }
     },
 
     // ==========================================================
@@ -279,10 +285,11 @@ Object.assign(MobileSVGEditor.prototype, {
             for (const g of groups) {
                 // Skip user-created groups
                 if (g.id && g.id.startsWith('group_')) continue;
-                // Skip editor overlay groups
+                // Skip editor overlay groups and placed schematic symbols
                 if (g.classList.contains('wire-group') ||
                     g.classList.contains('component-group') ||
-                    g.classList.contains('selection-handle-group')) continue;
+                    g.classList.contains('selection-handle-group') ||
+                    g.classList.contains('domain-symbol')) continue;
 
                 let matrix;
                 try { matrix = new DOMMatrix(g.getAttribute('transform')); }
@@ -300,7 +307,8 @@ Object.assign(MobileSVGEditor.prototype, {
             groups = Array.from(svgEl.querySelectorAll('g[transform]'))
                          .filter(g => !g.id?.startsWith('group_') &&
                                       !g.classList.contains('wire-group') &&
-                                      !g.classList.contains('component-group'));
+                                      !g.classList.contains('component-group') &&
+                                      !g.classList.contains('domain-symbol'));
         }
     },
 

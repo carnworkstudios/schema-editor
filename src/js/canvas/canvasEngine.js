@@ -434,10 +434,12 @@ Object.assign(MobileSVGEditor.prototype, {
 
             // Execute Trace mode simultaneously if active
             if (this.isWireTracing) {
-                const wire = this.wires?.find(w => w.id === el.id);
+                const wire = this.wires?.find(w =>
+                    w.element === el || w.$hitbox?.[0] === el || w.$group?.[0] === el);
                 if (wire) this.traceWirePath(wire);
                 else {
-                    const comp = this.components?.find(c => c.id === el.id);
+                    const comp = this.components?.find(c =>
+                        c.element === el || c.$hitbox?.[0] === el || c.$group?.[0] === el);
                     if (comp) this.traceComponent(comp);
                 }
             }

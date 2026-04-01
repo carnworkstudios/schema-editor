@@ -416,11 +416,8 @@ Object.assign(MobileSVGEditor.prototype, {
 
     analyzeWiringDiagram() {
         // ── Delegate to 4-phase geometry engine if available ─
-        if (typeof this._deNestTransforms === 'function') {
-            // geometryEngine.js is loaded — run full pipeline
-            // (The mixin method analyzeWiringDiagram on the prototype was overridden
-            //  by geometryEngine.js which does the real work; this call never recurses
-            //  because geometryEngine uses _deNestTransforms as the guard check.)
+        if (typeof this._runGeometryPipeline === 'function') {
+            this._runGeometryPipeline();
 
             // Cache results back into display record for lazy re-mount
             const d = this.displays[this.activeDisplayIdx];
