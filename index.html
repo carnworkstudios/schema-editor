@@ -4,11 +4,47 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- ── Icons ── -->
+    <link rel="icon" type="image/png" href="/assets/images/Ginexys_Logo.png">
+    <link rel="canonical" href="https://ginexys.com/tools/schema-editor/index.html">
     <meta name="description"
         content="Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans. Draw, edit, trace, and export.">
     <meta name="keywords"
         content="SVG editor, schematic, PCB, UML, flowchart, floorplan, wiring diagram, circuit, draw, trace, canvas">
-    <title>Schematics Editor · GENIXY OS</title>
+    <title>Schematics Editor · GINEXYS</title>
+
+    <!-- ── Open Graph ── -->
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="GINEXYS">
+    <meta property="og:title" content="Schematics Editor · GINEXYS">
+    <meta property="og:description"
+        content="Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.">
+    <meta property="og:url" content="https://ginexys.com/tools/schema-editor/index.html">
+
+    <!-- ── Twitter / X Card ── -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="Schematics Editor · GINEXYS">
+    <meta name="twitter:description"
+        content="Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.">
+    <meta name="twitter:site" content="@GINEXYS">
+
+    <!-- ── Structured Data ── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Schematics Editor",
+      "url": "https://ginexys.com/tools/schema-editor/index.html",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web Browser",
+      "description": "Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.",
+      "author": {
+        "@type": "Organization",
+        "name": "GINEXYS",
+        "url": "https://ginexys.com"
+      }
+    }
+    </script>
 
     <!-- OS Bridge -->
     <script src="/assets/os/contracts.js"></script>
@@ -24,13 +60,13 @@
     <script src="https://unpkg.com/imagetracer-js@1.2.6/imagetracer_v1.2.6.js"></script>
 
     <!-- Shared portfolio styles + TIFANY base -->
-    <link rel="stylesheet" href="../../../assets/css/portfolio.css">
-    <link rel="stylesheet" href="../../tifany/dist/tifany.min.css">
+    <link rel="stylesheet" href="../../assets/css/portfolio.css">
+    <link rel="stylesheet" href="../table-formatter/dist/tifany.min.css">
 
     <!-- Tool-specific styles -->
-    <link rel="stylesheet" href="css/svgEditorUI.css">
-    <link rel="stylesheet" href="css/wiringDiagram.css">
-    <link rel="stylesheet" href="css/domainKits.css">
+    <link rel="stylesheet" href="src/css/svgEditorUI.css">
+    <link rel="stylesheet" href="src/css/wiringDiagram.css">
+    <link rel="stylesheet" href="src/css/domainKits.css">
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -38,8 +74,8 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
 
     <!-- Sidebar nav component -->
-    <script src="../../../assets/components/sidebar-nav.js"></script>
-    <script src="../../../assets/js/portfolio.js"></script>
+    <script src="../../assets/components/sidebar-nav.js"></script>
+    <script src="../../assets/js/portfolio.js"></script>
 </head>
 
 <body class="dark-mode">
@@ -51,7 +87,7 @@
         <header class="tifany-header">
             <div class="logo">
                 <h1>
-                    <a href="../../../index.html" style="text-decoration:none;color:inherit;">
+                    <a href="../../index.html" style="text-decoration:none;color:inherit;">
                         GENIXY<span class="logo-accent">OS</span>
                     </a>
                 </h1>
@@ -628,37 +664,37 @@
      JS — loaded in dependency order: core → canvas → features → init
      ============================================================ -->
     <!-- Core -->
-    <script src="js/core/svgEditor.js"></script>
+    <script src="src/js/core/svgEditor.js"></script>
 
     <!-- Spatial index utilities (must load before geometryEngine) -->
-    <script src="js/core/kdTree.js"></script>
-    <script src="js/core/quadTree.js"></script>
+    <script src="src/js/core/kdTree.js"></script>
+    <script src="src/js/core/quadTree.js"></script>
 
     <!-- Canvas modules (Phase 1) -->
-    <script src="js/canvas/snapGrid.js"></script>
-    <script src="js/canvas/canvasEngine.js"></script>
-    <script src="js/canvas/drawingTools.js"></script>
-    <script src="js/canvas/clipboard.js"></script>
-    <script src="js/canvas/alignDistribute.js"></script>
-    <script src="js/canvas/propertyPanel.js"></script>
+    <script src="src/js/canvas/snapGrid.js"></script>
+    <script src="src/js/canvas/canvasEngine.js"></script>
+    <script src="src/js/canvas/drawingTools.js"></script>
+    <script src="src/js/canvas/clipboard.js"></script>
+    <script src="src/js/canvas/alignDistribute.js"></script>
+    <script src="src/js/canvas/propertyPanel.js"></script>
 
     <!-- Geometry Engine (4-phase pipeline — after canvas, before features) -->
-    <script src="js/core/geometryEngine.js"></script>
+    <script src="src/js/core/geometryEngine.js"></script>
 
     <!-- Domain Kits (Phase 2) -->
-    <script src="js/domains/domainManager.js"></script>
-    <script src="js/domains/electricalKit.js"></script>
-    <script src="js/domains/umlKit.js"></script>
-    <script src="js/domains/floorplanKit.js"></script>
+    <script src="src/js/domains/domainManager.js"></script>
+    <script src="src/js/domains/electricalKit.js"></script>
+    <script src="src/js/domains/umlKit.js"></script>
+    <script src="src/js/domains/floorplanKit.js"></script>
 
     <!-- Features -->
-    <script src="js/features/viewTransform.js"></script>
-    <script src="js/features/wiringDiagram.js"></script>
-    <script src="js/features/wireTracing.js"></script>
-    <script src="js/features/highlights.js"></script>
-    <script src="js/features/layers.js"></script>
-    <script src="js/features/history.js"></script>
-    <script src="js/features/uiControls.js"></script>
+    <script src="src/js/features/viewTransform.js"></script>
+    <script src="src/js/features/wiringDiagram.js"></script>
+    <script src="src/js/features/wireTracing.js"></script>
+    <script src="src/js/features/highlights.js"></script>
+    <script src="src/js/features/layers.js"></script>
+    <script src="src/js/features/history.js"></script>
+    <script src="src/js/features/uiControls.js"></script>
 
     <script>
         $(document).ready(function () {
