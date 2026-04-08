@@ -6,43 +6,87 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- ── Icons ── -->
     <link rel="icon" type="image/png" href="/assets/images/Ginexys_Logo.png">
-    <link rel="canonical" href="https://ginexys.com/tools/schema-editor/index.html">
+    <title>Schematic Engine · GINEXYS</title>
     <meta name="description"
-        content="Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans. Draw, edit, trace, and export.">
+        content="Schematic Engine — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans. Draw, edit, trace, and export.">
     <meta name="keywords"
-        content="SVG editor, schematic, PCB, UML, flowchart, floorplan, wiring diagram, circuit, draw, trace, canvas">
-    <title>Schematics Editor · GINEXYS</title>
+        content="SVG editor, schematic, PCB, UML, flowchart, floorplan, wiring diagram, circuit, draw, trace, canvas, GINEXYS, engineering tool">
+    <meta name="author" content="GINEXYS">
+    <meta name="robots" content="index, follow">
+    <link rel="canonical" href="https://ginexys.com/tools/schema-editor/index.html">
 
     <!-- ── Open Graph ── -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="GINEXYS">
-    <meta property="og:title" content="Schematics Editor · GINEXYS">
+    <meta property="og:title" content="Schematic Engine · GINEXYS">
     <meta property="og:description"
-        content="Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.">
+        content="Schematic Engine — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.">
     <meta property="og:url" content="https://ginexys.com/tools/schema-editor/index.html">
+    <meta property="og:image" content="https://ginexys.com/assets/images/og-image.png">
 
     <!-- ── Twitter / X Card ── -->
-    <meta name="twitter:card" content="summary">
-    <meta name="twitter:title" content="Schematics Editor · GINEXYS">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:title" content="Schematic Engine · GINEXYS">
     <meta name="twitter:description"
-        content="Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.">
+        content="Schematic Engine — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.">
+    <meta name="twitter:image" content="https://ginexys.com/assets/images/og-image.png">
     <meta name="twitter:site" content="@GINEXYS">
 
     <!-- ── Structured Data ── -->
     <script type="application/ld+json">
     {
       "@context": "https://schema.org",
-      "@type": "SoftwareApplication",
-      "name": "Schematics Editor",
-      "url": "https://ginexys.com/tools/schema-editor/index.html",
-      "applicationCategory": "DeveloperApplication",
-      "operatingSystem": "Web Browser",
-      "description": "Schematics Editor — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.",
-      "author": {
-        "@type": "Organization",
-        "name": "GINEXYS",
-        "url": "https://ginexys.com"
-      }
+      "@graph": [
+        {
+          "@type": "SoftwareApplication",
+          "@id": "https://ginexys.com/tools/schema-editor/#software",
+          "name": "Schematic Engine",
+          "url": "https://ginexys.com/tools/schema-editor/index.html",
+          "applicationCategory": "DeveloperApplication",
+          "operatingSystem": "Web Browser",
+          "description": "Schematic Engine — a powerful browser-native canvas for electrical/PCB design, UML diagrams, and floor plans.",
+          "featureList": [
+            "Touch-optimized SVG editing",
+            "Electrical and PCB design modes",
+            "UML and architectural mapping",
+            "Wire tracing and component highlighting",
+            "Pinch-zoom and mobile navigation",
+            "Multi-format export: SVG, HTML, JSON"
+          ],
+          "author": {
+            "@type": "Organization",
+            "name": "GINEXYS",
+            "url": "https://ginexys.com"
+          },
+          "offers": {
+            "@type": "Offer",
+            "price": "0",
+            "priceCurrency": "USD"
+          },
+          "isPartOf": {
+            "@type": "WebSite",
+            "name": "GINEXYS",
+            "url": "https://ginexys.com"
+          }
+        },
+        {
+          "@type": "BreadcrumbList",
+          "itemListElement": [
+            {
+              "@type": "ListItem",
+              "position": 1,
+              "name": "Home",
+              "item": "https://ginexys.com/"
+            },
+            {
+              "@type": "ListItem",
+              "position": 2,
+              "name": "Schematic Engine",
+              "item": "https://ginexys.com/tools/schema-editor/index.html"
+            }
+          ]
+        }
+      ]
     }
     </script>
 
@@ -84,7 +128,7 @@
         <!-- ======================================================
          HEADER
          ====================================================== -->
-        <header class="tifany-header">
+        <!-- <header class="tifany-header">
             <div class="logo">
                 <h1>
                     <a href="../../index.html" style="text-decoration:none;color:inherit;">
@@ -101,7 +145,9 @@
             <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light" aria-label="Toggle dark mode">
                 <iconify-icon icon="material-symbols:dark-mode-outline" style="font-size:16px;"></iconify-icon>
             </button>
-        </header>
+
+            
+        </header> -->
 
         <!-- ======================================================
          SYMBOL PALETTE SIDEBAR (Phase 2)
@@ -194,6 +240,9 @@
                     <input type="checkbox" aria-label="Toggle wire tracing">
                     <span class="switch-slider"></span>
                 </div>
+                <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light" aria-label="Toggle dark mode">
+                <iconify-icon icon="material-symbols:dark-mode-outline" style="font-size:16px;"></iconify-icon>
+            </button>
 
             </div>
         </div>
