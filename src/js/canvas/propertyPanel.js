@@ -394,10 +394,18 @@ Object.assign(MobileSVGEditor.prototype, {
             if (map[action]) map[action]();
         });
 
+        // Capture before-state when a field is focused so undo can restore it
+        $(document).on('focus.propcommit', '#prop-x, #prop-y, #prop-w, #prop-h, #prop-rotation', () => {
+            if (!self._propPanelTarget) return;
+            self._propBeforeState = self._captureFullState();
+        });
+
         // Push to history on change-end (blur / pointerup)
         $(document).on('change.propcommit', '#prop-x, #prop-y, #prop-w, #prop-h, #prop-rotation', () => {
             if (!self._propPanelTarget) return;
-            self.pushHistory('Property Edit', '', self._captureFullState());
+            const before = self._propBeforeState || self._captureFullState();
+            self._propBeforeState = null;
+            self.pushHistory('Property Edit', before, self._captureFullState());
         });
     },
 
