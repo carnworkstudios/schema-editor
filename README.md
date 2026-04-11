@@ -2,6 +2,12 @@
 
 Schematics Editor is a powerful, browser-native vector design environment specifically optimized for electrical schematics, PCB design, UML diagrams, and architectural floorplans. Built with high-performance SVG rendering, it offers touch-optimized controls and interactive 3D visualization.
 
+## Table of Contents
+- [Key Features](#-key-features)
+- [Documentation](#-documentation)
+- [Getting Started](#-getting-started)
+- [License](#-license)
+
 ## 🚀 Key Features
 
 *   **Touch-Optimized Canvas**: Smooth pan and zoom with support for stylus and multi-touch gestures.
