@@ -1,7 +1,8 @@
 /* ============================================================
    SVG Wiring Editor — View Transform  (viewBox-based rendering)
    Zoom + pan use SVG viewBox for always-crisp vector rendering.
-   CSS transforms are only used for 3D effects (rotation, pitch, yaw).
+   Rotation uses _cameraRotGroup SVG transform (no CSS transforms)
+   so getScreenCTM() stays correct at all zoom/pan/rotation values.
    ============================================================ */
 
 Object.assign(MobileSVGEditor.prototype, {
@@ -14,7 +15,7 @@ Object.assign(MobileSVGEditor.prototype, {
         if (!svg || !container) return;
 
         // Original document viewBox (the "content area")
-        const raw = (this.originalViewBox || svg.getAttribute('viewBox') || '0 0 1200 800');
+        const raw = (this.originalViewBox || svg.getAttribute('viewBox') || '0 0 1200 800').trim();
         const vb  = raw.split(/[\s,]+/).map(Number);
         this._origDocViewBox = { x: vb[0], y: vb[1], w: vb[2], h: vb[3] };
 
@@ -47,47 +48,35 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Setters ──────────────────────────────────────────────
 
     setZoom(zoom) {
+        const z = Number(zoom);
         if (this._isViewportLocked()) {
-            this.$zoomSlider.val(this.currentZoom); // snap back
+            this.$zoomSlider.val(this.camera.zoom); // snap back
             return;
         }
-        this.currentZoom = zoom;
-        this.$zoomSlider.val(zoom);
-        $('#zoomValue').text(zoom.toFixed(1));
+        this.camera.setZoom(z);
+        this.$zoomSlider.val(z);
+        $('#zoomValue').text(z.toFixed(1));
         this.updateTransform();
     },
 
     setRotation(rotation) {
+        let r = Number(rotation);
         if (this._isViewportLocked()) {
             this.$rotationSlider.val(this.currentRotation);
             return;
         }
-        this.currentRotation = rotation % 360;
+        this.currentRotation = r % 360;
         this.$rotationSlider.val(this.currentRotation);
         $('#rotationValue').text(Math.round(this.currentRotation));
         this.updateTransform();
     },
 
     setPitch(pitch) {
-        if (this._isViewportLocked()) {
-            this.$pitchSlider.val(this.currentPitch);
-            return;
-        }
-        this.currentPitch = pitch;
-        this.$pitchSlider.val(pitch);
-        $('#pitchValue').text(Math.round(pitch));
-        this.updateTransform();
+        // Pitch (skewX CSS) removed — breaks getScreenCTM(). Kept as no-op for compat.
     },
 
     setYRotation(yaw) {
-        if (this._isViewportLocked()) {
-            this.$rotateYSlider.val(this.currentYaw);
-            return;
-        }
-        this.currentYaw = yaw;
-        this.$rotateYSlider.val(yaw);
-        $('#rotateYValue').text(Math.round(yaw));
-        this.updateTransform();
+        // Yaw (rotateY CSS) removed — breaks getScreenCTM(). Kept as no-op for compat.
     },
 
     // ── Transform Computation ────────────────────────────────
@@ -104,9 +93,9 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const container = this.$svgContainer[0];
         const cW   = container.clientWidth  || 1;
-        const zoom = this.currentZoom;
-        const tx   = this.currentTranslate.x;
-        const ty   = this.currentTranslate.y;
+        const zoom = this.camera.zoom;
+        const tx   = this.camera.tx;
+        const ty   = this.camera.ty;
 
         // ── viewBox: zoom + pan (always crisp) ──────────────
         const vbW = base.w / zoom;
@@ -117,27 +106,24 @@ Object.assign(MobileSVGEditor.prototype, {
 
         svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
 
-        // ── CSS: 3D effects only (no scale or translate) ────
-        const has3D = this.currentRotation !== 0 ||
-                      this.currentPitch    !== 0 ||
-                      this.currentYaw      !== 0;
-
-        if (has3D) {
-            this.$svgWrapper.css({
-                'transform': [
-                    `rotateZ(${this.currentRotation}deg)`,
-                    `skewX(${this.currentPitch}deg)`,
-                    `rotateY(${this.currentYaw}deg)`,
-                ].join(' '),
-                'transform-origin': '50% 50%',
-                'transform-style':  'preserve-3d',
-            });
-        } else {
-            this.$svgWrapper.css({
-                'transform':       'none',
-                'transform-style': 'flat',
-            });
+        // ── Rotation → _cameraRotGroup SVG transform (world-space, no CSS) ──
+        // This keeps getScreenCTM() correct at all zoom/pan/rotation values.
+        const rotGroup = svg.querySelector('#_cameraRotGroup');
+        if (rotGroup) {
+            const vb  = this.camera.toViewBox(base, cW);
+            const wx  = vb.x + vb.w / 2;   // world center of current view
+            const wy  = vb.y + vb.h / 2;
+            const deg = this.currentRotation;
+            rotGroup.setAttribute('transform',
+                deg !== 0 ? `rotate(${deg},${wx},${wy})` : '');
         }
+
+        // ── Remove any CSS transform from #svgWrapper ─────────────
+        // After this step, CSS transforms are gone; getScreenCTM() is authoritative.
+        this.$svgWrapper.css({ transform: 'none', 'transform-style': 'flat' });
+
+        // ── Trigger overlay re-render so handles move with the view ──
+        this._scheduleOverlayRender?.();
     },
 
     // ── rAF scheduler: batches pending transform state ────────
@@ -151,28 +137,29 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     updateSliders() {
-        this.$zoomSlider.val(this.currentZoom);
+        this.$zoomSlider.val(this.camera.zoom);
         this.$rotationSlider.val(this.currentRotation);
-        this.$pitchSlider.val(this.currentPitch);
-        $('#zoomValue').text(this.currentZoom.toFixed(1));
+        this.$pitchSlider.val(0); // legacy
+        $('#zoomValue').text(this.camera.zoom.toFixed(1));
         $('#rotationValue').text(Math.round(this.currentRotation));
-        $('#pitchValue').text(Math.round(this.currentPitch));
+        $('#pitchValue').text(0);
     },
 
     // ── Animated Actions ─────────────────────────────────────
 
     animateZoom(targetZoom) {
         if (this._isViewportLocked()) return;
-        gsap.to(this, {
+        this._cameraTween.zoom = this.camera.zoom;
+        gsap.to(this._cameraTween, {
             duration: 0.35,
             ease: 'power2.out',
-            currentZoom: targetZoom,
-            onUpdate: () => this.setZoom(this.currentZoom),
+            zoom: targetZoom,
+            onUpdate: () => this.setZoom(this._cameraTween.zoom),
         });
     },
 
-    zoomIn()  { this.animateZoom(Math.min(100, this.currentZoom * 1.5)); },
-    zoomOut() { this.animateZoom(Math.max(0.1, this.currentZoom / 1.5)); },
+    zoomIn()  { this.animateZoom(Math.min(100, this.camera.zoom * 1.5)); },
+    zoomOut() { this.animateZoom(Math.max(0.1, this.camera.zoom / 1.5)); },
 
     fitToView() {
         if (this._isViewportLocked()) return;
@@ -188,23 +175,25 @@ Object.assign(MobileSVGEditor.prototype, {
         const targetTx   = (cW - doc.w * targetZoom) / 2;
         const targetTy   = (cH - doc.h * targetZoom) / 2;
 
-        gsap.to(this, {
+        this._cameraTween.zoom = this.camera.zoom;
+        this._cameraTween.rot = this.currentRotation;
+        this._cameraTween.tx = this.camera.tx;
+        this._cameraTween.ty = this.camera.ty;
+
+        gsap.to(this._cameraTween, {
             duration: 0.6,
             ease: 'power2.inOut',
-            currentZoom: targetZoom,
-            currentRotation: 0,
-            currentPitch: 0,
-            currentYaw: 0,
+            zoom: targetZoom,
+            rot: 0,
+            tx: targetTx,
+            ty: targetTy,
             onUpdate: () => {
-                this.currentTranslate = {
-                    x: this.currentTranslate.x + (targetTx - this.currentTranslate.x) * 0.1,
-                    y: this.currentTranslate.y + (targetTy - this.currentTranslate.y) * 0.1,
-                };
-                this.setZoom(this.currentZoom);
-                this.setRotation(this.currentRotation);
+                this.camera.setPan(this._cameraTween.tx, this._cameraTween.ty);
+                this.setZoom(this._cameraTween.zoom);
+                this.setRotation(this._cameraTween.rot);
             },
             onComplete: () => {
-                this.currentTranslate = { x: targetTx, y: targetTy };
+                this.camera.setPan(targetTx, targetTy);
                 this.updateTransform();
                 this.updateSliders();
             },
@@ -214,32 +203,39 @@ Object.assign(MobileSVGEditor.prototype, {
     rotateView() {
         if (this._isViewportLocked()) return;
         const target = (this.currentRotation + 90) % 360;
-        gsap.to(this, {
-            duration: 0.6, ease: 'power2.inOut', currentRotation: target,
-            onUpdate: () => this.setRotation(this.currentRotation),
+        this._cameraTween.rot = this.currentRotation;
+        gsap.to(this._cameraTween, {
+            duration: 0.6, ease: 'power2.inOut', rot: target,
+            onUpdate: () => this.setRotation(this._cameraTween.rot),
         });
     },
 
     rotateViewLeft() {
         if (this._isViewportLocked()) return;
         const target = (this.currentRotation - 90 + 360) % 360;
-        gsap.to(this, {
-            duration: 0.6, ease: 'power2.inOut', currentRotation: target,
-            onUpdate: () => this.setRotation(this.currentRotation),
+        this._cameraTween.rot = this.currentRotation;
+        gsap.to(this._cameraTween, {
+            duration: 0.6, ease: 'power2.inOut', rot: target,
+            onUpdate: () => this.setRotation(this._cameraTween.rot),
         });
     },
 
     resetView() {
-        gsap.to(this, {
+        this._cameraTween.zoom = this.camera.zoom;
+        this._cameraTween.rot = this.currentRotation;
+        this._cameraTween.tx = this.camera.tx;
+        this._cameraTween.ty = this.camera.ty;
+
+        gsap.to(this._cameraTween, {
             duration: 0.6, ease: 'power2.inOut',
-            currentZoom: 1, currentRotation: 0, currentPitch: 0, currentYaw: 0,
+            zoom: 1, rot: 0, tx: 0, ty: 0,
             onUpdate: () => {
-                this.currentTranslate = { x: 0, y: 0 };
-                this.setZoom(this.currentZoom);
-                this.setRotation(this.currentRotation);
+                this.camera.setPan(this._cameraTween.tx, this._cameraTween.ty);
+                this.setZoom(this._cameraTween.zoom);
+                this.setRotation(this._cameraTween.rot);
             },
             onComplete: () => {
-                this.currentTranslate = { x: 0, y: 0 };
+                this.camera.setPan(0, 0);
                 this.updateTransform();
             },
         });
@@ -272,9 +268,9 @@ Object.assign(MobileSVGEditor.prototype, {
         this.dragStart = {
             x: event.clientX,
             y: event.clientY,
-            translate: { ...this.currentTranslate },
+            tx: this.camera.tx,
+            ty: this.camera.ty,
             rotation: this.currentRotation,
-            pitch: this.currentPitch,
         };
         this.$svgContainer.css('cursor', 'grabbing');
     },
@@ -288,15 +284,9 @@ Object.assign(MobileSVGEditor.prototype, {
         if (event.shiftKey) {
             this._scheduleTransform({ currentRotation: (this.dragStart.rotation + dX * 0.4) % 360 });
             this.$rotationSlider?.val(this.currentRotation);
-        } else if (event.ctrlKey) {
-            this._scheduleTransform({ currentPitch: Math.max(-60, Math.min(60, this.dragStart.pitch + dX * 0.4)) });
         } else {
-            this._scheduleTransform({
-                currentTranslate: {
-                    x: this.dragStart.translate.x + dX,
-                    y: this.dragStart.translate.y + dY,
-                },
-            });
+            this.camera.setPan(this.dragStart.tx + dX, this.dragStart.ty + dY);
+            this._scheduleTransform({});
         }
     },
 
@@ -311,23 +301,15 @@ Object.assign(MobileSVGEditor.prototype, {
     handleWheel(event) {
         if (this._isViewportLocked()) return;   // edit-mode: no viewport zoom
         event.preventDefault();
-        const e = event.originalEvent || event;
+        const e       = event.originalEvent || event;
         const factor  = e.deltaY > 0 ? 0.92 : 1.08;
-        const newZoom = Math.max(0.1, Math.min(100, this.currentZoom * factor));
+        const newZoom = Math.max(0.1, Math.min(100, this.camera.zoom * factor));
+        const ctnr    = this.$svgContainer[0].getBoundingClientRect();
 
-        const ctnrRect = this.$svgContainer[0].getBoundingClientRect();
-        const mx = e.clientX - ctnrRect.left;
-        const my = e.clientY - ctnrRect.top;
+        // Zoom-at-cursor via CameraMatrix (keeps world point under cursor fixed)
+        this.camera.zoomAt(newZoom, e.clientX - ctnr.left, e.clientY - ctnr.top);
 
-        // Zoom-at-point: keep the SVG point under the cursor fixed
-        const ratio = newZoom / this.currentZoom;
-        this._scheduleTransform({
-            currentZoom: newZoom,
-            currentTranslate: {
-                x: mx - ratio * (mx - this.currentTranslate.x),
-                y: my - ratio * (my - this.currentTranslate.y),
-            },
-        });
+        this._scheduleTransform({});
         this.$zoomSlider?.val(newZoom);
         $('#zoomValue').text(newZoom.toFixed(1));
     },

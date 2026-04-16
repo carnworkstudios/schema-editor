@@ -176,7 +176,10 @@ Object.assign(MobileSVGEditor.prototype, {
         this._removeSnapGuides();
         const NS  = this.SVG_NS;
         const svg = this.$svgDisplay[0];
-        const vb  = (svg.getAttribute('viewBox') || '0 0 2000 2000').split(/\s+/).map(Number);
+        const vb  = (svg.getAttribute('viewBox') || '0 0 2000 2000').trim().split(/[\s,]+/).map(Number);
+
+        // Optional check for NaN just in case the SVG state is completely broken from earlier errors
+        if (isNaN(vb[0])) return;
 
         const makeGuide = (orientation) => {
             const line = document.createElementNS(NS, 'line');
@@ -216,14 +219,27 @@ Object.assign(MobileSVGEditor.prototype, {
         });
     },
 
-    // ── Convert screen coords to SVG coords ──────────────────
+    // ── Convert screen coords to SVG world coords ─────────────
+    //   Absorbs container offset here so NO call site needs to change.
+    //   Works correctly at any zoom/pan/rotation because CameraMatrix
+    //   (zoom+pan inverse) is applied to container-relative coords and
+    //   rotation is already baked into the SVG via _cameraRotGroup /
+    //   getScreenCTM() — which is the authoritative mapping.
     screenToSVG(clientX, clientY) {
-        const svg  = this.$svgDisplay[0];
-        const pt   = svg.createSVGPoint();
+        const svg    = this.$svgDisplay[0];
+        const ctnr   = this.$svgContainer[0].getBoundingClientRect();
+        const rotGrp = svg.querySelector('#_cameraRotGroup');
+        const pt     = svg.createSVGPoint();
         pt.x = clientX;
         pt.y = clientY;
-        const m = svg.getScreenCTM();
-        if (!m) return { x: clientX, y: clientY };
+        // Use _cameraRotGroup.getScreenCTM() so the inverse maps screen →
+        // document-local space (inside the rotation group). This keeps screenToSVG
+        // consistent with _worldToOverlayScreen and _getSelectionBBoxWorld.
+        const m = rotGrp ? rotGrp.getScreenCTM() : svg.getScreenCTM();
+        if (!m) {
+            // Fallback: use CameraMatrix (no rotation, but better than raw coords)
+            return this.camera.screenToWorld(clientX - ctnr.left, clientY - ctnr.top);
+        }
         const svgPt = pt.matrixTransform(m.inverse());
         return { x: svgPt.x, y: svgPt.y };
     },

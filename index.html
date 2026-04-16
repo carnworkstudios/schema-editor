@@ -425,6 +425,9 @@
                                     </feMerge>
                                 </filter>
                             </defs>
+                            <!-- _cameraRotGroup: all content elements land here so rotation
+                                 is applied in SVG world-space, not CSS — keeps getScreenCTM() correct. -->
+                            <g id="_cameraRotGroup"></g>
                             <!-- Placeholder text -->
                             <text x="600" y="385" text-anchor="middle" fill="gray" font-size="15"
                                 font-family="Inter,sans-serif">
@@ -436,6 +439,11 @@
                                 Supports SVG · PDF · HPGL/PLT · PNG · JPG · DWF
                             </text>
                         </svg>
+                        <!-- Canvas overlay: draws selection/rotation handles pixel-perfect
+                             via getScreenCTM() — correct once CSS transforms removed from #svgWrapper. -->
+                        <canvas id="overlayCanvas"
+                                style="position:absolute;top:0;left:0;pointer-events:none;z-index:10;">
+                        </canvas>
                     </div>
                     <div class="loading" id="loadingIndicator" style="display:none;color:rgba(255,255,255,0.7);">
                         Loading…
@@ -713,6 +721,7 @@
      JS — loaded in dependency order: core → canvas → features → init
      ============================================================ -->
     <!-- Core -->
+    <script src="src/js/core/cameraMatrix.js"></script>
     <script src="src/js/core/svgEditor.js"></script>
 
     <!-- Spatial index utilities (must load before geometryEngine) -->

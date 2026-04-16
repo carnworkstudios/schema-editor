@@ -142,7 +142,7 @@ Object.assign(MobileSVGEditor.prototype, {
         el.classList.add('draw-preview');
         el.setAttribute('pointer-events', 'none');
         this._applyDrawStyle(el);
-        this.$svgDisplay[0].appendChild(el);
+        this._contentRoot.appendChild(el);
         this._drawPreview = el;
         return el;
     },
@@ -153,7 +153,7 @@ Object.assign(MobileSVGEditor.prototype, {
         // Assign unique id
         el.id = `el_${Date.now()}_${Math.floor(Math.random()*9999)}`;
         this._applyDrawStyle(el);
-        this.$svgDisplay[0].appendChild(el);
+        this._contentRoot.appendChild(el);
         const after = this._captureFullState();
         this.pushHistory('Draw', this._drawState?.before || '', after);
         this._drawState = null;
@@ -348,7 +348,7 @@ Object.assign(MobileSVGEditor.prototype, {
         el.setAttribute('fill',         this._drawStyle.stroke);
         el.textContent = 'Text';
         el.id = `el_${Date.now()}_${Math.floor(Math.random()*9999)}`;
-        this.$svgDisplay[0].appendChild(el);
+        this._contentRoot.appendChild(el);
 
         this.pushHistory('Text', before, this._captureFullState());
         this.selectEl(el);

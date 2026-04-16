@@ -175,7 +175,7 @@ Object.assign(MobileSVGEditor.prototype, {
             g.appendChild(label);
         }
 
-        this.$svgDisplay[0].appendChild(g);
+        this._contentRoot.appendChild(g);
         const after = this._captureFullState();
         this.pushHistory(`Place ${sym.label}`, before, after);
         this.selectEl(g);

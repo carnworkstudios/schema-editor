@@ -252,18 +252,27 @@ Object.assign(MobileSVGEditor.prototype, {
         // DO NOT hard-code pixel width/height here; that's what caused bug #1.
         this.$svgDisplay.attr('width', '100%').attr('height', '100%');
 
+        // Clear existing user content from the rotation group, then import new content.
+        // Infrastructure elements (_gridDefs, _gridLayer, _cameraRotGroup) stay at SVG root.
+        const contentRoot = this._contentRoot;
+        while (contentRoot.firstChild) contentRoot.removeChild(contentRoot.firstChild);
+
         $(svgElement).children().each((_, child) => {
-            this.$svgDisplay.append($(child).clone());
+            const cid = child.id || '';
+            if (cid === '_gridDefs' || cid === '_gridLayer' || cid === '_cameraRotGroup') return;
+            if (child.tagName === 'defs') {
+                // Merge defs into SVG root so patterns/filters remain accessible
+                this.$svgDisplay.append($(child).clone());
+                return;
+            }
+            contentRoot.appendChild(document.importNode(child, true));
         });
 
         this.setupSVGInteractions();
 
         // Reset view state then fit content into viewport
-        this.currentZoom      = 1;
+        this.camera.setState({ zoom: 1, tx: 0, ty: 0 });
         this.currentRotation  = 0;
-        this.currentPitch     = 0;
-        this.currentYaw       = 0;
-        this.currentTranslate = { x: 0, y: 0 };
         this._computeBaseViewBox();     // recompute for new SVG dimensions
         this.updateTransform();
 
@@ -735,7 +744,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
             group.appendChild(visual);
             group.appendChild(hitbox);
-            this.$svgDisplay[0].appendChild(group);
+            this._contentRoot.appendChild(group);
 
             this.wires.push({
                 element: visual, $element: $(visual),
@@ -801,7 +810,7 @@ Object.assign(MobileSVGEditor.prototype, {
                 el.setAttribute('stroke', 'none');
                 el.setAttribute('class', `canvas-component-overlay canvas-${type}`);
                 el.setAttribute('data-component-id', id);
-                this.$svgDisplay[0].appendChild(el);
+                this._contentRoot.appendChild(el);
 
                 this.components.push({
                     element: el, $element: $(el), id,

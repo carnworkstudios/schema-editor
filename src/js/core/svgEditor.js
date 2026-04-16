@@ -6,13 +6,13 @@
 
 class MobileSVGEditor {
     constructor() {
-        // ── View state ────────────────────────────────────────
-        this.currentZoom      = 1;
-        this.currentRotation  = 0;
-        this.currentTranslate = { x: 0, y: 0 };
-        this.currentPitch     = 0;
-        this.currentYaw       = 0;
-        this.dragStart        = { x: 0, y: 0 };
+        // ── Camera / View State ───────────────────────────────
+        this.camera = new CameraMatrix();
+        this.currentRotation = 0;
+        this.dragStart       = { x: 0, y: 0 };
+        
+        // GSAP interpolates this object; onUpdate syncs it back to camera
+        this._cameraTween    = { zoom: 1, tx: 0, ty: 0, rot: 0 };
 
         // ── Interaction flags ─────────────────────────────────
         this.isDragging       = false;
@@ -123,9 +123,9 @@ class MobileSVGEditor {
         hammer.get('pan').recognizeWith([hammer.get('pinch'), hammer.get('rotate')]);
 
         let gesture = {
-            baseZoom: this.currentZoom,
+            baseZoom: this.camera.zoom,
             baseRotation: this.currentRotation,
-            baseTranslate: { ...this.currentTranslate },
+            baseTranslate: { x: this.camera.tx, y: this.camera.ty },
             prevHammerRotation: 0,
             prevHammerScale: 1,
             prevDelta: { x: 0, y: 0 },
@@ -133,14 +133,16 @@ class MobileSVGEditor {
         };
 
         hammer.on('pinchstart rotatestart panstart', (ev) => {
+            // Mouse pan/drag is handled by native mousedown/mousemove — let Hammer handle touch only
+            if (ev.pointerType === 'mouse') return;
             // Don't pan/pinch while in a drawing tool or when viewport is locked (edit mode)
             if (this.activeTool !== 'select') return;
             if (this._isViewportLocked && this._isViewportLocked()) return;
-            
+
             gesture.active = true;
-            gesture.baseZoom       = this.currentZoom;
+            gesture.baseZoom       = this.camera.zoom;
             gesture.baseRotation   = this.currentRotation;
-            gesture.baseTranslate  = { ...this.currentTranslate };
+            gesture.baseTranslate  = { x: this.camera.tx, y: this.camera.ty };
             gesture.prevHammerRotation = ev.rotation || 0;
             gesture.prevHammerScale    = ev.scale    || 1;
             gesture.prevDelta = { x: ev.deltaX || 0, y: ev.deltaY || 0 };
@@ -165,10 +167,7 @@ class MobileSVGEditor {
             if (typeof ev.deltaX === 'number' && typeof ev.deltaY === 'number') {
                 const dx = ev.deltaX - (gesture.prevDelta.x || 0);
                 const dy = ev.deltaY - (gesture.prevDelta.y || 0);
-                this.currentTranslate = {
-                    x: this.currentTranslate.x + dx,
-                    y: this.currentTranslate.y + dy,
-                };
+                this.camera.panBy(dx, dy);
                 this.updateTransform();
                 gesture.prevDelta.x = ev.deltaX;
                 gesture.prevDelta.y = ev.deltaY;
@@ -182,9 +181,9 @@ class MobileSVGEditor {
             gesture.prevHammerRotation = 0;
             gesture.prevHammerScale    = 1;
             gesture.prevDelta          = { x: 0, y: 0 };
-            gesture.baseZoom           = this.currentZoom;
+            gesture.baseZoom           = this.camera.zoom;
             gesture.baseRotation       = this.currentRotation;
-            gesture.baseTranslate      = { ...this.currentTranslate };
+            gesture.baseTranslate      = { x: this.camera.tx, y: this.camera.ty };
         });
     }
 
@@ -471,5 +470,12 @@ class MobileSVGEditor {
     // ── Utility ───────────────────────────────────────────────
     scaleValue(value, fromMin, fromMax, toMin, toMax) {
         return ((value - fromMin) / (fromMax - fromMin)) * (toMax - toMin) + toMin;
+    }
+
+    // ── Content root: all user-drawn SVG elements land here ──
+    //    Returns _cameraRotGroup if present, otherwise the SVG root.
+    //    Used by drawingTools, domainManager, wiringDiagram etc.
+    get _contentRoot() {
+        return this.$svgDisplay[0].querySelector('#_cameraRotGroup') || this.$svgDisplay[0];
     }
 }

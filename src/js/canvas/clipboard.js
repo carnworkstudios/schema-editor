@@ -51,7 +51,7 @@ Object.assign(MobileSVGEditor.prototype, {
                 imported.setAttribute('transform', `translate(${offset},${offset}) ${existing}`);
                 // New unique id
                 imported.id = `el_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
-                this.$svgDisplay[0].appendChild(imported);
+                this._contentRoot.appendChild(imported);
                 newEls.push(imported);
             } catch (err) {
                 console.warn('Paste error:', err);
