@@ -8,16 +8,16 @@ Object.assign(MobileSVGEditor.prototype, {
 
     // ── Tool activation ───────────────────────────────────────
     initDrawingTools() {
-        this._drawState   = null;   // active draw operation
+        this._drawState = null;   // active draw operation
         this._drawPreview = null;   // ghost/preview element
 
         // Default style for new elements
         this._drawStyle = {
-            stroke:         '#4facfe',
-            strokeWidth:    '2',
-            fill:           'none',
-            fillOpacity:    '1',
-            strokeDasharray:'none',
+            stroke: '#4facfe',
+            strokeWidth: '2',
+            fill: 'none',
+            fillOpacity: '1',
+            strokeDasharray: 'none',
         };
 
         this._bindDrawEvents();
@@ -32,19 +32,19 @@ Object.assign(MobileSVGEditor.prototype, {
 
         // Cursor
         const cursors = {
-            select:  'default',
-            pen:     'crosshair',
-            line:    'crosshair',
-            rect:    'crosshair',
+            select: 'default',
+            pen: 'crosshair',
+            line: 'crosshair',
+            rect: 'crosshair',
             ellipse: 'crosshair',
             polygon: 'crosshair',
-            text:    'text',
-            wire:    'crosshair',
+            text: 'text',
+            wire: 'crosshair',
         };
         this.$svgContainer.css('cursor', cursors[tool] || 'default');
 
         // If leaving draw mode, cancel any in-progress draw
-        if (!['pen','line','rect','ellipse','polygon','text','wire'].includes(tool)) {
+        if (!['pen', 'line', 'rect', 'ellipse', 'polygon', 'text', 'wire'].includes(tool)) {
             this._cancelDraw();
         }
 
@@ -54,8 +54,10 @@ Object.assign(MobileSVGEditor.prototype, {
         }
 
         this.showToast(
-            { select:'Select', pen:'Pen', line:'Line', rect:'Rectangle',
-              ellipse:'Ellipse', polygon:'Polygon', text:'Text', wire:'Wire'}[tool] + ' tool',
+            {
+                select: 'Select', pen: 'Pen', line: 'Line', rect: 'Rectangle',
+                ellipse: 'Ellipse', polygon: 'Polygon', text: 'Text', wire: 'Wire'
+            }[tool] + ' tool',
             'success'
         );
     },
@@ -63,7 +65,7 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Main draw event binding ───────────────────────────────
     _bindDrawEvents() {
         this.$svgContainer.on('mousedown.draw', (e) => {
-            const drawTools = ['pen','line','rect','ellipse','polygon','text','wire'];
+            const drawTools = ['pen', 'line', 'rect', 'ellipse', 'polygon', 'text', 'wire'];
             if (!drawTools.includes(this.activeTool)) return;
             if (e.button !== 0) return;
             e.preventDefault();
@@ -73,27 +75,27 @@ Object.assign(MobileSVGEditor.prototype, {
             const snapped = this.smartSnap(pt.x, pt.y);
 
             switch (this.activeTool) {
-                case 'pen':     this._penStart(snapped, e); break;
-                case 'line':    this._lineStart(snapped); break;
-                case 'rect':    this._rectStart(snapped); break;
+                case 'pen': this._penStart(snapped, e); break;
+                case 'line': this._lineStart(snapped); break;
+                case 'rect': this._rectStart(snapped); break;
                 case 'ellipse': this._ellipseStart(snapped); break;
                 case 'polygon': this._polygonClick(snapped); break;
-                case 'text':    this._textPlace(snapped); break;
-                case 'wire':    this._wireStart(snapped); break;
+                case 'text': this._textPlace(snapped); break;
+                case 'wire': this._wireStart(snapped); break;
             }
         });
 
         $(document).on('mousemove.draw', (e) => {
             if (!this._drawState) return;
-            const pt      = this.screenToSVG(e.clientX, e.clientY);
+            const pt = this.screenToSVG(e.clientX, e.clientY);
             const snapped = this.smartSnap(pt.x, pt.y);
 
             switch (this.activeTool) {
-                case 'pen':     this._penMove(snapped, e); break;
-                case 'line':    this._lineMove(snapped); break;
-                case 'rect':    this._rectMove(snapped); break;
+                case 'pen': this._penMove(snapped, e); break;
+                case 'line': this._lineMove(snapped); break;
+                case 'rect': this._rectMove(snapped); break;
                 case 'ellipse': this._ellipseMove(snapped); break;
-                case 'wire':    this._wireMove(snapped); break;
+                case 'wire': this._wireMove(snapped); break;
             }
         });
 
@@ -101,11 +103,11 @@ Object.assign(MobileSVGEditor.prototype, {
             if (!this._drawState) return;
 
             switch (this.activeTool) {
-                case 'pen':     this._penEnd(); break;
-                case 'line':    this._lineEnd(); break;
-                case 'rect':    this._rectEnd(); break;
+                case 'pen': this._penEnd(); break;
+                case 'line': this._lineEnd(); break;
+                case 'rect': this._rectEnd(); break;
                 case 'ellipse': this._ellipseEnd(); break;
-                case 'wire':    this._wireEnd(); break;
+                case 'wire': this._wireEnd(); break;
             }
         });
 
@@ -151,7 +153,7 @@ Object.assign(MobileSVGEditor.prototype, {
         this._drawPreview?.remove();
         this._drawPreview = null;
         // Assign unique id
-        el.id = `el_${Date.now()}_${Math.floor(Math.random()*9999)}`;
+        el.id = `el_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
         this._applyDrawStyle(el);
         this._contentRoot.appendChild(el);
         const after = this._captureFullState();
@@ -166,7 +168,7 @@ Object.assign(MobileSVGEditor.prototype, {
     _cancelDraw() {
         this._drawPreview?.remove();
         this._drawPreview = null;
-        this._drawState   = null;
+        this._drawState = null;
     },
 
     // ── PEN (freehand) ────────────────────────────────────────
@@ -202,8 +204,8 @@ Object.assign(MobileSVGEditor.prototype, {
         for (let i = 1; i < pts.length - 1; i++) {
             const cp1x = pts[i].x;
             const cp1y = pts[i].y;
-            const x    = (pts[i].x + pts[i+1].x) / 2;
-            const y    = (pts[i].y + pts[i+1].y) / 2;
+            const x = (pts[i].x + pts[i + 1].x) / 2;
+            const y = (pts[i].y + pts[i + 1].y) / 2;
             d += ` Q ${cp1x} ${cp1y} ${x} ${y}`;
         }
         const last = pts[pts.length - 1];
@@ -263,18 +265,18 @@ Object.assign(MobileSVGEditor.prototype, {
         const h = Math.abs(pt.y - this._drawState.y);
         this._drawPreview.setAttribute('x', x);
         this._drawPreview.setAttribute('y', y);
-        this._drawPreview.setAttribute('width',  w);
+        this._drawPreview.setAttribute('width', w);
         this._drawPreview.setAttribute('height', h);
     },
 
     _rectEnd() {
         if (!this._drawState) return;
         const p = this._drawPreview;
-        if (parseFloat(p.getAttribute('width'))  < 4 ||
+        if (parseFloat(p.getAttribute('width')) < 4 ||
             parseFloat(p.getAttribute('height')) < 4) { this._cancelDraw(); return; }
 
         const el = document.createElementNS(this.SVG_NS, 'rect');
-        ['x','y','width','height'].forEach(a => el.setAttribute(a, p.getAttribute(a)));
+        ['x', 'y', 'width', 'height'].forEach(a => el.setAttribute(a, p.getAttribute(a)));
         this._commitElement(el);
     },
 
@@ -286,7 +288,7 @@ Object.assign(MobileSVGEditor.prototype, {
         };
         const el = this._makePreview('ellipse');
         el.setAttribute('cx', pt.x); el.setAttribute('cy', pt.y);
-        el.setAttribute('rx', '0');  el.setAttribute('ry', '0');
+        el.setAttribute('rx', '0'); el.setAttribute('ry', '0');
     },
 
     _ellipseMove(pt) {
@@ -304,7 +306,7 @@ Object.assign(MobileSVGEditor.prototype, {
             parseFloat(p.getAttribute('ry')) < 2) { this._cancelDraw(); return; }
 
         const el = document.createElementNS(this.SVG_NS, 'ellipse');
-        ['cx','cy','rx','ry'].forEach(a => el.setAttribute(a, p.getAttribute(a)));
+        ['cx', 'cy', 'rx', 'ry'].forEach(a => el.setAttribute(a, p.getAttribute(a)));
         this._commitElement(el);
     },
 
@@ -344,10 +346,10 @@ Object.assign(MobileSVGEditor.prototype, {
         el.setAttribute('x', pt.x);
         el.setAttribute('y', pt.y);
         el.setAttribute('font-family', 'Inter, sans-serif');
-        el.setAttribute('font-size',   '14');
-        el.setAttribute('fill',         this._drawStyle.stroke);
+        el.setAttribute('font-size', '14');
+        el.setAttribute('fill', this._drawStyle.stroke);
         el.textContent = 'Text';
-        el.id = `el_${Date.now()}_${Math.floor(Math.random()*9999)}`;
+        el.id = `el_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
         this._contentRoot.appendChild(el);
 
         this.pushHistory('Text', before, this._captureFullState());

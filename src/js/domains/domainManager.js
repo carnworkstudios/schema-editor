@@ -122,8 +122,8 @@ Object.assign(MobileSVGEditor.prototype, {
                 this._placeSymbol(sym, snapped.x, snapped.y);
             } else {
                 // Released outside canvas — place at visible center
-                const cx = svgRect.left + svgRect.width  / 2;
-                const cy = svgRect.top  + svgRect.height / 2;
+                const cx = svgRect.left + svgRect.width / 2;
+                const cy = svgRect.top + svgRect.height / 2;
                 const center = this.screenToSVG(cx, cy);
                 const snapped = this.smartSnap(center.x, center.y);
                 this._placeSymbol(sym, snapped.x, snapped.y);

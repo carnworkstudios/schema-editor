@@ -8,11 +8,11 @@ Object.assign(MobileSVGEditor.prototype, {
 
     // ── Init ──────────────────────────────────────────────────
     initCanvasEngine() {
-        this._selection    = [];        // array of SVG elements
+        this._selection = [];        // array of SVG elements
         this._selectionBox = null;      // <g> overlay with handles
-        this._dragState    = null;      // drag operation state
-        this._resizeState  = null;      // resize operation state
-        this._rotateState  = null;      // rotate operation state
+        this._dragState = null;      // drag operation state
+        this._resizeState = null;      // resize operation state
+        this._rotateState = null;      // rotate operation state
         this._useCanvasHandles = false; // set true in initCameraOverlay once overlay ready
 
         this._bindCanvasEvents();
@@ -23,11 +23,11 @@ Object.assign(MobileSVGEditor.prototype, {
     //   Sized to match #svgDisplay; re-sized on ResizeObserver.
     //   Not drawing yet — rendering wired in Steps 7–10.
     initCameraOverlay() {
-        this._overlayCanvas    = document.getElementById('overlayCanvas');
+        this._overlayCanvas = document.getElementById('overlayCanvas');
         if (!this._overlayCanvas) return;
-        this._overlayCtx         = this._overlayCanvas.getContext('2d');
+        this._overlayCtx = this._overlayCanvas.getContext('2d');
         this._overlayHandleZones = [];
-        this._overlayRafHandle   = null;
+        this._overlayRafHandle = null;
         this._resizeOverlayCanvas();
         const ro = new ResizeObserver(() => this._resizeOverlayCanvas());
         ro.observe(this.$svgDisplay[0]);
@@ -37,11 +37,11 @@ Object.assign(MobileSVGEditor.prototype, {
 
     _resizeOverlayCanvas() {
         if (!this._overlayCanvas) return;
-        const r   = this.$svgDisplay[0].getBoundingClientRect();
+        const r = this.$svgDisplay[0].getBoundingClientRect();
         const dpr = window.devicePixelRatio || 1;
-        this._overlayCanvas.width  = r.width  * dpr;
+        this._overlayCanvas.width = r.width * dpr;
         this._overlayCanvas.height = r.height * dpr;
-        this._overlayCanvas.style.width  = r.width  + 'px';
+        this._overlayCanvas.style.width = r.width + 'px';
         this._overlayCanvas.style.height = r.height + 'px';
         // setTransform resets — do NOT use ctx.scale() which accumulates on each resize
         this._overlayCtx.setTransform(dpr, 0, 0, dpr, 0, 0);
@@ -88,7 +88,7 @@ Object.assign(MobileSVGEditor.prototype, {
                     this._selection.push(el);
                     el.classList.add('se-selected');
                 }
-            } catch (_) {}
+            } catch (_) { }
         });
         this._renderHandles();
         this._refreshPropertyPanel();
@@ -120,8 +120,8 @@ Object.assign(MobileSVGEditor.prototype, {
             return;
         }
         const before = this._captureFullState();
-        const NS  = this.SVG_NS;
-        const g   = document.createElementNS(NS, 'g');
+        const NS = this.SVG_NS;
+        const g = document.createElementNS(NS, 'g');
         g.id = `group_${Date.now()}`;
         const parent = this._selection[0].parentNode;
         parent.insertBefore(g, this._selection[0]);
@@ -172,15 +172,15 @@ Object.assign(MobileSVGEditor.prototype, {
     //   Uses getScreenCTM() — provably correct once CSS transforms
     //   are removed from #svgWrapper; always agrees with SVG rendering.
     _worldToOverlayScreen(wx, wy) {
-        const svg    = this.$svgDisplay[0];
-        const ctnr   = this.$svgContainer[0].getBoundingClientRect();
+        const svg = this.$svgDisplay[0];
+        const ctnr = this.$svgContainer[0].getBoundingClientRect();
         const rotGrp = svg.querySelector('#_cameraRotGroup');
-        const pt     = svg.createSVGPoint();
+        const pt = svg.createSVGPoint();
         pt.x = wx; pt.y = wy;
         // _cameraRotGroup.getScreenCTM() maps from document-local space → screen,
         // correctly including the camera rotation applied to that group.
         // svg.getScreenCTM() maps from SVG root space → screen (wrong when rotated).
-        const m  = rotGrp ? rotGrp.getScreenCTM() : svg.getScreenCTM();
+        const m = rotGrp ? rotGrp.getScreenCTM() : svg.getScreenCTM();
         const sp = pt.matrixTransform(m);
         return { x: sp.x - ctnr.left, y: sp.y - ctnr.top };
     },
@@ -202,9 +202,9 @@ Object.assign(MobileSVGEditor.prototype, {
         const bw = bb.width + pad * 2, bh = bb.height + pad * 2;
 
         // Project the 4 bbox corners to overlay screen coords via getScreenCTM()
-        const tl = this._worldToOverlayScreen(bx,      by);
+        const tl = this._worldToOverlayScreen(bx, by);
         const tr = this._worldToOverlayScreen(bx + bw, by);
-        const bl = this._worldToOverlayScreen(bx,      by + bh);
+        const bl = this._worldToOverlayScreen(bx, by + bh);
         const br = this._worldToOverlayScreen(bx + bw, by + bh);
 
         this._drawOverlayRect(ctx, [tl, tr, br, bl]);
@@ -215,7 +215,7 @@ Object.assign(MobileSVGEditor.prototype, {
     _drawOverlayRect(ctx, pts) {
         ctx.save();
         ctx.strokeStyle = '#4facfe';
-        ctx.lineWidth   = 1.5;
+        ctx.lineWidth = 1.5;
         ctx.setLineDash([5, 4]);
         ctx.beginPath();
         ctx.moveTo(pts[0].x, pts[0].y);
@@ -226,41 +226,41 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     _drawOverlayHandles(ctx, tl, tr, bl, br) {
-        const midT  = { x: (tl.x + tr.x) / 2, y: (tl.y + tr.y) / 2 };
-        const midB  = { x: (bl.x + br.x) / 2, y: (bl.y + br.y) / 2 };
-        const midL  = { x: (tl.x + bl.x) / 2, y: (tl.y + bl.y) / 2 };
-        const midR  = { x: (tr.x + br.x) / 2, y: (tr.y + br.y) / 2 };
+        const midT = { x: (tl.x + tr.x) / 2, y: (tl.y + tr.y) / 2 };
+        const midB = { x: (bl.x + br.x) / 2, y: (bl.y + br.y) / 2 };
+        const midL = { x: (tl.x + bl.x) / 2, y: (tl.y + bl.y) / 2 };
+        const midR = { x: (tr.x + br.x) / 2, y: (tr.y + br.y) / 2 };
         const zones = [
-            { id:'nw', ...tl }, { id:'n',  ...midT }, { id:'ne', ...tr },
-            { id:'e',  ...midR }, { id:'se', ...br }, { id:'s',  ...midB },
-            { id:'sw', ...bl }, { id:'w',  ...midL },
+            { id: 'nw', ...tl }, { id: 'n', ...midT }, { id: 'ne', ...tr },
+            { id: 'e', ...midR }, { id: 'se', ...br }, { id: 's', ...midB },
+            { id: 'sw', ...bl }, { id: 'w', ...midL },
         ];
         const SZ = 10;
         ctx.save();
-        ctx.fillStyle   = '#1a1a2e';
+        ctx.fillStyle = '#1a1a2e';
         ctx.strokeStyle = '#4facfe';
-        ctx.lineWidth   = 1.5;
+        ctx.lineWidth = 1.5;
         zones.forEach(z => {
-            ctx.fillRect(z.x - SZ/2, z.y - SZ/2, SZ, SZ);
-            ctx.strokeRect(z.x - SZ/2, z.y - SZ/2, SZ, SZ);
+            ctx.fillRect(z.x - SZ / 2, z.y - SZ / 2, SZ, SZ);
+            ctx.strokeRect(z.x - SZ / 2, z.y - SZ / 2, SZ, SZ);
             this._overlayHandleZones.push({ type: 'rect', id: z.id, cx: z.x, cy: z.y, size: SZ });
         });
         ctx.restore();
     },
 
     _drawOverlayRotHandle(ctx, tl, tr) {
-        const mx  = (tl.x + tr.x) / 2;
-        const my  = (tl.y + tr.y) / 2;
+        const mx = (tl.x + tr.x) / 2;
+        const my = (tl.y + tr.y) / 2;
         // Direction perpendicular to top edge (pointing away from shape)
-        const ex  = tr.x - tl.x, ey = tr.y - tl.y;
+        const ex = tr.x - tl.x, ey = tr.y - tl.y;
         const len = Math.hypot(ex, ey) || 1;
-        const nx  = -ey / len, ny = ex / len;  // perpendicular outward
-        const arm  = 24;
-        const hx  = mx + nx * arm;
-        const hy  = my + ny * arm;
+        const nx = -ey / len, ny = ex / len;  // perpendicular outward
+        const arm = 24;
+        const hx = mx + nx * arm;
+        const hy = my + ny * arm;
         ctx.save();
         ctx.strokeStyle = '#4facfe';
-        ctx.lineWidth   = 1.5;
+        ctx.lineWidth = 1.5;
         ctx.beginPath();
         ctx.moveTo(mx, my);
         ctx.lineTo(hx, hy);
@@ -279,12 +279,12 @@ Object.assign(MobileSVGEditor.prototype, {
     //   Works correctly through _cameraRotGroup and nested groups.
     _getSelectionBBoxWorld() {
         if (!this._selection.length) return null;
-        let minX=Infinity, minY=Infinity, maxX=-Infinity, maxY=-Infinity;
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
         const svg = this.$svgDisplay[0];
 
         this._selection.forEach(el => {
             let bb;
-            try { bb = el.getBBox(); } catch(_) { return; }
+            try { bb = el.getBBox(); } catch (_) { return; }
             if (!bb) return;
 
             // Walk SVG transform chain from element up to _cameraRotGroup (exclusive).
@@ -298,21 +298,21 @@ Object.assign(MobileSVGEditor.prototype, {
                 const tv = node.transform?.baseVal;
                 if (tv?.length) {
                     const lm = tv.consolidate()?.matrix;
-                    if (lm) m = new DOMMatrix([lm.a,lm.b,lm.c,lm.d,lm.e,lm.f]).multiply(m);
+                    if (lm) m = new DOMMatrix([lm.a, lm.b, lm.c, lm.d, lm.e, lm.f]).multiply(m);
                 }
                 node = node.parentElement;
             }
 
-            [[bb.x,bb.y],[bb.x+bb.width,bb.y],[bb.x,bb.y+bb.height],[bb.x+bb.width,bb.y+bb.height]]
-            .forEach(([px,py]) => {
-                const tp = new DOMPoint(px,py).matrixTransform(m);
-                minX=Math.min(minX,tp.x); minY=Math.min(minY,tp.y);
-                maxX=Math.max(maxX,tp.x); maxY=Math.max(maxY,tp.y);
-            });
+            [[bb.x, bb.y], [bb.x + bb.width, bb.y], [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]]
+                .forEach(([px, py]) => {
+                    const tp = new DOMPoint(px, py).matrixTransform(m);
+                    minX = Math.min(minX, tp.x); minY = Math.min(minY, tp.y);
+                    maxX = Math.max(maxX, tp.x); maxY = Math.max(maxY, tp.y);
+                });
         });
 
         if (!isFinite(minX)) return null;
-        return { x:minX, y:minY, width:maxX-minX, height:maxY-minY };
+        return { x: minX, y: minY, width: maxX - minX, height: maxY - minY };
     },
 
     // Alias for any existing callers that use the old name
@@ -329,7 +329,7 @@ Object.assign(MobileSVGEditor.prototype, {
                 if (Math.hypot(sx - z.cx, sy - z.cy) <= z.r) return z.id;
             } else {
                 const hs = z.size / 2;
-                if (sx >= z.cx-hs && sx <= z.cx+hs && sy >= z.cy-hs && sy <= z.cy+hs) return z.id;
+                if (sx >= z.cx - hs && sx <= z.cx + hs && sy >= z.cy - hs && sy <= z.cy + hs) return z.id;
             }
         }
         return null;
@@ -340,7 +340,7 @@ Object.assign(MobileSVGEditor.prototype, {
         const startY = clientY;
         const startBB = this._getSelectionBBoxWorld();
         if (!startBB) return;
-        
+
         const startTransforms = this._selection.map(el => ({
             el,
             transform: el.getAttribute('transform') || '',
@@ -351,12 +351,12 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const onMove = (ev) => {
             const svgStart = this.screenToSVG(startX, startY);
-            const svgNow   = this.screenToSVG(ev.clientX, ev.clientY);
+            const svgNow = this.screenToSVG(ev.clientX, ev.clientY);
             const dx = svgNow.x - svgStart.x;
             const dy = svgNow.y - svgStart.y;
 
             if (type === 'rotate') {
-                const cx = startBB.x + startBB.width  / 2;
+                const cx = startBB.x + startBB.width / 2;
                 const cy = startBB.y + startBB.height / 2;
                 const angle = Math.atan2(svgNow.y - cy, svgNow.x - cx) * 180 / Math.PI + 90;
                 const snapped = Math.round(angle / 15) * 15;
@@ -391,18 +391,18 @@ Object.assign(MobileSVGEditor.prototype, {
 
     _applyResize(startTransforms, startBB, handle, dx, dy, lockAspect) {
         const scaleX = handle.includes('e') ? (startBB.width + dx) / (startBB.width || 1)
-                     : handle.includes('w') ? (startBB.width - dx) / (startBB.width || 1)
-                     : 1;
+            : handle.includes('w') ? (startBB.width - dx) / (startBB.width || 1)
+                : 1;
         const scaleY = handle.includes('s') ? (startBB.height + dy) / (startBB.height || 1)
-                     : handle.includes('n') ? (startBB.height - dy) / (startBB.height || 1)
-                     : 1;
+            : handle.includes('n') ? (startBB.height - dy) / (startBB.height || 1)
+                : 1;
         const sx = Math.max(0.01, lockAspect ? Math.min(scaleX, scaleY) : scaleX);
         const sy = Math.max(0.01, lockAspect ? Math.min(scaleX, scaleY) : scaleY);
-        const tx = handle.includes('w') ? startBB.x + startBB.width  * (1 - sx) : startBB.x;
+        const tx = handle.includes('w') ? startBB.x + startBB.width * (1 - sx) : startBB.x;
         const ty = handle.includes('n') ? startBB.y + startBB.height * (1 - sy) : startBB.y;
 
         startTransforms.forEach(({ el }) => {
-            const cx = startBB.x + startBB.width  / 2;
+            const cx = startBB.x + startBB.width / 2;
             const cy = startBB.y + startBB.height / 2;
             el.setAttribute('transform',
                 `translate(${tx + (lockAspect ? 0 : 0)},${ty}) scale(${sx},${sy}) translate(${-startBB.x},${-startBB.y})`
@@ -527,10 +527,10 @@ Object.assign(MobileSVGEditor.prototype, {
 
             const step = e.shiftKey ? 10 : 1;
             let dx = 0, dy = 0;
-            if (e.key === 'ArrowLeft')  dx = -step;
-            if (e.key === 'ArrowRight') dx =  step;
-            if (e.key === 'ArrowUp')    dy = -step;
-            if (e.key === 'ArrowDown')  dy =  step;
+            if (e.key === 'ArrowLeft') dx = -step;
+            if (e.key === 'ArrowRight') dx = step;
+            if (e.key === 'ArrowUp') dy = -step;
+            if (e.key === 'ArrowDown') dy = step;
             if (!dx && !dy) return;
 
             e.preventDefault();
@@ -598,7 +598,7 @@ Object.assign(MobileSVGEditor.prototype, {
             existing.forEach(k => el.removeAttribute(k));
         });
 
-        this._selection    = [];
+        this._selection = [];
         this._selectionBox = null;
     },
 });

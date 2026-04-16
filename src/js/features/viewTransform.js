@@ -10,19 +10,19 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Compute the base viewBox that fills the container ─────
     //    Called on init, on container resize, and after loading SVG.
     _computeBaseViewBox() {
-        const svg       = this.$svgDisplay[0];
+        const svg = this.$svgDisplay[0];
         const container = this.$svgContainer[0];
         if (!svg || !container) return;
 
         // Original document viewBox (the "content area")
         const raw = (this.originalViewBox || svg.getAttribute('viewBox') || '0 0 1200 800').trim();
-        const vb  = raw.split(/[\s,]+/).map(Number);
+        const vb = raw.split(/[\s,]+/).map(Number);
         this._origDocViewBox = { x: vb[0], y: vb[1], w: vb[2], h: vb[3] };
 
-        const cW = container.clientWidth  || 1;
+        const cW = container.clientWidth || 1;
         const cH = container.clientHeight || 1;
         const doc = this._origDocViewBox;
-        const docAR       = doc.w / doc.h;
+        const docAR = doc.w / doc.h;
         const containerAR = cW / cH;
 
         // Expand viewBox to match container aspect ratio → no letterboxing
@@ -92,10 +92,10 @@ Object.assign(MobileSVGEditor.prototype, {
         if (!base) return;
 
         const container = this.$svgContainer[0];
-        const cW   = container.clientWidth  || 1;
+        const cW = container.clientWidth || 1;
         const zoom = this.camera.zoom;
-        const tx   = this.camera.tx;
-        const ty   = this.camera.ty;
+        const tx = this.camera.tx;
+        const ty = this.camera.ty;
 
         // ── viewBox: zoom + pan (always crisp) ──────────────
         const vbW = base.w / zoom;
@@ -110,9 +110,9 @@ Object.assign(MobileSVGEditor.prototype, {
         // This keeps getScreenCTM() correct at all zoom/pan/rotation values.
         const rotGroup = svg.querySelector('#_cameraRotGroup');
         if (rotGroup) {
-            const vb  = this.camera.toViewBox(base, cW);
-            const wx  = vb.x + vb.w / 2;   // world center of current view
-            const wy  = vb.y + vb.h / 2;
+            const vb = this.camera.toViewBox(base, cW);
+            const wx = vb.x + vb.w / 2;   // world center of current view
+            const wy = vb.y + vb.h / 2;
             const deg = this.currentRotation;
             rotGroup.setAttribute('transform',
                 deg !== 0 ? `rotate(${deg},${wx},${wy})` : '');
@@ -158,7 +158,7 @@ Object.assign(MobileSVGEditor.prototype, {
         });
     },
 
-    zoomIn()  { this.animateZoom(Math.min(100, this.camera.zoom * 1.5)); },
+    zoomIn() { this.animateZoom(Math.min(100, this.camera.zoom * 1.5)); },
     zoomOut() { this.animateZoom(Math.max(0.1, this.camera.zoom / 1.5)); },
 
     fitToView() {
@@ -168,12 +168,12 @@ Object.assign(MobileSVGEditor.prototype, {
 
         // Use original document dimensions (not the dynamic viewBox)
         const doc = this._origDocViewBox || { x: 0, y: 0, w: 1200, h: 800 };
-        const cW  = container.clientWidth;
-        const cH  = container.clientHeight;
+        const cW = container.clientWidth;
+        const cH = container.clientHeight;
 
         const targetZoom = Math.min(cW / doc.w, cH / doc.h) * 0.92;
-        const targetTx   = (cW - doc.w * targetZoom) / 2;
-        const targetTy   = (cH - doc.h * targetZoom) / 2;
+        const targetTx = (cW - doc.w * targetZoom) / 2;
+        const targetTy = (cH - doc.h * targetZoom) / 2;
 
         this._cameraTween.zoom = this.camera.zoom;
         this._cameraTween.rot = this.currentRotation;
@@ -301,10 +301,10 @@ Object.assign(MobileSVGEditor.prototype, {
     handleWheel(event) {
         if (this._isViewportLocked()) return;   // edit-mode: no viewport zoom
         event.preventDefault();
-        const e       = event.originalEvent || event;
-        const factor  = e.deltaY > 0 ? 0.92 : 1.08;
+        const e = event.originalEvent || event;
+        const factor = e.deltaY > 0 ? 0.92 : 1.08;
         const newZoom = Math.max(0.1, Math.min(100, this.camera.zoom * factor));
-        const ctnr    = this.$svgContainer[0].getBoundingClientRect();
+        const ctnr = this.$svgContainer[0].getBoundingClientRect();
 
         // Zoom-at-cursor via CameraMatrix (keeps world point under cursor fixed)
         this.camera.zoomAt(newZoom, e.clientX - ctnr.left, e.clientY - ctnr.top);
