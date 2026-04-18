@@ -73,9 +73,12 @@ Object.assign(MobileSVGEditor.prototype, {
 
             const $row = $('<div class="palette-row"></div>');
             syms.forEach(sym => {
+                const vb = sym.previewViewBox || '0 0 65 52';
                 const $item = $(`
                     <div class="palette-item" data-sym-id="${sym.id}" title="${sym.label}">
-                        <div class="palette-icon">${sym.svgPreview}</div>
+                        <div class="palette-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" width="100%" height="100%">${sym.svgPreview}</svg>
+                        </div>
                         <div class="palette-label">${sym.label}</div>
                     </div>
                 `);
