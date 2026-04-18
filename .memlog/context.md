@@ -3,10 +3,10 @@ tier 1 — always inject:  context.md  task-manager.md  scratch.md
 tier 2 — task start:     portfolio.md  decisions.md  errors.md
 tier 3 — on demand:      memory.md  decisions-archive.md  session-log.md
 size targets:
-  context.md       ≤ 500 tokens
-  task-manager.md  ≤ 300 tokens
-  portfolio.md     ≤ 1000 tokens
-  memory.md        ≤ 3000 tokens
+  context.md       ≤ 500 toks
+  task-manager.md  ≤ 300 toks
+  portfolio.md     ≤ 1000 toks
+  memory.md        ≤ 3000 toks
   decisions.md     ≤ 100 lines → archive oldest 50 when exceeded
 pruning rule:
   end of session → append context.md handoff block to session-log.md,
