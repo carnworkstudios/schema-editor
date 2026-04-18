@@ -547,6 +547,19 @@ Object.assign(MobileSVGEditor.prototype, {
             }
         });
 
+        // Double-click → inline text edit if target is <text> inside a domain-symbol
+        this.$svgDisplay.on('dblclick.canvas', (e) => {
+            if (this.activeTool !== 'select') return;
+            const textEl = e.target.tagName?.toLowerCase() === 'text'
+                ? e.target
+                : e.target.closest?.('text');
+            if (!textEl) return;
+            if (!textEl.closest('.domain-symbol')) return;
+            e.preventDefault();
+            e.stopPropagation();
+            this._editSymbolText(textEl);
+        });
+
         // Arrow key nudge
         $(document).on('keydown.canvas', (e) => {
             if (this.activeTool !== 'select') return;
@@ -572,6 +585,61 @@ Object.assign(MobileSVGEditor.prototype, {
             this.pushHistory('Nudge', before, after);
             this._refreshPropertyPanel();
         });
+    },
+
+    // ── Inline text editing for <text> nodes inside domain-symbol groups ──
+    _editSymbolText(textEl) {
+        let bb;
+        try { bb = textEl.getBoundingClientRect(); } catch (_) { return; }
+
+        const input = document.createElement('input');
+        input.type  = 'text';
+        input.value = textEl.textContent.trim();
+
+        const fontSize = parseFloat(textEl.getAttribute('font-size') || '12');
+        const fontFamily = textEl.getAttribute('font-family') || 'monospace';
+        const zoom = this.camera?.zoom || 1;
+
+        input.style.cssText = [
+            `position:fixed`,
+            `left:${bb.left - 4}px`,
+            `top:${bb.top - 2}px`,
+            `min-width:${Math.max(bb.width + 8, 60)}px`,
+            `height:${Math.max(bb.height + 4, 18)}px`,
+            `font-size:${Math.round(fontSize * zoom)}px`,
+            `font-family:${fontFamily}`,
+            `text-align:center`,
+            `background:rgba(15,25,45,0.96)`,
+            `color:#e8f4ff`,
+            `border:1px solid #4facfe`,
+            `border-radius:3px`,
+            `padding:1px 4px`,
+            `z-index:9999`,
+            `outline:none`,
+            `box-shadow:0 0 8px rgba(79,172,254,0.4)`,
+        ].join(';');
+
+        document.body.appendChild(input);
+        input.focus();
+        input.select();
+
+        let committed = false;
+        const commit = () => {
+            if (committed) return;
+            committed = true;
+            const before = this._captureFullState();
+            textEl.textContent = input.value.trim() || textEl.textContent;
+            const after = this._captureFullState();
+            this.pushHistory('Edit Text', before, after);
+            input.remove();
+            if (typeof this.buildLayersTree === 'function') this.buildLayersTree();
+        };
+
+        input.addEventListener('keydown', (ev) => {
+            if (ev.key === 'Enter')  { ev.preventDefault(); commit(); }
+            if (ev.key === 'Escape') { committed = true; input.remove(); }
+        });
+        input.addEventListener('blur', commit);
     },
 
     // ── Per-command attribute diff history (replaces full innerHTML) ───

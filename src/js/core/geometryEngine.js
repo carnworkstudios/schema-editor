@@ -224,6 +224,19 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const svgEl = this.$svgDisplay[0];
 
+        // Strip hitbox wrappers from a previous run so phases 1-2 see clean geometry
+        svgEl.querySelectorAll('.wire-group').forEach(g => {
+            const visual = g.children[0];
+            if (visual) g.parentNode?.insertBefore(visual, g);
+            g.remove();
+        });
+        svgEl.querySelectorAll('.component-group').forEach(g => {
+            const visual = g.children[0];
+            if (visual) g.parentNode?.insertBefore(visual, g);
+            g.remove();
+        });
+        svgEl.querySelectorAll('.domain-symbol > .component-hitbox').forEach(h => h.remove());
+
         // ── Determine epsilon by source format ────────────────
         const fmt = this.displays[this.activeDisplayIdx]?.sourceFormat || 'svg';
         const EPS = fmt === 'pdf' ? 2.0 : 0.5;
@@ -283,8 +296,8 @@ Object.assign(MobileSVGEditor.prototype, {
         let safety = 20;
         while (groups.length && safety-- > 0) {
             for (const g of groups) {
-                // Skip user-created groups
-                if (g.id && g.id.startsWith('group_')) continue;
+                // Skip user-created groups and all internal _ groups (camera, grid, etc.)
+                if (g.id && (g.id.startsWith('group_') || g.id.startsWith('_'))) continue;
                 // Skip editor overlay groups and placed schematic symbols
                 if (g.classList.contains('wire-group') ||
                     g.classList.contains('component-group') ||
@@ -306,6 +319,7 @@ Object.assign(MobileSVGEditor.prototype, {
             }
             groups = Array.from(svgEl.querySelectorAll('g[transform]'))
                          .filter(g => !g.id?.startsWith('group_') &&
+                                      !g.id?.startsWith('_') &&
                                       !g.classList.contains('wire-group') &&
                                       !g.classList.contains('component-group') &&
                                       !g.classList.contains('domain-symbol'));
@@ -398,17 +412,48 @@ Object.assign(MobileSVGEditor.prototype, {
         const SKIP = new Set(['defs','script','style','title','desc','linearGradient',
                                'radialGradient','pattern','filter','marker','symbol','use']);
 
+        // Pre-pass: elements explicitly tagged with data-geo-class bypass heuristics
+        const taggedEls = new Set();
+        svgEl.querySelectorAll('[data-geo-class]').forEach(el => {
+            const cls = el.getAttribute('data-geo-class');
+            const score = this._scoreTaggedEl(el);
+            if (!score) return;
+            taggedEls.add(el);
+            if (cls === 'wire') wireEls.push({ el, score });
+            else                compEls.push({ el, score }); // 'component', 'junction', 'port'
+
+            // Register pin-point circles as connector endpoints in world space
+            if (cls !== 'wire' && el.tagName?.toLowerCase() === 'g') {
+                const m = (el.getAttribute('transform') || '').match(/translate\(\s*([-\d.]+)[,\s]+([-\d.]+)/);
+                const tx = m ? parseFloat(m[1]) : 0;
+                const ty = m ? parseFloat(m[2]) : 0;
+                el.querySelectorAll('.pin-point').forEach(pinEl => {
+                    const cx = parseFloat(pinEl.getAttribute('cx') || 0) + tx;
+                    const cy = parseFloat(pinEl.getAttribute('cy') || 0) + ty;
+                    const r  = parseFloat(pinEl.getAttribute('r')  || 2);
+                    compEls.push({ el: pinEl, score: {
+                        bbox: { x: cx - r, y: cy - r, width: r * 2, height: r * 2 },
+                        aspect: 1, linearity: 0, circularity: 1,
+                        pathLen: 0, span: 0, pts: [],
+                    }});
+                    taggedEls.add(pinEl);
+                });
+            }
+        });
+
         const iter = document.createNodeIterator(svgEl, NodeFilter.SHOW_ELEMENT);
         let node;
         while ((node = iter.nextNode())) {
             if (node === svgEl) continue;
             const tag = node.tagName?.toLowerCase();
             if (!tag || SKIP.has(tag)) continue;
-            if (node.id === '_gridLayer' || node.id === '_gridDefs') continue;
+            if (node.id?.startsWith('_')) continue;  // skip all internal editor elements
             if (node.classList.contains('wire-group')  ||
                 node.classList.contains('component-group') ||
                 node.classList.contains('selection-handle-group') ||
                 node.closest?.('.wire-group, .component-group')) continue;
+            // Skip elements already handled by the tagged pre-pass (or nested inside them)
+            if (taggedEls.has(node) || node.closest?.('[data-geo-class]')) continue;
             // Skip pure container <g>s that have no direct geometry
             if (tag === 'g') continue;
 
@@ -426,6 +471,30 @@ Object.assign(MobileSVGEditor.prototype, {
             }
         }
         return { wireEls, compEls };
+    },
+
+    /** Score an element that carries data-geo-class — uses getBBox for <g> groups. */
+    _scoreTaggedEl(el) {
+        const tag = el.tagName?.toLowerCase();
+        const cls = el.getAttribute('data-geo-class');
+        if (tag === 'g') {
+            let b;
+            try { b = el.getBBox(); } catch (_) { return null; }
+            if (!b.width && !b.height) return null;
+            const bbox = { x: b.x, y: b.y, width: b.width, height: b.height };
+            return {
+                bbox,
+                aspect:      Math.max(b.width, b.height) / (Math.min(b.width, b.height) || 1),
+                linearity:   cls === 'wire' ? 1.0 : 0.0,
+                circularity: cls === 'wire' ? 0.0 : 1.0,
+                pathLen: 0, span: 0,
+                pts: cls === 'wire'
+                    ? [b.x, b.y, b.x + b.width, b.y + b.height]
+                    : [],
+            };
+        }
+        // Primitive elements: use normal geometric scoring
+        return this._scoreElement(el);
     },
 
     /** Compute geometric scores for any SVG element. Returns null if degenerate. */
@@ -712,6 +781,44 @@ Object.assign(MobileSVGEditor.prototype, {
         components.forEach(comp => {
             const { el, id, bbox } = comp;
             const tag = el.tagName?.toLowerCase();
+
+            // Pin-point circles live inside a domain-symbol that already has a hitbox —
+            // register them for topology only, no new DOM wrapping needed.
+            if (el.classList.contains('pin-point')) {
+                comp.element  = el;
+                comp.$element = $(el);
+                comp.$hitbox  = $(el);
+                comp.$group   = $(el);
+                this.components.push(comp);
+                return;
+            }
+
+            // Domain-symbol <g> elements stay in place — just append a hitbox rect
+            // inside the group using local-space coords from getBBox() so the group
+            // itself remains the selectable element for the canvas engine.
+            if (tag === 'g' && el.classList.contains('domain-symbol')) {
+                let lb;
+                try { lb = el.getBBox(); } catch (_) { lb = bbox; }
+                const hitbox = document.createElementNS(NS, 'rect');
+                hitbox.setAttribute('x',      String(lb.x));
+                hitbox.setAttribute('y',      String(lb.y));
+                hitbox.setAttribute('width',  String(lb.width));
+                hitbox.setAttribute('height', String(lb.height));
+                hitbox.setAttribute('fill-opacity',    '0');
+                hitbox.setAttribute('stroke-opacity',  '0');
+                hitbox.setAttribute('pointer-events',  'all');
+                hitbox.setAttribute('class',           'component-hitbox');
+                hitbox.setAttribute('data-component-id', id);
+                el.appendChild(hitbox);
+
+                comp.element  = el;
+                comp.$element = $(el);
+                comp.$hitbox  = $(hitbox);
+                comp.$group   = $(el);
+                this.components.push(comp);
+                return;
+            }
+
             const group = document.createElementNS(NS, 'g');
             group.setAttribute('class', 'component-group');
             group.setAttribute('data-component-id', id);
@@ -784,16 +891,23 @@ Object.assign(MobileSVGEditor.prototype, {
         const cls = el.getAttribute('class') || '';
         const id  = el.getAttribute('id')    || '';
 
-        // Semantic hints take priority
+        // Domain symbols carry their semantic type explicitly
+        const symId = el.getAttribute('data-symbol');
+        if (symId) return symId;   // 'resistor', 'capacitor', 'npn', etc.
+
+        // Pin-point circles inside symbols are connector endpoints
+        if (cls.includes('pin-point')) return 'connector';
+
+        // Semantic hints from class/id
         if (cls.includes('resistor'))  return 'resistor';
         if (cls.includes('capacitor')) return 'capacitor';
         if (cls.includes('switch'))    return 'switch';
         if (id.includes('relay'))      return 'relay';
 
-        // Geometric fallback
-        if (tag === 'circle' || circularity >= 0.7) return 'connector';
+        // Geometric fallback — avoid over-applying 'connector' to tagged groups
+        if (tag === 'circle' && circularity >= 0.7) return 'connector';
         if (tag === 'rect')                          return 'module';
-        if (circularity >= 0.45)                     return 'connector';
+        if (circularity >= 0.45 && tag !== 'g')      return 'connector';
         return 'component';
     },
 

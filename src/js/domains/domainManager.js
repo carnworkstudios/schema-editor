@@ -155,6 +155,7 @@ Object.assign(MobileSVGEditor.prototype, {
         g.setAttribute('transform', `translate(${x},${y})`);
         g.setAttribute('data-symbol', sym.id);
         g.setAttribute('data-domain', this.activeMode);
+        g.setAttribute('data-geo-class', sym.geoClass || 'component');
 
         // Import all children from the parsed SVG
         Array.from(doc.documentElement.children).forEach(child => {
@@ -181,6 +182,18 @@ Object.assign(MobileSVGEditor.prototype, {
         this.selectEl(g);
         this.showToast(`Placed: ${sym.label}`, 'success');
         if (typeof this.buildLayersTree === 'function') this.buildLayersTree();
+        this._scheduleGeoAnalysis();
+    },
+
+    // ── Debounced live GeoEngine pass (electrical mode only) ─────
+    _scheduleGeoAnalysis() {
+        if (this.activeMode !== 'electrical') return;
+        clearTimeout(this._geoAnalysisTimer);
+        this._geoAnalysisTimer = setTimeout(() => {
+            if (typeof this.analyzeWiringDiagram === 'function') {
+                this.analyzeWiringDiagram();
+            }
+        }, 600);
     },
 
     // ── Export options per mode ───────────────────────────────

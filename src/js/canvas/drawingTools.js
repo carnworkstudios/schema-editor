@@ -155,6 +155,11 @@ Object.assign(MobileSVGEditor.prototype, {
         // Assign unique id
         el.id = `el_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
         this._applyDrawStyle(el);
+        // Tag lines/wires as geo wires in electrical mode for live GeoEngine analysis
+        if (this.activeMode === 'electrical') {
+            const wireTools = new Set(['pen', 'line', 'wire']);
+            el.setAttribute('data-geo-class', wireTools.has(this.activeTool) ? 'wire' : 'component');
+        }
         this._contentRoot.appendChild(el);
         const after = this._captureFullState();
         this.pushHistory('Draw', this._drawState?.before || '', after);
@@ -162,6 +167,7 @@ Object.assign(MobileSVGEditor.prototype, {
         this.selectEl(el);
         this._refreshPropertyPanel();
         if (typeof this.buildLayersTree === 'function') this.buildLayersTree();
+        if (typeof this._scheduleGeoAnalysis === 'function') this._scheduleGeoAnalysis();
         return el;
     },
 
@@ -397,7 +403,7 @@ Object.assign(MobileSVGEditor.prototype, {
         const el = document.createElementNS(this.SVG_NS, 'path');
         el.setAttribute('d', d);
         el.setAttribute('fill', 'none');
-        el.classList.add('wire-group');
+        // el.classList.add('wire-group');
         this._commitElement(el);
     },
 });

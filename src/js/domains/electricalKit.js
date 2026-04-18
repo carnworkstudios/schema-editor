@@ -21,7 +21,7 @@
     const SYMBOLS = [
         // ── RESISTOR ────────────────────────────────────────
         {
-            id: 'resistor', label: 'Resistor', group: 'Passives',
+            id: 'resistor', label: 'Resistor', group: 'Passives', geoClass: 'component',
             defaultValue: '10kΩ', labelOffsetY: 22,
             pins: [{ x:-20, y:0 }, { x:20, y:0 }],
             svgPreview: `<g transform="translate(30,20)">
@@ -38,7 +38,7 @@
         },
         // ── CAPACITOR ───────────────────────────────────────
         {
-            id: 'capacitor', label: 'Capacitor', group: 'Passives',
+            id: 'capacitor', label: 'Capacitor', group: 'Passives', geoClass: 'component',
             defaultValue: '100nF', labelOffsetY: 22,
             pins: [{ x:-20, y:0 }, { x:20, y:0 }],
             svgPreview: `<g transform="translate(30,20)">
@@ -57,7 +57,7 @@
         },
         // ── INDUCTOR ────────────────────────────────────────
         {
-            id: 'inductor', label: 'Inductor', group: 'Passives',
+            id: 'inductor', label: 'Inductor', group: 'Passives', geoClass: 'component',
             defaultValue: '10mH', labelOffsetY: 22,
             pins: [{ x:-30, y:0 }, { x:30, y:0 }],
             svgPreview: `<g transform="translate(30,20)">
@@ -74,7 +74,7 @@
         },
         // ── DIODE ───────────────────────────────────────────
         {
-            id: 'diode', label: 'Diode', group: 'Semiconductors',
+            id: 'diode', label: 'Diode', group: 'Semiconductors', geoClass: 'component',
             defaultValue: '1N4148', labelOffsetY: 22,
             pins: [{ x:-20, y:0 }, { x:20, y:0 }],
             svgPreview: `<g transform="translate(30,20)">
@@ -93,7 +93,7 @@
         },
         // ── LED ─────────────────────────────────────────────
         {
-            id: 'led', label: 'LED', group: 'Semiconductors',
+            id: 'led', label: 'LED', group: 'Semiconductors', geoClass: 'component',
             defaultValue: 'LED', labelOffsetY: 22,
             pins: [{ x:-20, y:0 }, { x:20, y:0 }],
             svgPreview: `<g transform="translate(30,20)">
@@ -116,7 +116,7 @@
         },
         // ── NPN TRANSISTOR ───────────────────────────────────
         {
-            id: 'npn', label: 'NPN', group: 'Semiconductors',
+            id: 'npn', label: 'NPN', group: 'Semiconductors', geoClass: 'component',
             defaultValue: '2N3904', labelOffsetY: 40,
             pins: [{ x:-10, y:0 }, { x:10, y:-20 }, { x:10, y:20 }],
             svgPreview: `<g transform="translate(30,30)">
@@ -138,7 +138,7 @@
         },
         // ── IC GENERIC ──────────────────────────────────────
         {
-            id: 'ic-generic', label: 'IC', group: 'ICs',
+            id: 'ic-generic', label: 'IC', group: 'ICs', geoClass: 'component',
             defaultValue: 'U1', labelOffsetY: 55,
             pins: [],
             svgPreview: `<g transform="translate(5,5)">
@@ -161,7 +161,7 @@
         },
         // ── GROUND ──────────────────────────────────────────
         {
-            id: 'gnd', label: 'GND', group: 'Power',
+            id: 'gnd', label: 'GND', group: 'Power', geoClass: 'component',
             defaultValue: null,
             pins: [{ x:0, y:-16 }],
             svgPreview: `<g transform="translate(30,10)">
@@ -179,7 +179,7 @@
         },
         // ── VCC / POWER ──────────────────────────────────────
         {
-            id: 'vcc', label: 'VCC', group: 'Power',
+            id: 'vcc', label: 'VCC', group: 'Power', geoClass: 'component',
             defaultValue: '+5V',
             pins: [{ x:0, y:16 }],
             svgPreview: `<g transform="translate(30,20)">
@@ -193,7 +193,7 @@
         },
         // ── SWITCH / CONNECTOR ───────────────────────────────
         {
-            id: 'connector', label: 'Connector', group: 'Connectors',
+            id: 'connector', label: 'Connector', group: 'Connectors', geoClass: 'component',
             defaultValue: 'J1',
             pins: [{ x:-16, y:0 }],
             svgPreview: `<g transform="translate(30,20)">
@@ -209,7 +209,7 @@
         },
         // ── NET LABEL ────────────────────────────────────────
         {
-            id: 'net-label', label: 'Net Label', group: 'Wiring',
+            id: 'net-label', label: 'Net Label', group: 'Wiring', geoClass: 'junction',
             defaultValue: 'NET',
             pins: [{ x:-20, y:0 }],
             svgPreview: `<g transform="translate(10,20)">
