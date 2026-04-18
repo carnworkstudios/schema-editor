@@ -515,12 +515,6 @@
                 <div>Snap</div>
             </div>
 
-            <div class="control-btn" id="transformBtn" title="Transform / Side Panel">
-                <div class="icon"><iconify-icon icon="material-symbols:transform"
-                        style="font-size:20px;"></iconify-icon></div>
-                <div>Transform</div>
-            </div>
-
             <div class="control-btn" id="measureBtn" title="Measure Distance">
                 <div class="icon"><iconify-icon icon="material-symbols:straighten-outline"
                         style="font-size:20px;"></iconify-icon></div>
@@ -583,25 +577,6 @@
                     <label>Rotation</label>
                     <input type="range" id="rotationSlider" class="slider" min="-180" max="180" step="1" value="0">
                     <div class="value-display">Angle: <span id="rotationValue">0</span>°</div>
-                </div>
-
-                <div class="slider-group">
-                    <label>Pitch (Rotate X)</label>
-                    <input type="range" id="pitchSlider" class="slider" min="-60" max="60" step="1" value="0">
-                    <div class="value-display">Pitch: <span id="pitchValue">0</span>°</div>
-                </div>
-
-                <div class="slider-group">
-                    <label>Yaw (Rotate Y)</label>
-                    <input type="range" id="rotateYSlider" class="slider" min="0" max="90" step="1" value="0">
-                    <div class="value-display">Yaw: <span id="rotateYValue">0</span>°</div>
-                </div>
-
-                <div class="slider-group">
-                    <label>Perspective</label>
-                    <input type="range" id="perspectiveSlider" class="slider" min="500" max="3000" step="100"
-                        value="1500">
-                    <div class="value-display">Distance: <span id="perspectiveValue">1500</span>px</div>
                 </div>
 
                 <!-- Grid settings -->
@@ -824,12 +799,6 @@
             $('#groupBtn').on('click', () => window.editor.groupSelected());
             $('#ungroupBtn').on('click', () => window.editor.ungroupSelected());
             $('#deleteBtn').on('click', () => window.editor.deleteSelected());
-
-            // Side panel tab styling
-            $(document).on('click', '.side-tab', function () {
-                $('.side-tab').removeClass('active');
-                $(this).addClass('active');
-            });
 
             // Service Worker
             if ('serviceWorker' in navigator) {

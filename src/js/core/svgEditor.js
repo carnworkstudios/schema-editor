@@ -224,7 +224,6 @@ class MobileSVGEditor {
         $('#rotateLeftBtn').on('click', () => this.rotateViewLeft());
         $('#layersBtn').on('click',     () => this.toggleSidePanel());
         $('#measureBtn').on('click',    () => this.toggleMeasureTool());
-        $('#transformBtn').on('click',  () => this.toggleSidePanel());
         $('#gridToggleBtn').on('click', () => this.toggleGrid());
         $('#snapToggleBtn').on('click', () => this.toggleSnap());
 
@@ -337,17 +336,29 @@ class MobileSVGEditor {
             if (!isActive) $clicked.addClass('active');
         });
 
-        // Click outside side panel
+        // Click outside side panel closes it
         $(document).on('click', (e) => {
             const $t = $(e.target);
             if (!$t.closest('#sidePanel').length &&
-                !$t.closest('#transformBtn, #closePanelBtn, #layersBtn').length &&
+                !$t.closest('#closePanelBtn, #layersBtn').length &&
                 this.$sidePanel.hasClass('open')) {
                 this.closeSidePanel();
             }
         });
 
-        this.$svgContainer.on('contextmenu', (e) => e.preventDefault());
+        // Right-click on canvas: open side panel at Properties tab for the clicked element
+        this.$svgContainer.on('contextmenu', (e) => {
+            e.preventDefault();
+            const target = document.elementFromPoint(e.clientX, e.clientY);
+            if (target && target !== this.$svgDisplay[0] && target !== this.$svgContainer[0]) {
+                let el = target;
+                const symGroup = el.closest?.('.domain-symbol');
+                if (symGroup) el = symGroup;
+                this.selectEl(el, false);
+            }
+            if (!this.$sidePanel.hasClass('open')) this.$sidePanel.addClass('open');
+            this._switchSidePanelTab('properties');
+        });
 
         // Measure modal
         $(document).on('click', '.measure-tab', (e) => {

@@ -93,8 +93,28 @@ Object.assign(MobileSVGEditor.prototype, {
         layer.setAttribute('pointer-events', 'none');
         layer.style.display = this._grid.visible ? '' : 'none';
 
-        // Insert as first child so it's always behind content
-        svg.insertBefore(layer, svg.children[1] || null);
+        // Insert _gridLayer as first child of _cameraRotGroup so it:
+        //   (a) rotates with the camera, and
+        //   (b) is always behind user content inside the group.
+        // Falls back to SVG root position [1] if the group doesn't exist yet.
+        const rotGrp = svg.querySelector('#_cameraRotGroup');
+        if (rotGrp) {
+            rotGrp.insertBefore(layer, rotGrp.firstChild);
+        } else {
+            svg.insertBefore(layer, svg.children[1] || null);
+        }
+    },
+
+    // Move _gridLayer to sit after _canvasBg (if present) so it's visible on the white page.
+    // Called after _mountParsedSvg finishes importing content into _cameraRotGroup.
+    _repositionGridLayer() {
+        const rotGrp = this.$svgDisplay[0].querySelector('#_cameraRotGroup');
+        if (!rotGrp) return;
+        const gridLayer = rotGrp.querySelector('#_gridLayer');
+        const canvasBg  = rotGrp.querySelector('#_canvasBg');
+        if (gridLayer && canvasBg && canvasBg.nextSibling !== gridLayer) {
+            rotGrp.insertBefore(gridLayer, canvasBg.nextSibling);
+        }
     },
 
     toggleGrid() {

@@ -252,10 +252,15 @@ Object.assign(MobileSVGEditor.prototype, {
         // DO NOT hard-code pixel width/height here; that's what caused bug #1.
         this.$svgDisplay.attr('width', '100%').attr('height', '100%');
 
-        // Clear existing user content from the rotation group, then import new content.
-        // Infrastructure elements (_gridDefs, _gridLayer, _cameraRotGroup) stay at SVG root.
-        const contentRoot = this._contentRoot;
-        while (contentRoot.firstChild) contentRoot.removeChild(contentRoot.firstChild);
+        // .empty() wiped _cameraRotGroup and the grid — rebuild both before importing content.
+        const NS = this.SVG_NS;
+        const rotGroup = document.createElementNS(NS, 'g');
+        rotGroup.id = '_cameraRotGroup';
+        this.$svgDisplay[0].appendChild(rotGroup);
+        // Re-insert _gridDefs at SVG root and _gridLayer as first child of rotGroup
+        this._renderGridPattern();
+
+        const contentRoot = this._contentRoot;  // resolves to the fresh rotGroup
 
         $(svgElement).children().each((_, child) => {
             const cid = child.id || '';
@@ -267,6 +272,10 @@ Object.assign(MobileSVGEditor.prototype, {
             }
             contentRoot.appendChild(document.importNode(child, true));
         });
+
+        // If a white canvas page background was imported (_canvasBg), move _gridLayer
+        // to sit just after it so the grid is visible on the white surface.
+        this._repositionGridLayer();
 
         this.setupSVGInteractions();
 

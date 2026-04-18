@@ -173,7 +173,10 @@ Object.assign(MobileSVGEditor.prototype, {
     //   are removed from #svgWrapper; always agrees with SVG rendering.
     _worldToOverlayScreen(wx, wy) {
         const svg = this.$svgDisplay[0];
-        const ctnr = this.$svgContainer[0].getBoundingClientRect();
+        // Subtract the canvas's own screen origin so handle coords are canvas-relative.
+        // Using the canvas rect (not svgContainer) is the canonical reference because
+        // handles are painted onto the canvas element itself.
+        const canvasRect = this._overlayCanvas.getBoundingClientRect();
         const rotGrp = svg.querySelector('#_cameraRotGroup');
         const pt = svg.createSVGPoint();
         pt.x = wx; pt.y = wy;
@@ -182,7 +185,7 @@ Object.assign(MobileSVGEditor.prototype, {
         // svg.getScreenCTM() maps from SVG root space → screen (wrong when rotated).
         const m = rotGrp ? rotGrp.getScreenCTM() : svg.getScreenCTM();
         const sp = pt.matrixTransform(m);
-        return { x: sp.x - ctnr.left, y: sp.y - ctnr.top };
+        return { x: sp.x - canvasRect.left, y: sp.y - canvasRect.top };
     },
 
     // ── Step 7: Canvas overlay rendering ─────────────────────
@@ -322,7 +325,7 @@ Object.assign(MobileSVGEditor.prototype, {
     //   Canvas has no per-element pointer events; we maintain
     //   this._overlayHandleZones to detect hits manually.
     _hitTestOverlayHandles(clientX, clientY) {
-        const ctnr = this.$svgContainer[0].getBoundingClientRect();
+        const ctnr = this._overlayCanvas.getBoundingClientRect();
         const sx = clientX - ctnr.left, sy = clientY - ctnr.top;
         for (const z of (this._overlayHandleZones || [])) {
             if (z.type === 'circle') {
@@ -349,8 +352,9 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const before = this._captureFullState();
 
+        const svgStart = this.screenToSVG(startX, startY);
+
         const onMove = (ev) => {
-            const svgStart = this.screenToSVG(startX, startY);
             const svgNow = this.screenToSVG(ev.clientX, ev.clientY);
             const dx = svgNow.x - svgStart.x;
             const dy = svgNow.y - svgStart.y;
@@ -358,8 +362,11 @@ Object.assign(MobileSVGEditor.prototype, {
             if (type === 'rotate') {
                 const cx = startBB.x + startBB.width / 2;
                 const cy = startBB.y + startBB.height / 2;
-                const angle = Math.atan2(svgNow.y - cy, svgNow.x - cx) * 180 / Math.PI + 90;
-                const snapped = Math.round(angle / 15) * 15;
+                const startAngle = Math.atan2(svgStart.y - cy, svgStart.x - cx) * 180 / Math.PI;
+                let delta = Math.atan2(svgNow.y - cy, svgNow.x - cx) * 180 / Math.PI - startAngle;
+                // Normalize to [-180,180] to avoid jumps at the ±180 boundary
+                delta -= 360 * Math.round(delta / 360);
+                const snapped = Math.round(delta / 15) * 15;
                 this._applyRotation(startTransforms, cx, cy, snapped);
             } else {
                 this._applyResize(startTransforms, startBB, type, dx, dy, ev.shiftKey);
@@ -398,22 +405,27 @@ Object.assign(MobileSVGEditor.prototype, {
                 : 1;
         const sx = Math.max(0.01, lockAspect ? Math.min(scaleX, scaleY) : scaleX);
         const sy = Math.max(0.01, lockAspect ? Math.min(scaleX, scaleY) : scaleY);
-        const tx = handle.includes('w') ? startBB.x + startBB.width * (1 - sx) : startBB.x;
-        const ty = handle.includes('n') ? startBB.y + startBB.height * (1 - sy) : startBB.y;
+        // Anchor: the bbox corner that stays fixed (opposite the dragged handle).
+        const ax = handle.includes('w') ? startBB.x + startBB.width : startBB.x;
+        const ay = handle.includes('n') ? startBB.y + startBB.height : startBB.y;
 
-        startTransforms.forEach(({ el }) => {
-            const cx = startBB.x + startBB.width / 2;
-            const cy = startBB.y + startBB.height / 2;
+        // Compose world-space scale-about-anchor with the element's original transform.
+        // translate(ax,ay) scale(sx,sy) translate(-ax,-ay) origT  is mathematically:
+        //   newWorldMatrix = scaleAboutAnchor * originalWorldMatrix
+        // This preserves any existing rotation or offset in origT (palette symbols, etc.)
+        startTransforms.forEach(({ el, transform: origT }) => {
             el.setAttribute('transform',
-                `translate(${tx + (lockAspect ? 0 : 0)},${ty}) scale(${sx},${sy}) translate(${-startBB.x},${-startBB.y})`
+                `translate(${ax},${ay}) scale(${sx},${sy}) translate(${-ax},${-ay}) ${origT}`
             );
         });
     },
 
     _applyRotation(startTransforms, cx, cy, angle) {
-        startTransforms.forEach(({ el, transform }) => {
-            const existing = transform.replace(/rotate\([^)]*\)/g, '').trim();
-            el.setAttribute('transform', `${existing} rotate(${angle},${cx},${cy})`);
+        // Prepend a world-space rotation to the element's original transform (captured at
+        // drag-start).  Using a delta angle keeps rotations from accumulating over multiple
+        // drag sessions — each session composes a fresh delta on top of origT.
+        startTransforms.forEach(({ el, transform: origT }) => {
+            el.setAttribute('transform', `rotate(${angle},${cx},${cy}) ${origT}`);
         });
     },
 
@@ -453,7 +465,23 @@ Object.assign(MobileSVGEditor.prototype, {
 
     // ── Canvas Event Binding ──────────────────────────────────
 
+    // Bidirectional resize cursors per handle id.  'rotate' uses crosshair.
+    _HANDLE_CURSORS: {
+        nw: 'nwse-resize', n: 'ns-resize',  ne: 'nesw-resize',
+        e:  'ew-resize',   se: 'nwse-resize', s:  'ns-resize',
+        sw: 'nesw-resize', w: 'ew-resize',
+        rotate: 'crosshair',
+    },
+
     _bindCanvasEvents() {
+        // Cursor update on hover — changes to resize/rotate cursor over overlay handles
+        this.$svgDisplay.on('mousemove.canvasCursor', (e) => {
+            if (this.activeTool !== 'select' || !this._useCanvasHandles) return;
+            const handleId = this._hitTestOverlayHandles(e.clientX, e.clientY);
+            const cursor = handleId ? (this._HANDLE_CURSORS[handleId] || 'default') : '';
+            this.$svgContainer[0].style.cursor = cursor;
+        });
+
         // Click on canvas — select element or deselect
         this.$svgDisplay.on('mousedown.canvas', (e) => {
             if (this.activeTool !== 'select') return;

@@ -7,9 +7,12 @@
 Object.assign(MobileSVGEditor.prototype, {
 
     initPropertyPanel() {
-        this._propPanelTarget = null;   // current selected element
+        this._propPanelTarget = null;
+        this._activeSidePanelTab = 'layers';  // Layers is default; persists across selections
         this._buildPropertyPanelHTML();
         this._bindPropertyPanelEvents();
+        // Apply initial tab state so viewControlsGroup is hidden on the Layers tab
+        this._switchSidePanelTab('layers');
     },
 
     // ── Build panel HTML ──────────────────────────────────────
@@ -229,11 +232,6 @@ Object.assign(MobileSVGEditor.prototype, {
 
         // Align/distribute (multi-select)
         $('#prop-align-group').toggle(sel.length >= 2);
-
-        // Ensure panel is open
-        if (!$('#sidePanel').hasClass('open')) this.toggleSidePanel();
-        // Switch to property tab
-        this._switchSidePanelTab('properties');
     },
 
     _clearPropertyPanel() {
@@ -243,12 +241,18 @@ Object.assign(MobileSVGEditor.prototype, {
 
     // ── Side panel tab switching ──────────────────────────────
     _switchSidePanelTab(tab) {
+        this._activeSidePanelTab = tab;
+        // Tab button active states
+        $('#sidePanelTabLayers').toggleClass('active', tab === 'layers');
+        $('#sidePanelTabProperties').toggleClass('active', tab === 'properties');
         if (tab === 'properties') {
             $('#propertyPanel').show();
-            $('#layersPanel').closest('.control-group').hide();
+            $('#layersPanelWrap').hide();
+            $('#viewControlsGroup').show();
         } else {
             $('#propertyPanel').hide();
-            $('#layersPanel').closest('.control-group').show();
+            $('#layersPanelWrap').show();
+            $('#viewControlsGroup').hide();
         }
     },
 
