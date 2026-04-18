@@ -231,8 +231,10 @@ class MobileSVGEditor {
         $('#highlightComponentsBtn').on('click', () => {
             if (this.isComponentBox) {
                 this.hideComponentBox();
+                this.hideModules();
             } else {
-                this.highlightComponents();
+                this.highlightComponents(); //highlight shapes  
+                this.highlightModules(); // handles shapes + domain symbols (modules)
             }
             this.isComponentBox = !this.isComponentBox;
         });
@@ -240,8 +242,10 @@ class MobileSVGEditor {
         $('#showConnectionsBtn').on('click', () => {
             if (this.isConnectionWire) {
                 this.hideConnections();
+                this.hideConnectors();
             } else {
                 this.showConnections();
+                this.highlightConnectors();
             }
             this.isConnectionWire = !this.isConnectionWire;
         });

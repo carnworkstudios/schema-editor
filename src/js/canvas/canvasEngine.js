@@ -110,6 +110,7 @@ Object.assign(MobileSVGEditor.prototype, {
         const after = this._captureFullState();
         this.pushHistory('Delete', before, after);
         this.showToast('Deleted', 'success');
+        if (typeof this.buildLayersTree === 'function') this.buildLayersTree();
     },
 
     // ── Group / Ungroup ───────────────────────────────────────

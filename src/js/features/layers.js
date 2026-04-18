@@ -10,25 +10,54 @@ Object.assign(MobileSVGEditor.prototype, {
     showLayers() {
         this.$sidePanel.addClass('open');
         this.buildLayersTree();
+        this._initLayerObserver();
+    },
+
+    _initLayerObserver() {
+        if (!this._layerObserver) {
+            this._layerObserver = new MutationObserver(() => {
+                clearTimeout(this._layerObserverTimer);
+                this._layerObserverTimer = setTimeout(() => this.buildLayersTree(), 150);
+            });
+        }
+        // Always re-observe: _contentRoot may be a new element after canvas switch
+        this._layerObserver.disconnect();
+        const root = this._contentRoot;
+        if (!root) return;
+        this._layerObserver.observe(root, {
+            childList: true,
+            subtree:   true,
+            attributes: true,
+            attributeFilter: ['id', 'data-symbol', 'data-geo-class'],
+        });
     },
 
     buildLayersTree() {
+        this._initLayerObserver();   // re-attach in case _contentRoot changed
         const $panel = $('#layersPanel');
         $panel.empty();
 
-        const rootElements = Array.from(this.$svgDisplay[0].children)
-            .filter(el => el.id !== '_gridLayer' && el.id !== '_gridDefs' &&
-                          !el.classList.contains('selection-handle-group'));
+        // Walk _contentRoot (inside _cameraRotGroup), not $svgDisplay root —
+        // structural elements (_cameraRotGroup, _gridLayer, defs) never appear here.
+        const contentRoot  = this._contentRoot;
+        const rootElements = contentRoot
+            ? Array.from(contentRoot.children)
+                .filter(el => !el.classList.contains('selection-handle-group'))
+            : [];
 
         if (rootElements.length === 0) {
             $panel.html('<p style="color:rgba(255,255,255,0.4);font-size:11px;padding:8px;">Load an SVG to see layers.</p>');
             return;
         }
 
-        // ── Topology-aware mode: analysis has run ─────────────
-        const hasTopology = this.wires?.length > 0 || this.components?.length > 0;
+        // ── Topology-aware mode: use live (connected) records only ────
+        const liveWires      = (this.wires      || []).filter(w => w.element?.isConnected);
+        const liveComponents = (this.components || []).filter(c => c.element?.isConnected);
+        const liveConnectors = (this.connectors || []).filter(c => c.element?.isConnected);
+        const hasTopology    = liveWires.length > 0 || liveComponents.length > 0 || liveConnectors.length > 0;
+
         if (hasTopology) {
-            this._buildTopologyLayerTree($panel);
+            this._buildTopologyLayerTree($panel, liveWires, liveComponents, liveConnectors);
             return;
         }
 
@@ -37,7 +66,7 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     // ── Topology layer groups (post-analysis) ─────────────────
-    _buildTopologyLayerTree($panel) {
+    _buildTopologyLayerTree($panel, liveWires, liveComponents, liveConnectors) {
         // Build semantic buckets from graph data
         const groups = {
             wires:      { label: 'Wires',      icon: 'material-symbols:route-outline',       items: [], color: '#4facfe' },
@@ -47,8 +76,8 @@ Object.assign(MobileSVGEditor.prototype, {
             other:      { label: 'Other',      icon: 'material-symbols:layers-outline',       items: [], color: '#94a3b8' },
         };
 
-        // Populate wires bucket
-        this.wires.forEach(w => {
+        // Populate wires bucket (live records only)
+        liveWires.forEach(w => {
             groups.wires.items.push({
                 el:    w.element,
                 id:    w.id,
@@ -57,15 +86,39 @@ Object.assign(MobileSVGEditor.prototype, {
             });
         });
 
-        // Populate component buckets by type
-        this.components.forEach(c => {
+        // Populate connectors bucket (live pin-points)
+        liveConnectors.forEach(c => {
+            groups.connectors.items.push({
+                el: c.element, id: c.id,
+                label: `${c.id}  · pin`,
+                extra: '',
+            });
+        });
+
+        // Populate modules: bypass GeoEngine — query live DOM for domain symbols directly
+        const trackedByGeo = new Set();
+        this._contentRoot.querySelectorAll('[data-symbol]').forEach((el, i) => {
+            if (!el.isConnected) return;
+            const symType = el.getAttribute('data-symbol');
+            const domId   = el.id || `sym_${symType}_${i}`;
+            groups.modules.items.push({
+                el, id: domId,
+                label: `${domId}  · ${symType}`,
+                extra: '',
+            });
+            trackedByGeo.add(el);
+        });
+
+        // Remaining GeoEngine components (live, non-domain-symbol shapes)
+        liveComponents.forEach(c => {
+            if (trackedByGeo.has(c.element)) return;
             const label = `${c.id}  · ${c.type}`;
             const extra = c.circularity != null ? `C: ${c.circularity.toFixed(2)}` : '';
             const item  = { el: c.element, id: c.id, label, extra };
-            if (c.type === 'connector' || c.type === 'connector')
+            if (c.type === 'connector')
                 groups.connectors.items.push(item);
-            else if (c.type === 'module' || c.type === 'resistor' ||
-                     c.type === 'capacitor' || c.type === 'relay' || c.type === 'switch')
+            else if (c.type === 'module' || c.type === 'resistor' || c.type === 'capacitor' ||
+                     c.type === 'relay'  || c.type === 'switch')
                 groups.modules.items.push(item);
             else
                 groups.other.items.push(item);

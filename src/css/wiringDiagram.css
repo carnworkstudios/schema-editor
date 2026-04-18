@@ -72,6 +72,24 @@
 }
 
 /* ============================================================
+   Module Highlight (domain symbol palette elements)
+   ============================================================ */
+.module-highlight {
+    fill: rgba(163, 230, 53, 0.35) !important;
+    stroke: #84cc16 !important;
+    filter: drop-shadow(0 0 4px rgba(100, 239, 200, 0.85)) !important;
+}
+
+/* ============================================================
+   Wire Endpoint (connector pin-points lit when wire is traced)
+   ============================================================ */
+.wire-endpoint {
+    fill: #feb84f !important;
+    stroke: #4facfe !important;
+    filter: drop-shadow(0 0 4px rgba(79, 172, 254, 0.85)) !important;
+}
+
+/* ============================================================
    Wire Hitbox (invisible wider click target over each wire)
    ============================================================ */
 .wire-hitbox {

@@ -210,6 +210,7 @@ Object.assign(MobileSVGEditor.prototype, {
         this._bboxMap   = new Map();   // elementId → {x,y,width,height}
         this.graph      = { nodes: new Map(), edges: new Map(), adjacency: new Map() };
         this._quadTree  = null;        // built lazily if nodes > 500
+        this.connectors = [];          // pin-point circles — separate from this.components
     },
 
     // ══════════════════════════════════════════════════════════
@@ -218,6 +219,7 @@ Object.assign(MobileSVGEditor.prototype, {
     _runGeometryPipeline() {
         this.wires      = [];
         this.components = [];
+        this.connectors = [];
         this.connections= [];
         this.graph      = { nodes: new Map(), edges: new Map(), adjacency: new Map() };
         this._bboxMap   = new Map();
@@ -782,14 +784,14 @@ Object.assign(MobileSVGEditor.prototype, {
             const { el, id, bbox } = comp;
             const tag = el.tagName?.toLowerCase();
 
-            // Pin-point circles live inside a domain-symbol that already has a hitbox —
-            // register them for topology only, no new DOM wrapping needed.
+            // Pin-point circles are connectors — separate bucket from components.
             if (el.classList.contains('pin-point')) {
                 comp.element  = el;
                 comp.$element = $(el);
                 comp.$hitbox  = $(el);
                 comp.$group   = $(el);
-                this.components.push(comp);
+                comp.type     = 'connector';
+                this.connectors.push(comp);
                 return;
             }
 
@@ -959,6 +961,9 @@ Object.assign(MobileSVGEditor.prototype, {
         // Also highlight by adjacency list (for junction-connected comps)
         const adj = this.graph.adjacency.get(edge.from) || [];
         adj.forEach(nid => highlight(nid));
+
+        // Highlight connector pin-points near the wire's endpoints (logic lives in highlights.js)
+        this.highlightWireEndpoints?.(wire);
     },
 
     isWire($element) {
