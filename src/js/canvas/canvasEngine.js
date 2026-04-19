@@ -103,8 +103,12 @@ Object.assign(MobileSVGEditor.prototype, {
 
     deleteSelected() {
         if (!this._selection.length) return;
+        const unlocked = this._selection.filter(el => el.dataset.locked !== 'true');
+        if (unlocked.length < this._selection.length)
+            this.showToast('Locked elements skipped — unlock in Layers panel first', 'error');
+        if (!unlocked.length) return;
         const before = this._captureFullState();
-        this._selection.forEach(el => el.remove());
+        unlocked.forEach(el => el.remove());
         this._selection = [];
         this._removeHandles();
         const after = this._captureFullState();
@@ -527,6 +531,12 @@ Object.assign(MobileSVGEditor.prototype, {
             // component (with its translate transform) gets selected
             const symGroup = el.closest('.domain-symbol');
             if (symGroup) el = symGroup;
+
+            // Locked elements (canvas background, grid) cannot be selected
+            if (el.dataset.locked === 'true') {
+                this.showToast('Element is locked — unlock in Layers panel to edit', 'error');
+                return;
+            }
 
             e.stopPropagation();
             this.selectEl(el, e.shiftKey || e.ctrlKey || e.metaKey);

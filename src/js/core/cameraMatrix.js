@@ -8,6 +8,9 @@
    uses getScreenCTM() for handle positioning — not this matrix.
    ============================================================ */
 
+const ZOOM_MIN = 0.02;
+const ZOOM_MAX = 500;
+
 class CameraMatrix {
     constructor() {
         this._zoom  = 1;
@@ -21,17 +24,18 @@ class CameraMatrix {
     get tx()   { return this._tx; }
     get ty()   { return this._ty; }
 
-    setZoom(z)     { this._zoom = z; this._dirty = true; }
+    setZoom(z)     { this._zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +z || 1)); this._dirty = true; }
     setPan(tx, ty) { this._tx = tx; this._ty = ty; this._dirty = true; }
     panBy(dx, dy)  { this._tx += dx; this._ty += dy; this._dirty = true; }
 
     // Zoom-at-cursor: keeps the world point under screen point (sx, sy) fixed.
     // sx, sy are CONTAINER-relative pixels (clientX - ctnrRect.left).
     zoomAt(newZoom, sx, sy) {
-        const ratio = newZoom / this._zoom;
+        const z = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +newZoom || 1));
+        const ratio = z / this._zoom;
         this._tx = sx - ratio * (sx - this._tx);
         this._ty = sy - ratio * (sy - this._ty);
-        this._zoom = newZoom;
+        this._zoom = z;
         this._dirty = true;
     }
 

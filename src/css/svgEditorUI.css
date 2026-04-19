@@ -356,7 +356,7 @@ body {
     color: rgba(0, 0, 0, 0.6);
 }
 
-.control-btn:hover {
+.control-btn:hover, .control-btn.active {
     background: rgba(79, 172, 254, 0.12);
     border-color: rgba(79, 172, 254, 0.4);
     color: #0066cc;
@@ -364,7 +364,7 @@ body {
 
 .control-btn:active {
     transform: scale(0.95);
-    background: rgba(79, 172, 254, 0.22);
+    background: rgba(67, 162, 245, 0.22);
 }
 
 .control-btn .icon {
@@ -476,6 +476,34 @@ body {
     background: rgba(79, 172, 254, 0.2);
     border-left-color: #0099dd;
     color: #0066cc;
+}
+
+.layer-item-locked {
+    border-left-color: rgba(251, 191, 36, 0.5);
+    background: rgba(251, 191, 36, 0.05);
+}
+
+.layer-item-locked:hover {
+    background: rgba(251, 191, 36, 0.1);
+    border-left-color: #fbbf24;
+}
+
+.layer-item-locked .layer-name {
+    color: rgba(255, 255, 255, 0.4);
+    cursor: default;
+    font-style: italic;
+}
+
+.layer-lock-btn {
+    transition: color 0.15s;
+}
+
+.layer-lock-btn:hover {
+    color: #fbbf24 !important;
+}
+
+body:not(.dark-mode) .layer-item-locked .layer-name {
+    color: rgba(0, 0, 0, 0.35);
 }
 
 .layer-toggle {

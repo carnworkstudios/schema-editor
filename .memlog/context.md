@@ -15,40 +15,32 @@ pruning rule:
 
 ## Session Handoff
 
-last_file: tools/schema-editor/src/js/canvas/canvasEngine.js
-active_task: Camera/coordinate system refactor — runtime bugs fixed
-branch_state: schema-editor changes staged (not yet committed)
+last_file: tools/schema-editor/src/css/svgEditorUI.css
+active_task: Locked-layer system + undo wire-array bug fix
+branch_state: uncommitted changes (7 files modified, not committed)
 
-## What happened this session (Apr 16 2026)
+## What happened this session (Apr 18 2026)
 
-**Camera/Coordinate Refactor — Bug Fixes (all 5 bugs resolved):**
+**Symbol palette SVG preview fix:**
+- `domainManager.js` `_renderSymbolPalette`: wrapped `sym.svgPreview` in `<svg viewBox="0 0 65 52">` — browsers need a proper SVG root to render shape primitives inside a div
 
-**Bug 1 — Pan jump (Hammer.js dual-fire with native mouse drag)**
-- `svgEditor.js` `setupGestures()`: added `if (ev.pointerType === 'mouse') return;` at top of `panstart` handler
-- Mouse pan handled exclusively by native `mousedown/mousemove`; Hammer now handles touch/stylus only
-- Fixed stale refs: `this.currentZoom` → `this.camera.zoom`, `{ ...this.currentTranslate }` → `{ x: this.camera.tx, y: this.camera.ty }` (3 locations each)
+**Highlight classification fix (highlights.js):**
+- `highlightComponents`: changed from `[data-symbol]` (whole group) → `[data-symbol] > *` filtered to exclude `.pin-point` and `.sym-value`
+- `highlightConnectors`: added DOM fallback `[data-symbol] circle.pin-point` alongside `this.connectors` array
+- Module = whole `[data-symbol]` group (unchanged/correct)
 
-**Bug 2 — Symbols/drawn elements placed outside `_cameraRotGroup`**
-- All user-content `appendChild` calls migrated to `this._contentRoot`:
-  - `domainManager.js` line ~178: `_placeSymbol`
-  - `drawingTools.js` lines ~145, ~156, ~351: preview + commit + text
-  - `clipboard.js` line ~54: paste
-  - `wiringDiagram.js` lines ~738, ~804: wire groups + component overlays
+**Locked-layer system:**
+- `svgEditor.js:461`: `_canvasBg` rect gets `data-locked="true"` at new-canvas creation
+- `wiringDiagram.js` `_mountParsedSvg`: locks any imported `#_canvasBg` after mount
+- `canvasEngine.js` `_bindCanvasEvents`: blocks clicking locked elements (toast)
+- `canvasEngine.js` `deleteSelected`: filters out locked elements, warns if any skipped
+- `layers.js` `buildLayersTree`: filters `_gridLayer` from tree (grid only via toggle button)
+- `layers.js` `_buildFlatLayerTree`: lock icon per item, click toggles `data-locked`, locked items show amber border + italic dimmed name, rename blocked while locked
+- `svgEditorUI.css`: `.layer-item-locked`, `.layer-lock-btn`, light-mode overrides
 
-**Bug 3 — SVG import used stale camera variables**
-- `wiringDiagram.js` SVG load path: removed `this.currentZoom/Translate/Pitch/Yaw = ...`
-- Replaced with `this.camera.setState({ zoom: 1, tx: 0, ty: 0 })` + `this.currentRotation = 0`
-- Import now clears `_contentRoot` children first, then routes correctly (defs → SVG root, content → `_contentRoot`)
-
-**Bug 4 — Rotate/scale operated around wrong origin**
-- `canvasEngine.js` `_getSelectionBBoxWorld()`: walk now stops at `_cameraRotGroup` (exclusive)
-- Keeps bbox coords in document-local space where element `transform=` attributes are interpreted
-- Previously walked to SVG root, including camera rotation in bbox → origin was wrong
-
-**Bug 5 — Screen↔world mapping inconsistent at rotation ≠ 0**
-- `canvasEngine.js` `_worldToOverlayScreen()`: now uses `_cameraRotGroup.getScreenCTM()` (not `svg.getScreenCTM()`)
-- `snapGrid.js` `screenToSVG()`: same fix — uses `_cameraRotGroup.getScreenCTM().inverse()`
-- SVG root space ≠ document-local space when camera is rotated; both methods now use the correct space
+**Undo wire-array bug fix (history.js):**
+- Root cause: wire-group wrappers have no `id` → invisible to `_captureFullState` → stale `this.wires/components/connectors` arrays after undo
+- Fix: in `_applyHistoryState`, after `_restoreFullState`, clear all three arrays and call `_scheduleGeoAnalysis?.()` to rebuild from restored DOM
 
 ## Architecture Contract (stable)
 
@@ -60,18 +52,25 @@ branch_state: schema-editor changes staged (not yet committed)
 | Mapping: doc-local → screen | `_cameraRotGroup.getScreenCTM()` | `_worldToOverlayScreen`, `screenToSVG` |
 | Mapping: screen → doc-local | `_cameraRotGroup.getScreenCTM().inverse()` | `screenToSVG` |
 
+## Lock contract
+
+| Element | Locked by default | Can unlock |
+|---|---|---|
+| `#_canvasBg` | Yes (`data-locked="true"`) | Yes — via lock icon in Layers panel |
+| `#_gridLayer` | Hidden from Layers panel entirely | N/A — only Grid ON/OFF toggle |
+| Domain symbols | No | N/A |
+| Drawn shapes | No | User can lock manually via Layers |
+
 ## Active Commits (HEAD per repo)
 
-portfolio:        0d59b9c  "updated codebase — table-formatter with vedant and my update"
-table-formatter:  dc6b952  "Add arrow key navigation (#5)" — staged changes pending commit
-schema-editor:    0fdcf7b  "updated the README.md" — camera refactor changes staged, not committed
-pdf-processor:    7c37663  (latest; in-progress)
+portfolio:        eaee4da  "Updated schema-editor to use proper rendering engine for SVG"
+schema-editor:    0fdcf7b  "updated the README.md" — 7 files modified, not committed
 
 ## next_action
 
-  1. Test in browser: pan (smooth?), draw element, select, rotate, scale, undo
-  2. Test symbol drag-and-drop from palette onto canvas
-  3. Test SVG file import — content visible, fit-to-view works, camera reset
+  1. Test in browser: open Layers panel, verify _gridLayer absent, verify _canvasBg shows amber lock, click lock icon to unlock/relock
+  2. Test: click canvas background → locked toast; delete locked → skipped toast
+  3. Test: place symbol → undo → verify wires/components re-analyzed, no disappearing
   4. Commit all schema-editor changes
   5. Wire delete: click bezier hit-test + Delete key handler (not yet implemented)
   6. Table mode: row count gate (warn > 5k) + chunked render for initial load

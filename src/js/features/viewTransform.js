@@ -14,10 +14,14 @@ Object.assign(MobileSVGEditor.prototype, {
         const container = this.$svgContainer[0];
         if (!svg || !container) return;
 
-        // Original document viewBox (the "content area")
+        // Original document viewBox (the "content area").
+        // Prefer the stored snapshot over the live attribute — the live attribute can contain
+        // corrupted overflow values if a previous updateTransform wrote bad numbers.
         const raw = (this.originalViewBox || svg.getAttribute('viewBox') || '0 0 1200 800').trim();
         const vb = raw.split(/[\s,]+/).map(Number);
-        this._origDocViewBox = { x: vb[0], y: vb[1], w: vb[2], h: vb[3] };
+        const vbOk = vb.length === 4 && vb.every(isFinite) && vb[2] > 0 && vb[3] > 0;
+        const safe = vbOk ? vb : [0, 0, 1200, 800];
+        this._origDocViewBox = { x: safe[0], y: safe[1], w: safe[2], h: safe[3] };
 
         const cW = container.clientWidth || 1;
         const cH = container.clientHeight || 1;
@@ -103,6 +107,13 @@ Object.assign(MobileSVGEditor.prototype, {
         const svgPerPx = base.w / (zoom * cW);   // SVG units per screen pixel
         const vbX = base.x - tx * svgPerPx;
         const vbY = base.y - ty * svgPerPx;
+
+        if (!isFinite(vbX) || !isFinite(vbY) || !isFinite(vbW) || !isFinite(vbH) || vbW <= 0 || vbH <= 0) {
+            console.warn('[viewTransform] viewBox overflow — resetting camera', { zoom, tx, ty, vbX, vbY, vbW, vbH });
+            this.camera.setState({ zoom: 1, tx: 0, ty: 0 });
+            this._computeBaseViewBox();
+            return;
+        }
 
         svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
 

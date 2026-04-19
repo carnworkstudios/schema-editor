@@ -42,7 +42,8 @@ Object.assign(MobileSVGEditor.prototype, {
         const contentRoot  = this._contentRoot;
         const rootElements = contentRoot
             ? Array.from(contentRoot.children)
-                .filter(el => !el.classList.contains('selection-handle-group'))
+                .filter(el => !el.classList.contains('selection-handle-group')
+                           && el.id !== '_gridLayer')
             : [];
 
         if (rootElements.length === 0) {
@@ -254,10 +255,19 @@ Object.assign(MobileSVGEditor.prototype, {
                 const isGroup    = tag === 'g';
                 const childCount = isGroup ? el.children.length : 0;
                 const icon       = isGroup ? (childCount > 0 ? '▾' : '◂') : '●';
+                const isLocked   = el.dataset.locked === 'true';
+
+                const lockIcon   = isLocked
+                    ? 'material-symbols:lock-outline'
+                    : 'material-symbols:lock-open-outline';
+                const lockTitle  = isLocked ? 'Unlock element' : 'Lock element';
 
                 const $item = $(`
-                    <div class="layer-item" data-element-id="${id}" style="margin-left:${depth * 10}px;">
+                    <div class="layer-item${isLocked ? ' layer-item-locked' : ''}" data-element-id="${id}" style="margin-left:${depth * 10}px;">
                         <button class="layer-toggle" data-toggle="${id}">${icon}</button>
+                        <button class="layer-toggle layer-lock-btn" data-lock-id="${id}" title="${lockTitle}" style="color:${isLocked ? '#fbbf24' : 'rgba(255,255,255,0.3)'};">
+                            <iconify-icon icon="${lockIcon}" style="font-size:12px;"></iconify-icon>
+                        </button>
                         <button class="layer-toggle" data-visibility="${id}" title="Toggle visibility">
                             <iconify-icon icon="material-symbols:visibility-outline" style="font-size:12px;"></iconify-icon>
                         </button>
@@ -265,7 +275,14 @@ Object.assign(MobileSVGEditor.prototype, {
                     </div>
                 `);
 
-                $item.on('click', () => this.selectLayer(el, $item));
+                // Click on item row → select (unless locked)
+                $item.on('click', () => {
+                    if (el.dataset.locked === 'true') {
+                        this.showToast('Element is locked — click the lock icon to unlock', 'error');
+                        return;
+                    }
+                    this.selectLayer(el, $item);
+                });
                 $item.on('mouseenter', () => { if (!$item.hasClass('active')) $(el).addClass('layer-hover-highlight'); })
                      .on('mouseleave',  () => $(el).removeClass('layer-hover-highlight'));
 
@@ -273,6 +290,15 @@ Object.assign(MobileSVGEditor.prototype, {
                     e.stopPropagation();
                     $item.toggleClass('collapsed');
                     $item.find(`[data-toggle="${id}"]`).text($item.hasClass('collapsed') ? '▸' : '▾');
+                });
+
+                // Lock toggle
+                $item.find('.layer-lock-btn').on('click', e => {
+                    e.stopPropagation();
+                    const locked = el.dataset.locked === 'true';
+                    el.setAttribute('data-locked', locked ? 'false' : 'true');
+                    this.showToast(locked ? 'Element unlocked' : 'Element locked', 'success');
+                    this.buildLayersTree();
                 });
 
                 $item.find(`[data-visibility="${id}"]`).on('click', e => {
@@ -284,6 +310,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
                 $item.find('.layer-name').on('dblclick', e => {
                     e.stopPropagation();
+                    if (el.dataset.locked === 'true') return;
                     this.startLayerRename(el, $item, $(e.currentTarget));
                 });
 

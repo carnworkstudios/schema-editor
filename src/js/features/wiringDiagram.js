@@ -273,6 +273,10 @@ Object.assign(MobileSVGEditor.prototype, {
             contentRoot.appendChild(document.importNode(child, true));
         });
 
+        // Lock any imported canvas background so it can't be accidentally moved/deleted.
+        const importedBg = contentRoot.querySelector('#_canvasBg');
+        if (importedBg) importedBg.setAttribute('data-locked', 'true');
+
         // If a white canvas page background was imported (_canvasBg), move _gridLayer
         // to sit just after it so the grid is visible on the white surface.
         this._repositionGridLayer();

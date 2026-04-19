@@ -112,6 +112,122 @@ ${svgData}
         this.showToast('JSON exported', 'success');
     },
 
+    // ── CWS Netlist IPC ──────────────────────────────────────
+
+    buildNetlistJson() {
+        const name = this.displays[this.activeDisplayIdx]?.name || 'diagram';
+
+        const components = this.components.map(comp => {
+            const el = comp.element || comp.$element?.[0];
+            const labelEl = el?.querySelector?.('text.sym-value');
+            const label = labelEl?.textContent || '';
+
+            let x = 0, y = 0;
+            const tfm = el?.getAttribute?.('transform') || '';
+            const m = tfm.match(/translate\(\s*([\d.+-]+)[,\s]+([\d.+-]+)\s*\)/);
+            if (m) { x = parseFloat(m[1]); y = parseFloat(m[2]); }
+
+            const ports = this.graph?.nodes?.get(comp.id)?.ports || comp.ports || [];
+
+            return {
+                id:         comp.id || '',
+                refdes:     label,
+                value:      label,
+                symbolType: el?.getAttribute?.('data-symbol') || comp.type || 'unknown',
+                domain:     el?.getAttribute?.('data-domain') || this.activeMode || '',
+                x, y,
+                ports: ports.map(p => ({ wireId: p.wireId || '', x: p.x || 0, y: p.y || 0 })),
+                bbox: comp.bbox || {},
+            };
+        });
+
+        const wireMap = new Map(this.wires.map(w => [w.id, w]));
+        const connections = [...(this.graph?.edges?.values() || [])].map(edge => {
+            const wire = wireMap.get(edge.id) || {};
+            return {
+                id:         edge.id || '',
+                from:       edge.from || null,
+                to:         edge.to   || null,
+                color:      edge.color || wire.color || '',
+                length:     edge.length ?? wire.length ?? 0,
+                signalType: edge.signalType || null,
+                linearity:  wire.linearity ?? null,
+                endpoints:  wire.endpoints || [],
+            };
+        });
+
+        return {
+            schema:      'cws-netlist-v1',
+            diagramName: name,
+            exportedAt:  new Date().toISOString(),
+            components,
+            connections,
+        };
+    },
+
+    async sendNetlistToTafne() {
+        const netlist = this.buildNetlistJson();
+        if (!netlist.components.length && !netlist.connections.length) {
+            this.showToast('No wiring data — run analysis first', 'error');
+            return;
+        }
+        if (!CwsBridge.isEmbedded) {
+            const base = netlist.diagramName.replace(/\.[^.]+$/, '');
+            this._triggerDownload(JSON.stringify(netlist, null, 2),
+                `${base}__netlist.json`, 'application/json');
+            this.showToast('Saved netlist JSON (not embedded)', 'success');
+            return;
+        }
+        try {
+            this.showToast('Sending to TAFNE…', 'success');
+            const pointerId = await CwsBridge.requestStore(JSON.stringify(netlist), 'json-data');
+            CwsBridge.offerData(CwsContracts.createEnvelope({
+                pointer:     pointerId,
+                contentType: 'json-data',
+                metadata: {
+                    source:          'schema-editor',
+                    diagramName:     netlist.diagramName,
+                    componentCount:  netlist.components.length,
+                    connectionCount: netlist.connections.length,
+                },
+                hints: { suggestedTarget: 'table-formatter', action: 'load-netlist' },
+            }));
+            this.showToast(`Sent ${netlist.components.length} components → TAFNE`, 'success');
+        } catch (e) {
+            this.showToast('Send failed: ' + e.message, 'error');
+        }
+    },
+
+    async receiveBackAnnotation(envelope) {
+        let raw;
+        try {
+            raw = envelope.pointer
+                ? await CwsBridge.getStore(envelope.pointer)
+                : envelope.inline;
+        } catch (e) {
+            this.showToast('Back-annotation: fetch failed', 'error');
+            return;
+        }
+        let rows;
+        try { rows = JSON.parse(raw); } catch (e) {
+            this.showToast('Back-annotation: bad JSON', 'error');
+            return;
+        }
+        if (!Array.isArray(rows)) rows = rows.components || [];
+        let updated = 0;
+        rows.forEach(row => {
+            if (!row.id) return;
+            const el = this._contentRoot?.querySelector(`g#${CSS.escape(row.id)}[data-symbol]`);
+            if (!el) return;
+            const label = el.querySelector('text.sym-value');
+            if (!label) return;
+            const text = row.value || row.refdes;
+            if (text) { label.textContent = text; updated++; }
+        });
+        this.showToast(`Back-annotated: ${updated} updated`, 'success');
+        if (typeof this.pushHistory === 'function') this.pushHistory('Back-annotate', null, null);
+    },
+
     batchExport() {
         if (!this.displays.length) {
             this.showToast('No diagrams loaded', 'error');

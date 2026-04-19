@@ -460,6 +460,7 @@ class MobileSVGEditor {
   <!-- Canvas page background: white so it stands out from the dark editor -->
   <rect id="_canvasBg" width="${w}" height="${h}" fill="white"
     stroke="rgba(0,0,0,0.15)" stroke-width="1"
+    data-locked="true"
     filter="url(#_pageShadow)"/>
   <defs>
     <filter id="_pageShadow" x="-2%" y="-2%" width="104%" height="104%">

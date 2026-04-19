@@ -57,6 +57,13 @@ Object.assign(MobileSVGEditor.prototype, {
             // Full DOM restore
             this._restoreFullState(state);
             this.deselectAll?.();
+            // Wire-group wrappers have no IDs so they aren't snapshotted.
+            // Clearing stale arrays and rescheduling analysis keeps the topology
+            // in sync with whatever the restored DOM actually contains.
+            this.wires      = [];
+            this.components = [];
+            this.connectors = [];
+            this._scheduleGeoAnalysis?.();
         }
         this._syncUndoRedoUI();
         if (toastMsg) this.showToast(toastMsg, 'success');

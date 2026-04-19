@@ -391,6 +391,10 @@
                     <iconify-icon icon="material-symbols:data-object"></iconify-icon>
                     <span class="panel-content">JSON</span>
                 </button>
+                <button class="btn" id="sendToTafneBtn" title="Send netlist/BOM to Table Formatter (TAFNE)">
+                    <iconify-icon icon="material-symbols:send-outline"></iconify-icon>
+                    <span class="panel-content">→ TAFNE</span>
+                </button>
                 <button class="btn" id="batchExportBtn" title="Batch export all loaded diagrams as SVG">
                     <iconify-icon icon="material-symbols:download-for-offline-outline"></iconify-icon>
                     <span class="panel-content">Batch</span>
@@ -807,6 +811,15 @@
 
             // Fit initial placeholder to view
             setTimeout(() => window.editor.fitToView(), 100);
+
+            // CWS IPC: send netlist to TAFNE
+            $('#sendToTafneBtn').on('click', () => window.editor.sendNetlistToTafne());
+
+            // CWS IPC: receive back-annotation from TAFNE
+            CwsBridge.onData(function (envelope) {
+                if (envelope?.hints?.action !== 'back-annotate') return;
+                window.editor.receiveBackAnnotation(envelope);
+            });
         });
     </script>
 
