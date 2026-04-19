@@ -178,6 +178,10 @@ ${svgData}
             this.showToast('Saved netlist JSON (not embedded)', 'success');
             return;
         }
+        if (!CwsBridge.isConnected) {
+            this.showToast('OS connection lost — reload the page', 'error');
+            return;
+        }
         try {
             this.showToast('Sending to TAFNE…', 'success');
             const pointerId = await CwsBridge.requestStore(JSON.stringify(netlist), 'json-data');
@@ -190,7 +194,7 @@ ${svgData}
                     componentCount:  netlist.components.length,
                     connectionCount: netlist.connections.length,
                 },
-                hints: { suggestedTarget: 'table-formatter', action: 'load-netlist' },
+                hints: { suggestedTarget: 'tifany', action: 'load-netlist' },
             }));
             this.showToast(`Sent ${netlist.components.length} components → TAFNE`, 'success');
         } catch (e) {
