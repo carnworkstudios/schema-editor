@@ -41,6 +41,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const defs = document.createElementNS(NS, 'defs');
         defs.id = '_gridDefs';
+        defs.dataset.seSystem = 'true';
 
         // Minor grid pattern
         const minor = document.createElementNS(NS, 'pattern');
@@ -48,6 +49,7 @@ Object.assign(MobileSVGEditor.prototype, {
         minor.setAttribute('width',  String(g.size));
         minor.setAttribute('height', String(g.size));
         minor.setAttribute('patternUnits', 'userSpaceOnUse');
+        minor.setAttribute('data-locked', 'true');
 
         const minorPath = document.createElementNS(NS, 'path');
         minorPath.setAttribute('d', `M ${g.size} 0 L 0 0 0 ${g.size}`);
@@ -64,6 +66,7 @@ Object.assign(MobileSVGEditor.prototype, {
         major.setAttribute('width',  String(majorSize));
         major.setAttribute('height', String(majorSize));
         major.setAttribute('patternUnits', 'userSpaceOnUse');
+        major.setAttribute('data-locked', 'true');
 
         const majorBg = document.createElementNS(NS, 'rect');
         majorBg.setAttribute('width',  String(majorSize));
@@ -85,12 +88,14 @@ Object.assign(MobileSVGEditor.prototype, {
         // panning range (viewBox changes dynamically with zoom/pan)
         const layer = document.createElementNS(NS, 'rect');
         layer.id    = '_gridLayer';
+        layer.dataset.seSystem = 'true';
         layer.setAttribute('x',      '-50000');
         layer.setAttribute('y',      '-50000');
         layer.setAttribute('width',  '100000');
         layer.setAttribute('height', '100000');
         layer.setAttribute('fill',   'url(#_gridMajor)');
         layer.setAttribute('pointer-events', 'none');
+        layer.setAttribute('data-locked', 'true');
         layer.style.display = this._grid.visible ? '' : 'none';
 
         // Insert _gridLayer as first child of _cameraRotGroup so it:

@@ -311,7 +311,8 @@
 }
 
 .se-selected {
-    filter: drop-shadow(0 0 3px rgba(79, 172, 254, 0.6)) !important;
+    /* outline: 1px solid #fecf4f !important; */
+    filter: drop-shadow(0 0 1px rgba(65, 49, 241, 0.893));
 }
 
 /* ============================================================

@@ -66,12 +66,13 @@ Object.assign(MobileSVGEditor.prototype, {
     setRotation(rotation) {
         let r = Number(rotation);
         if (this._isViewportLocked()) {
-            this.$rotationSlider.val(this.currentRotation);
+            this.$rotationSlider.val(this.camera.rotation);
             return;
         }
-        this.currentRotation = r % 360;
-        this.$rotationSlider.val(this.currentRotation);
-        $('#rotationValue').text(Math.round(this.currentRotation));
+        this.camera.setRotation(r);
+        this.currentRotation = this.camera.rotation; // keep alias in sync
+        this.$rotationSlider.val(this.camera.rotation);
+        $('#rotationValue').text(Math.round(this.camera.rotation));
         this.updateTransform();
     },
 
@@ -118,13 +119,14 @@ Object.assign(MobileSVGEditor.prototype, {
         svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
 
         // ── Rotation → _cameraRotGroup SVG transform (world-space, no CSS) ──
-        // This keeps getScreenCTM() correct at all zoom/pan/rotation values.
+        // Uses camera.rotation as the single source of truth so any module
+        // querying camera state gets the full composite transform.
         const rotGroup = svg.querySelector('#_cameraRotGroup');
         if (rotGroup) {
             const vb = this.camera.toViewBox(base, cW);
             const wx = vb.x + vb.w / 2;   // world center of current view
             const wy = vb.y + vb.h / 2;
-            const deg = this.currentRotation;
+            const deg = this.camera.rotation;
             rotGroup.setAttribute('transform',
                 deg !== 0 ? `rotate(${deg},${wx},${wy})` : '');
         }
@@ -268,6 +270,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
     startDrag(event) {
         if (this.activeTool !== 'select') return;
+        if (this._textEditActive) return;       // text input open — lock camera
         if (this._isViewportLocked()) return;   // edit-mode: no viewport pan
 
         const target = event.target;
@@ -310,6 +313,7 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Wheel Zoom at cursor position ────────────────────────
 
     handleWheel(event) {
+        if (this._textEditActive) return;       // text input open — lock camera
         if (this._isViewportLocked()) return;   // edit-mode: no viewport zoom
         event.preventDefault();
         const e = event.originalEvent || event;

@@ -256,6 +256,7 @@ Object.assign(MobileSVGEditor.prototype, {
         const NS = this.SVG_NS;
         const rotGroup = document.createElementNS(NS, 'g');
         rotGroup.id = '_cameraRotGroup';
+        rotGroup.dataset.seSystem = 'true';
         this.$svgDisplay[0].appendChild(rotGroup);
         // Re-insert _gridDefs at SVG root and _gridLayer as first child of rotGroup
         this._renderGridPattern();

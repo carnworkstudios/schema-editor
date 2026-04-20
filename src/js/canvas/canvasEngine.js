@@ -79,7 +79,7 @@ Object.assign(MobileSVGEditor.prototype, {
         this._selection.forEach(el => el.classList.remove('se-selected'));
         this._selection = [];
         this.$svgDisplay.find('*').not(
-            '#_gridLayer, #_gridDefs, defs, .snap-guide, .draw-preview, ' +
+            '#_gridLayer, #_gridDefs, defs, [data-se-system], .snap-guide, .draw-preview, ' +
             '.selection-handle-group, .selection-handle, .rotation-handle'
         ).each((_, el) => {
             try {
@@ -103,14 +103,25 @@ Object.assign(MobileSVGEditor.prototype, {
 
     deleteSelected() {
         if (!this._selection.length) return;
-        const unlocked = this._selection.filter(el => el.dataset.locked !== 'true');
+        const unlocked = this._selection.filter(
+            el => el.dataset.locked !== 'true' && el.dataset.seSystem !== 'true');
         if (unlocked.length < this._selection.length)
             this.showToast('Locked elements skipped — unlock in Layers panel first', 'error');
         if (!unlocked.length) return;
         const before = this._captureFullState();
-        unlocked.forEach(el => el.remove());
+        unlocked.forEach(el => {
+            const group = el.closest('.wire-group, .component-group');
+            if (group) group.remove();
+            else el.remove();
+        });
         this._selection = [];
         this._removeHandles();
+        // Clear stale element refs so topology graph never holds detached DOM nodes.
+        // Without this, hit-testing and wire tracing silently break after delete.
+        this.wires = [];
+        this.components = [];
+        this.connectors = [];
+        this._scheduleGeoAnalysis?.();
         const after = this._captureFullState();
         this.pushHistory('Delete', before, after);
         this.showToast('Deleted', 'success');
@@ -200,24 +211,80 @@ Object.assign(MobileSVGEditor.prototype, {
         const dpr = window.devicePixelRatio || 1;
         ctx.clearRect(0, 0, this._overlayCanvas.width / dpr, this._overlayCanvas.height / dpr);
         this._overlayHandleZones = [];
+
+        if (this._marqueeState) this._drawMarquee(ctx);
+
         if (!this._selection?.length) return;
 
-        const bb = this._getSelectionBBoxWorld();
-        if (!bb) return;
+        // Project all element tight-bbox corners directly to screen space.
+        // This avoids the axis-alignment error that bloated boxes at non-zero
+        // camera rotation: the world-space AABB was correct but its corners, when
+        // projected, produce a rotated rhombus — not the element's true screen envelope.
+        const screenCorners = this._getSelectionScreenCorners();
+        if (!screenCorners || !screenCorners.length) return;
+
+        let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+        screenCorners.forEach(p => {
+            minX = Math.min(minX, p.x); minY = Math.min(minY, p.y);
+            maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
+        });
 
         const pad = 4;
-        const bx = bb.x - pad, by = bb.y - pad;
-        const bw = bb.width + pad * 2, bh = bb.height + pad * 2;
-
-        // Project the 4 bbox corners to overlay screen coords via getScreenCTM()
-        const tl = this._worldToOverlayScreen(bx, by);
-        const tr = this._worldToOverlayScreen(bx + bw, by);
-        const bl = this._worldToOverlayScreen(bx, by + bh);
-        const br = this._worldToOverlayScreen(bx + bw, by + bh);
+        const tl = { x: minX - pad, y: minY - pad };
+        const tr = { x: maxX + pad, y: minY - pad };
+        const br = { x: maxX + pad, y: maxY + pad };
+        const bl = { x: minX - pad, y: maxY + pad };
 
         this._drawOverlayRect(ctx, [tl, tr, br, bl]);
         this._drawOverlayHandles(ctx, tl, tr, bl, br);
         this._drawOverlayRotHandle(ctx, tl, tr);
+    },
+
+    // ── Tight bbox corners projected directly to overlay screen space ──
+    //   Replaces the old world-AABB→4-corner approach, which bloated the
+    //   selection box for element-rotated shapes and camera-rotated views.
+    _getSelectionScreenCorners() {
+        if (!this._selection.length) return null;
+        const svg = this.$svgDisplay[0];
+        const canvasRect = this._overlayCanvas.getBoundingClientRect();
+        const rotGrp = svg.querySelector('#_cameraRotGroup');
+        // getScreenCTM() returns SVGMatrix, not DOMMatrix — keep as SVGMatrix for
+        // pt.matrixTransform() below (SVGMatrix.multiply rejects DOMMatrix args).
+        const ctm = rotGrp ? rotGrp.getScreenCTM() : svg.getScreenCTM();
+        if (!ctm) return null;
+
+        const pts = [];
+        this._selection.forEach(el => {
+            let bb;
+            try { bb = el.getBBox(); } catch (_) { return; }
+            if (!bb) return;
+
+            // Walk element transform chain up to _cameraRotGroup (doc-local space)
+            let m = new DOMMatrix();
+            let node = el;
+            while (node && node !== svg && node.id !== '_cameraRotGroup') {
+                const tv = node.transform?.baseVal;
+                if (tv?.length) {
+                    const lm = tv.consolidate()?.matrix;
+                    if (lm) m = new DOMMatrix([lm.a, lm.b, lm.c, lm.d, lm.e, lm.f]).multiply(m);
+                }
+                node = node.parentElement;
+            }
+
+            // Two-step projection: DOMPoint × DOMMatrix (element chain) → SVGPoint × SVGMatrix (camera CTM)
+            // Cannot compose with ctm.multiply(m) because SVGMatrix.multiply rejects DOMMatrix.
+            const svgPt = svg.createSVGPoint();
+            [[bb.x, bb.y], [bb.x + bb.width, bb.y],
+            [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]].forEach(([px, py]) => {
+                const docPt = new DOMPoint(px, py).matrixTransform(m);  // element → doc-local
+                svgPt.x = docPt.x;
+                svgPt.y = docPt.y;
+                const sp = svgPt.matrixTransform(ctm);                  // doc-local → screen
+                pts.push({ x: sp.x - canvasRect.left, y: sp.y - canvasRect.top });
+            });
+        });
+
+        return pts.length ? pts : null;
     },
 
     _drawOverlayRect(ctx, pts) {
@@ -468,12 +535,116 @@ Object.assign(MobileSVGEditor.prototype, {
         $(document).on('mousemove.move', onMove).on('mouseup.move', onUp);
     },
 
+    // ── Marquee (Ctrl+Drag) Selection ─────────────────────────
+
+    _startMarquee(e) {
+        const svgStart = this.screenToSVG(e.clientX, e.clientY);
+        this._marqueeState = { startSVG: svgStart, currentSVG: { ...svgStart } };
+
+        const onMove = (ev) => {
+            this._marqueeState.currentSVG = this.screenToSVG(ev.clientX, ev.clientY);
+            this._scheduleOverlayRender();
+        };
+
+        const onUp = () => {
+            $(document).off('mousemove.marquee mouseup.marquee');
+            this._commitMarquee();
+            this._marqueeState = null;
+            this._scheduleOverlayRender();
+        };
+
+        $(document).on('mousemove.marquee', onMove).on('mouseup.marquee', onUp);
+    },
+
+    _drawMarquee(ctx) {
+        const { startSVG, currentSVG } = this._marqueeState;
+        const tl = this._worldToOverlayScreen(
+            Math.min(startSVG.x, currentSVG.x), Math.min(startSVG.y, currentSVG.y));
+        const br = this._worldToOverlayScreen(
+            Math.max(startSVG.x, currentSVG.x), Math.max(startSVG.y, currentSVG.y));
+        const w = br.x - tl.x, h = br.y - tl.y;
+        ctx.save();
+        ctx.fillStyle = 'rgba(79,172,254,0.08)';
+        ctx.fillRect(tl.x, tl.y, w, h);
+        ctx.strokeStyle = '#4facfe';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.strokeRect(tl.x, tl.y, w, h);
+        ctx.restore();
+    },
+
+    _commitMarquee() {
+        if (!this._marqueeState) return;
+        const { startSVG, currentSVG } = this._marqueeState;
+
+        const mx1 = Math.min(startSVG.x, currentSVG.x);
+        const my1 = Math.min(startSVG.y, currentSVG.y);
+        const mx2 = Math.max(startSVG.x, currentSVG.x);
+        const my2 = Math.max(startSVG.y, currentSVG.y);
+
+        // Treat tiny drags as plain Ctrl+click (deselect all)
+        if (mx2 - mx1 < 4 && my2 - my1 < 4) { this.deselectAll(); return; }
+
+        const svg = this.$svgDisplay[0];
+        const seen = new Set();
+        const hits = [];
+
+        // Mirror selectAll()'s exclusion list — the proven filter for this SVG structure.
+        // Critically: do NOT filter by el.id — domain symbols placed via domainManager
+        // bypass _commitElement and have no id, but are still valid targets.
+        this.$svgDisplay.find('*').not(
+            '#_gridLayer, #_gridDefs, defs, [data-se-system], .snap-guide, .draw-preview, ' +
+            '.selection-handle-group, .selection-handle, .rotation-handle'
+        ).each((_, el) => {
+            if (el.dataset.locked === 'true') return;
+
+            let bb;
+            try { bb = el.getBBox(); } catch (_) { return; }
+            if (!bb || (bb.width === 0 && bb.height === 0)) return;
+
+            // Walk transform chain from element up to _cameraRotGroup (doc-local boundary)
+            let m = new DOMMatrix();
+            let node = el;
+            while (node && node !== svg && node.id !== '_cameraRotGroup') {
+                const tv = node.transform?.baseVal;
+                if (tv?.length) {
+                    const lm = tv.consolidate()?.matrix;
+                    if (lm) m = new DOMMatrix([lm.a, lm.b, lm.c, lm.d, lm.e, lm.f]).multiply(m);
+                }
+                node = node.parentElement;
+            }
+
+            // Project all 4 tight bbox corners to world (doc-local) space
+            let elMinX = Infinity, elMinY = Infinity, elMaxX = -Infinity, elMaxY = -Infinity;
+            [[bb.x, bb.y], [bb.x + bb.width, bb.y],
+            [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]].forEach(([px, py]) => {
+                const tp = new DOMPoint(px, py).matrixTransform(m);
+                elMinX = Math.min(elMinX, tp.x); elMinY = Math.min(elMinY, tp.y);
+                elMaxX = Math.max(elMaxX, tp.x); elMaxY = Math.max(elMaxY, tp.y);
+            });
+
+            // AABB overlap on both axes
+            if (elMaxX < mx1 || elMinX > mx2 || elMaxY < my1 || elMinY > my2) return;
+
+            // Prefer the top-level domain-symbol group over its inner shapes
+            const target = el.closest('.domain-symbol') || el;
+            if (!seen.has(target)) {
+                seen.add(target);
+                hits.push(target);
+            }
+        });
+
+        this.deselectAll();
+        hits.forEach(el => this.selectEl(el, true));
+        if (hits.length) this.showToast(`${hits.length} element${hits.length > 1 ? 's' : ''} selected`, 'success');
+    },
+
     // ── Canvas Event Binding ──────────────────────────────────
 
     // Bidirectional resize cursors per handle id.  'rotate' uses crosshair.
     _HANDLE_CURSORS: {
-        nw: 'nwse-resize', n: 'ns-resize',  ne: 'nesw-resize',
-        e:  'ew-resize',   se: 'nwse-resize', s:  'ns-resize',
+        nw: 'nwse-resize', n: 'ns-resize', ne: 'nesw-resize',
+        e: 'ew-resize', se: 'nwse-resize', s: 'ns-resize',
         sw: 'nesw-resize', w: 'ew-resize',
         rotate: 'crosshair',
     },
@@ -503,11 +674,22 @@ Object.assign(MobileSVGEditor.prototype, {
             }
 
             const target = e.target;
-            const ignored = ['svg', 'svgDisplay', '_gridLayer', '_gridDefs'];
+            const ignored = ['svg', 'svgDisplay', '_gridLayer', '_gridDefs', '_cameraRotGroup'];
+            // Check the element itself for data-se-system — NOT closest(), because _cameraRotGroup
+            // carries that flag and all user content lives inside it; closest() would match everything.
             const isIgnored = ignored.includes(target.id) || target.tagName.toLowerCase() === 'svg' ||
+                target.dataset.seSystem === 'true' ||
                 target.classList.contains('snap-guide') ||
                 target.classList.contains('draw-preview') ||
                 target.closest('.selection-handle-group');
+
+            // Ctrl/Meta + drag on background → marquee selection
+            if (isIgnored && !target.closest('.selection-handle-group') && (e.ctrlKey || e.metaKey)) {
+                e.preventDefault();
+                e.stopPropagation();
+                this._startMarquee(e);
+                return;
+            }
 
             if (isIgnored && !target.closest('.selection-handle-group')) {
                 this.deselectAll();
@@ -539,6 +721,16 @@ Object.assign(MobileSVGEditor.prototype, {
             }
 
             e.stopPropagation();
+
+            // If the clicked element is already part of the active selection, preserve
+            // the whole group — don't call selectEl (which would reset to single-element).
+            // Go straight to move so the entire selection set drags together.
+            if (this._selection.includes(el)) {
+                this._startMoveSelected(e.clientX, e.clientY);
+                return;
+            }
+
+            // Shift/Ctrl → additive; plain click → exclusive (replaces existing selection)
             this.selectEl(el, e.shiftKey || e.ctrlKey || e.metaKey);
 
             // Execute Trace mode simultaneously if active
@@ -603,8 +795,18 @@ Object.assign(MobileSVGEditor.prototype, {
         let bb;
         try { bb = textEl.getBoundingClientRect(); } catch (_) { return; }
 
+        // Lock all camera gestures so pan/zoom while the input is open can't
+        // detach the input from the element it belongs to.
+        this._textEditActive = true;
+        if (this._hammer) this._hammer.set({ enable: false });
+
+        const restoreCamera = () => {
+            this._textEditActive = false;
+            if (this._hammer) this._hammer.set({ enable: true });
+        };
+
         const input = document.createElement('input');
-        input.type  = 'text';
+        input.type = 'text';
         input.value = textEl.textContent.trim();
 
         const fontSize = parseFloat(textEl.getAttribute('font-size') || '12');
@@ -638,6 +840,7 @@ Object.assign(MobileSVGEditor.prototype, {
         const commit = () => {
             if (committed) return;
             committed = true;
+            restoreCamera();
             const before = this._captureFullState();
             textEl.textContent = input.value.trim() || textEl.textContent;
             const after = this._captureFullState();
@@ -647,8 +850,8 @@ Object.assign(MobileSVGEditor.prototype, {
         };
 
         input.addEventListener('keydown', (ev) => {
-            if (ev.key === 'Enter')  { ev.preventDefault(); commit(); }
-            if (ev.key === 'Escape') { committed = true; input.remove(); }
+            if (ev.key === 'Enter') { ev.preventDefault(); commit(); }
+            if (ev.key === 'Escape') { committed = true; restoreCamera(); input.remove(); }
         });
         input.addEventListener('blur', commit);
     },
@@ -675,15 +878,23 @@ Object.assign(MobileSVGEditor.prototype, {
     _restoreFullState(snapshot) {
         let state;
         try { state = JSON.parse(snapshot); } catch (_) {
-            // Legacy innerHTML restore path (old history entries)
             this.$svgDisplay[0].innerHTML = snapshot;
             this._selection = [];
             this._selectionBox = null;
-            if (typeof this.analyzeWiringDiagram === 'function') this.analyzeWiringDiagram();
+            if (typeof this._runGeometryPipeline === 'function') this._runGeometryPipeline();
             return;
         }
 
         const svg = this.$svgDisplay[0];
+
+        // 1. Deep clean: Explicitly strip hitboxes to prevent ID collisions and ghosting
+        svg.querySelectorAll('.wire-group, .component-group').forEach(g => {
+            const visual = g.querySelector(':not(.wire-hitbox):not(.component-hitbox)');
+            if (visual) g.parentNode?.insertBefore(visual, g);
+            g.remove();
+        });
+        svg.querySelectorAll('.wire-hitbox, .component-hitbox').forEach(h => h.remove());
+
         // Remove elements not in snapshot (but preserve _cameraRotGroup)
         svg.querySelectorAll('[id]').forEach(el => {
             if (el.id === '_cameraRotGroup') return;  // Step 9: never restore camera state
@@ -707,5 +918,8 @@ Object.assign(MobileSVGEditor.prototype, {
 
         this._selection = [];
         this._selectionBox = null;
+
+        // Force rebuild of graph and recreate fresh hitboxes based on the restored geometry
+        if (typeof this._runGeometryPipeline === 'function') this._runGeometryPipeline();
     },
 });

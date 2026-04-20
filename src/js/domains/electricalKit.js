@@ -207,6 +207,398 @@
                 ${wire(-28,0,-12,0)}
                 <circle cx="-28" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>`,
         },
+        // ── PNP TRANSISTOR ───────────────────────────────────
+        {
+            id: 'pnp', label: 'PNP', group: 'Semiconductors', geoClass: 'component',
+            defaultValue: '2N3906', labelOffsetY: 40,
+            pins: [{ x:-10, y:0 }, { x:10, y:-20 }, { x:10, y:20 }],
+            svgPreview: `<g transform="translate(30,30)">
+                <line x1="-20" y1="0" x2="0" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="0" y1="-18" x2="0" y2="18" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="0" y1="-10" x2="16" y2="-20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="0" y1="10" x2="16" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <polygon points="6,14 0,10 6,6" fill="${CLR}"/>
+            </g>`,
+            svgContent: `
+                <line x1="-20" y1="0" x2="0" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="0" y1="-18" x2="0" y2="18" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="0" y1="-10" x2="16" y2="-20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="0" y1="10" x2="16" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <polygon points="6,14 0,10 6,6" fill="${CLR}"/>
+                <circle cx="-20" cy="0"  r="2" fill="${CLR}" class="pin-point" data-pin="base"/>
+                <circle cx="16"  cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="collector"/>
+                <circle cx="16"  cy="20"  r="2" fill="${CLR}" class="pin-point" data-pin="emitter"/>`,
+        },
+        // ── N-MOSFET ─────────────────────────────────────────
+        {
+            id: 'nmos', label: 'N-MOSFET', group: 'Semiconductors', geoClass: 'component',
+            defaultValue: 'IRF540N', labelOffsetY: 40,
+            pins: [{ x:-20, y:0 }, { x:20, y:-20 }, { x:20, y:20 }],
+            svgPreview: `<g transform="translate(30,30)">
+                <line x1="-20" y1="0" x2="-4" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-4" y1="-12" x2="-4" y2="12" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-12" x2="2" y2="-6" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-3" x2="2" y2="3" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="6" x2="2" y2="12" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-9" x2="20" y2="-9" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="2" y1="9" x2="20" y2="9" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="2" y1="0" x2="20" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="20" y1="-20" x2="20" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <polygon points="12,-3 2,0 12,3" fill="${CLR}"/>
+            </g>`,
+            svgContent: `
+                <line x1="-20" y1="0" x2="-4" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-4" y1="-12" x2="-4" y2="12" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-12" x2="2" y2="-6" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-3" x2="2" y2="3" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="6" x2="2" y2="12" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-9" x2="20" y2="-9" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="2" y1="9" x2="20" y2="9" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="2" y1="0" x2="20" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="20" y1="-20" x2="20" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <polygon points="12,-3 2,0 12,3" fill="${CLR}"/>
+                <circle cx="-20" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="gate"/>
+                <circle cx="20" cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="drain"/>
+                <circle cx="20" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="source"/>`,
+        },
+        // ── P-MOSFET ─────────────────────────────────────────
+        {
+            id: 'pmos', label: 'P-MOSFET', group: 'Semiconductors', geoClass: 'component',
+            defaultValue: 'IRF9540', labelOffsetY: 40,
+            pins: [{ x:-20, y:0 }, { x:20, y:-20 }, { x:20, y:20 }],
+            svgPreview: `<g transform="translate(30,30)">
+                <line x1="-20" y1="0" x2="-4" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-4" y1="-12" x2="-4" y2="12" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-12" x2="2" y2="-6" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-3" x2="2" y2="3" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="6" x2="2" y2="12" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-9" x2="20" y2="-9" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="2" y1="9" x2="20" y2="9" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="2" y1="0" x2="20" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="20" y1="-20" x2="20" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <polygon points="4,-3 14,0 4,3" fill="${CLR}"/>
+            </g>`,
+            svgContent: `
+                <line x1="-20" y1="0" x2="-4" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-4" y1="-12" x2="-4" y2="12" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-12" x2="2" y2="-6" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-3" x2="2" y2="3" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="6" x2="2" y2="12" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <line x1="2" y1="-9" x2="20" y2="-9" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="2" y1="9" x2="20" y2="9" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="2" y1="0" x2="20" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="20" y1="-20" x2="20" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <polygon points="4,-3 14,0 4,3" fill="${CLR}"/>
+                <circle cx="-20" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="gate"/>
+                <circle cx="20" cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="drain"/>
+                <circle cx="20" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="source"/>`,
+        },
+        // ── ZENER DIODE ───────────────────────────────────────
+        {
+            id: 'zener', label: 'Zener Diode', group: 'Semiconductors', geoClass: 'component',
+            defaultValue: '1N4733A', labelOffsetY: 22,
+            pins: [{ x:-20, y:0 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,0,-12,0)}
+                <polygon points="-12,-8 -12,8 8,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="8" y1="-8" x2="8" y2="8" stroke="${CLR}" stroke-width="2"/>
+                <line x1="8" y1="-8" x2="12" y2="-12" stroke="${CLR}" stroke-width="2"/>
+                <line x1="8" y1="8" x2="4" y2="12" stroke="${CLR}" stroke-width="2"/>
+                ${wire(8,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,0,-12,0)}
+                <polygon points="-12,-8 -12,8 8,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="8" y1="-8" x2="8" y2="8" stroke="${CLR}" stroke-width="2"/>
+                <line x1="8" y1="-8" x2="12" y2="-12" stroke="${CLR}" stroke-width="2"/>
+                <line x1="8" y1="8" x2="4" y2="12" stroke="${CLR}" stroke-width="2"/>
+                ${wire(8,0,30,0)}
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+        },
+        // ── SCHOTTKY DIODE ────────────────────────────────────
+        {
+            id: 'schottky', label: 'Schottky Diode', group: 'Semiconductors', geoClass: 'component',
+            defaultValue: '1N5819', labelOffsetY: 22,
+            pins: [{ x:-20, y:0 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,0,-12,0)}
+                <polygon points="-12,-8 -12,8 8,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="8" y1="-8" x2="8" y2="8" stroke="${CLR}" stroke-width="2"/>
+                <line x1="8" y1="-8" x2="14" y2="-8" stroke="${CLR}" stroke-width="2"/>
+                <line x1="14" y1="-8" x2="14" y2="-4" stroke="${CLR}" stroke-width="2"/>
+                <line x1="8" y1="8" x2="2" y2="8" stroke="${CLR}" stroke-width="2"/>
+                <line x1="2" y1="8" x2="2" y2="4" stroke="${CLR}" stroke-width="2"/>
+                ${wire(8,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,0,-12,0)}
+                <polygon points="-12,-8 -12,8 8,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="8" y1="-8" x2="8" y2="8" stroke="${CLR}" stroke-width="2"/>
+                <line x1="8" y1="-8" x2="14" y2="-8" stroke="${CLR}" stroke-width="2"/>
+                <line x1="14" y1="-8" x2="14" y2="-4" stroke="${CLR}" stroke-width="2"/>
+                <line x1="8" y1="8" x2="2" y2="8" stroke="${CLR}" stroke-width="2"/>
+                <line x1="2" y1="8" x2="2" y2="4" stroke="${CLR}" stroke-width="2"/>
+                ${wire(8,0,30,0)}
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+        },
+        // ── POLARIZED CAPACITOR ───────────────────────────────
+        {
+            id: 'cap-pol', label: 'Cap (Pol)', group: 'Passives', geoClass: 'component',
+            defaultValue: '10uF', labelOffsetY: 22,
+            pins: [{ x:-20, y:0 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,0,-4,0)}
+                <line x1="-4" y1="-9" x2="-4" y2="9" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M10,-9 Q4,0 10,9" fill="none" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <text x="-16" y="-6" font-size="8" fill="${CLR}">+</text>
+                ${wire(7,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,0,-4,0)}
+                <line x1="-4" y1="-9" x2="-4" y2="9" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M10,-9 Q4,0 10,9" fill="none" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
+                <text x="-16" y="-6" font-size="8" fill="${CLR}">+</text>
+                ${wire(7,0,30,0)}
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="+"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="-"/>`,
+        },
+        // ── BATTERY / DC SOURCE ───────────────────────────────
+        {
+            id: 'battery', label: 'Battery', group: 'Power', geoClass: 'component',
+            defaultValue: '9V', labelOffsetY: 22,
+            pins: [{ x:-20, y:0 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,0,-6,0)}
+                <line x1="-6" y1="-12" x2="-6" y2="12" stroke="${CLR}" stroke-width="2"/>
+                <line x1="6" y1="-6" x2="6" y2="6" stroke="${CLR}" stroke-width="4"/>
+                <text x="-18" y="-8" font-size="8" fill="${CLR}">+</text>
+                ${wire(6,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,0,-6,0)}
+                <line x1="-6" y1="-12" x2="-6" y2="12" stroke="${CLR}" stroke-width="2"/>
+                <line x1="6" y1="-6" x2="6" y2="6" stroke="${CLR}" stroke-width="4"/>
+                <text x="-18" y="-8" font-size="8" fill="${CLR}">+</text>
+                ${wire(6,0,30,0)}
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="+"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="-"/>`,
+        },
+        // ── AC SOURCE ─────────────────────────────────────────
+        {
+            id: 'ac-source', label: 'AC Source', group: 'Power', geoClass: 'component',
+            defaultValue: '120VAC', labelOffsetY: 26,
+            pins: [{ x:-20, y:0 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,0,-12,0)}
+                <circle cx="0" cy="0" r="12" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <path d="M-6,0 Q-3,-6 0,0 T6,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(12,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,0,-12,0)}
+                <circle cx="0" cy="0" r="12" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <path d="M-6,0 Q-3,-6 0,0 T6,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(12,0,30,0)}
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+        },
+        // ── SPST SWITCH ───────────────────────────────────────
+        {
+            id: 'spst', label: 'SPST Switch', group: 'Switches', geoClass: 'component',
+            defaultValue: 'SW1', labelOffsetY: 22,
+            pins: [{ x:-20, y:0 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,0,-12,0)}
+                ${wire(20,0,30,0)}
+                <circle cx="-10" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="18" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-10" y1="0" x2="14" y2="-10" stroke="${CLR}" stroke-width="${STROKE_W}" stroke-linecap="round"/>
+            </g>`,
+            svgContent: `
+                ${wire(-30,0,-12,0)}
+                ${wire(20,0,30,0)}
+                <circle cx="-10" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="18" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-10" y1="0" x2="14" y2="-10" stroke="${CLR}" stroke-width="${STROKE_W}" stroke-linecap="round"/>
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="2"/>`,
+        },
+        // ── PUSHBUTTON ────────────────────────────────────────
+        {
+            id: 'pushbutton', label: 'Pushbutton', group: 'Switches', geoClass: 'component',
+            defaultValue: 'PB1', labelOffsetY: 26,
+            pins: [{ x:-20, y:0 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,0,-12,0)}
+                ${wire(12,0,30,0)}
+                <circle cx="-10" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="10" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-10" y1="-8" x2="10" y2="-8" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="0" y1="-8" x2="0" y2="-14" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-4" y1="-14" x2="4" y2="-14" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+            </g>`,
+            svgContent: `
+                ${wire(-30,0,-12,0)}
+                ${wire(12,0,30,0)}
+                <circle cx="-10" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="10" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-10" y1="-8" x2="10" y2="-8" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="0" y1="-8" x2="0" y2="-14" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <line x1="-4" y1="-14" x2="4" y2="-14" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="2"/>`,
+        },
+        // ── OP-AMP ────────────────────────────────────────────
+        {
+            id: 'opamp', label: 'Op-Amp', group: 'ICs', geoClass: 'component',
+            defaultValue: 'LM358', labelOffsetY: 40,
+            pins: [{ x:-20, y:-10 }, { x:-20, y:10 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,-10,-20,-10)}
+                ${wire(-30,10,-20,10)}
+                <polygon points="-20,-20 -20,20 20,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <text x="-14" y="-6" font-size="8" fill="${CLR}">−</text>
+                <text x="-14" y="14" font-size="8" fill="${CLR}">+</text>
+                ${wire(20,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,-10,-20,-10)}
+                ${wire(-30,10,-20,10)}
+                <polygon points="-20,-20 -20,20 20,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <text x="-14" y="-6" font-size="8" fill="${CLR}">−</text>
+                <text x="-14" y="14" font-size="8" fill="${CLR}">+</text>
+                ${wire(20,0,30,0)}
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in-"/>
+                <circle cx="-30" cy="10"  r="2" fill="${CLR}" class="pin-point" data-pin="in+"/>
+                <circle cx="30"  cy="0"   r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+        },
+        // ── AND GATE ──────────────────────────────────────────
+        {
+            id: 'gate-and', label: 'AND Gate', group: 'Logic', geoClass: 'component',
+            defaultValue: '74LS08', labelOffsetY: 26,
+            pins: [{ x:-20, y:-10 }, { x:-20, y:10 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,-10,-14,-10)}
+                ${wire(-30,10,-14,10)}
+                <path d="M-14,-16 L0,-16 A16,16 0 0,1 0,16 L-14,16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(16,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,-10,-14,-10)}
+                ${wire(-30,10,-14,10)}
+                <path d="M-14,-16 L0,-16 A16,16 0 0,1 0,16 L-14,16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(16,0,30,0)}
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+        },
+        // ── OR GATE ───────────────────────────────────────────
+        {
+            id: 'gate-or', label: 'OR Gate', group: 'Logic', geoClass: 'component',
+            defaultValue: '74LS32', labelOffsetY: 26,
+            pins: [{ x:-20, y:-10 }, { x:-20, y:10 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,-10,-10,-10)}
+                ${wire(-30,10,-10,10)}
+                <path d="M-16,-16 Q-4,0 -16,16 Q4,16 16,0 Q4,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(16,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,-10,-10,-10)}
+                ${wire(-30,10,-10,10)}
+                <path d="M-16,-16 Q-4,0 -16,16 Q4,16 16,0 Q4,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(16,0,30,0)}
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+        },
+        // ── NOT GATE ──────────────────────────────────────────
+        {
+            id: 'gate-not', label: 'NOT Gate', group: 'Logic', geoClass: 'component',
+            defaultValue: '74LS04', labelOffsetY: 26,
+            pins: [{ x:-20, y:0 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,0,-10,0)}
+                <polygon points="-10,-12 -10,12 10,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="13" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(16,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,0,-10,0)}
+                <polygon points="-10,-12 -10,12 10,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="13" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(16,0,30,0)}
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="in"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+        },
+        // ── NAND GATE ─────────────────────────────────────────
+        {
+            id: 'gate-nand', label: 'NAND Gate', group: 'Logic', geoClass: 'component',
+            defaultValue: '74LS00', labelOffsetY: 26,
+            pins: [{ x:-20, y:-10 }, { x:-20, y:10 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,-10,-14,-10)}
+                ${wire(-30,10,-14,10)}
+                <path d="M-14,-16 L-2,-16 A16,16 0 0,1 -2,16 L-14,16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="17" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(20,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,-10,-14,-10)}
+                ${wire(-30,10,-14,10)}
+                <path d="M-14,-16 L-2,-16 A16,16 0 0,1 -2,16 L-14,16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="17" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(20,0,30,0)}
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+        },
+        // ── NOR GATE ──────────────────────────────────────────
+        {
+            id: 'gate-nor', label: 'NOR Gate', group: 'Logic', geoClass: 'component',
+            defaultValue: '74LS02', labelOffsetY: 26,
+            pins: [{ x:-20, y:-10 }, { x:-20, y:10 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,-10,-10,-10)}
+                ${wire(-30,10,-10,10)}
+                <path d="M-16,-16 Q-4,0 -16,16 Q2,16 12,0 Q2,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="15" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(18,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,-10,-10,-10)}
+                ${wire(-30,10,-10,10)}
+                <path d="M-16,-16 Q-4,0 -16,16 Q2,16 12,0 Q2,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <circle cx="15" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(18,0,30,0)}
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+        },
+        // ── XOR GATE ──────────────────────────────────────────
+        {
+            id: 'gate-xor', label: 'XOR Gate', group: 'Logic', geoClass: 'component',
+            defaultValue: '74LS86', labelOffsetY: 26,
+            pins: [{ x:-20, y:-10 }, { x:-20, y:10 }, { x:20, y:0 }],
+            svgPreview: `<g transform="translate(30,20)">
+                ${wire(-30,-10,-14,-10)}
+                ${wire(-30,10,-14,10)}
+                <path d="M-20,-16 Q-8,0 -20,16" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <path d="M-16,-16 Q-4,0 -16,16 Q4,16 16,0 Q4,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(16,0,30,0)}
+            </g>`,
+            svgContent: `
+                ${wire(-30,-10,-14,-10)}
+                ${wire(-30,10,-14,10)}
+                <path d="M-20,-16 Q-8,0 -20,16" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                <path d="M-16,-16 Q-4,0 -16,16 Q4,16 16,0 Q4,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
+                ${wire(16,0,30,0)}
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+        },
         // ── NET LABEL ────────────────────────────────────────
         {
             id: 'net-label', label: 'Net Label', group: 'Wiring', geoClass: 'junction',

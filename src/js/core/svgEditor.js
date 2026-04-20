@@ -113,6 +113,7 @@ class MobileSVGEditor {
 
     setupGestures() {
         const hammer = new Hammer(this.$svgContainer[0]);
+        this._hammer = hammer;  // expose so _editSymbolText can disable touch during text edit
 
         hammer.get('pan').set({ direction: Hammer.DIRECTION_ALL, threshold: 6 });
         hammer.get('pinch').set({ enable: true });
@@ -135,8 +136,9 @@ class MobileSVGEditor {
         hammer.on('pinchstart rotatestart panstart', (ev) => {
             // Mouse pan/drag is handled by native mousedown/mousemove — let Hammer handle touch only
             if (ev.pointerType === 'mouse') return;
-            // Don't pan/pinch while in a drawing tool or when viewport is locked (edit mode)
+            // Don't pan/pinch while in a drawing tool, text edit, or when viewport is locked
             if (this.activeTool !== 'select') return;
+            if (this._textEditActive) return;
             if (this._isViewportLocked && this._isViewportLocked()) return;
 
             gesture.active = true;
@@ -149,7 +151,7 @@ class MobileSVGEditor {
         });
 
         hammer.on('pinchmove rotatemove panmove', (ev) => {
-            if (!gesture.active) return;
+            if (!gesture.active || this._textEditActive) return;
 
             if (typeof ev.scale === 'number') {
                 const relativeScale = ev.scale / (gesture.prevHammerScale || 1);

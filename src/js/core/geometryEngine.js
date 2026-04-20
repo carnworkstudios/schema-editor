@@ -227,16 +227,14 @@ Object.assign(MobileSVGEditor.prototype, {
         const svgEl = this.$svgDisplay[0];
 
         // Strip hitbox wrappers from a previous run so phases 1-2 see clean geometry
-        svgEl.querySelectorAll('.wire-group').forEach(g => {
-            const visual = g.children[0];
+        // We explicitly remove .wire-hitbox / .component-hitbox and promote their visual siblings.
+        svgEl.querySelectorAll('.wire-group, .component-group').forEach(g => {
+            // Find the visual element (the sibling of the hitbox)
+            const visual = g.querySelector(':not(.wire-hitbox):not(.component-hitbox)');
             if (visual) g.parentNode?.insertBefore(visual, g);
             g.remove();
         });
-        svgEl.querySelectorAll('.component-group').forEach(g => {
-            const visual = g.children[0];
-            if (visual) g.parentNode?.insertBefore(visual, g);
-            g.remove();
-        });
+        svgEl.querySelectorAll('.wire-hitbox, .component-hitbox').forEach(h => h.remove());
         svgEl.querySelectorAll('.domain-symbol > .component-hitbox').forEach(h => h.remove());
 
         // ── Determine epsilon by source format ────────────────
@@ -756,6 +754,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
             const visual  = el.cloneNode(true);
             const hitbox  = el.cloneNode(true);
+            hitbox.removeAttribute('id'); // Fix: prevent ID collision with visual path
             hitbox.setAttribute('stroke', color);
             hitbox.setAttribute('stroke-opacity', '0');
             hitbox.setAttribute('stroke-width',
@@ -836,6 +835,7 @@ Object.assign(MobileSVGEditor.prototype, {
                 hitbox.setAttribute('height', String(bbox.height));
             } else {
                 hitbox = el.cloneNode(true);
+                hitbox.removeAttribute('id'); // Fix: prevent ID collision in snapshot
             }
             hitbox.setAttribute('fill-opacity',   '0');
             hitbox.setAttribute('stroke-opacity',  '0');

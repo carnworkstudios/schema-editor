@@ -13,20 +13,23 @@ const ZOOM_MAX = 500;
 
 class CameraMatrix {
     constructor() {
-        this._zoom  = 1;
-        this._tx    = 0;   // pan in container-relative CSS pixels
-        this._ty    = 0;
-        this._dirty = true;
-        this._inv   = new DOMMatrix();
+        this._zoom     = 1;
+        this._tx       = 0;   // pan in container-relative CSS pixels
+        this._ty       = 0;
+        this._rotation = 0;   // degrees — authoritative source; viewTransform reads this
+        this._dirty    = true;
+        this._inv      = new DOMMatrix();
     }
 
-    get zoom() { return this._zoom; }
-    get tx()   { return this._tx; }
-    get ty()   { return this._ty; }
+    get zoom()     { return this._zoom; }
+    get tx()       { return this._tx; }
+    get ty()       { return this._ty; }
+    get rotation() { return this._rotation; }
 
-    setZoom(z)     { this._zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +z || 1)); this._dirty = true; }
-    setPan(tx, ty) { this._tx = tx; this._ty = ty; this._dirty = true; }
-    panBy(dx, dy)  { this._tx += dx; this._ty += dy; this._dirty = true; }
+    setZoom(z)         { this._zoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, +z || 1)); this._dirty = true; }
+    setPan(tx, ty)     { this._tx = tx; this._ty = ty; this._dirty = true; }
+    panBy(dx, dy)      { this._tx += dx; this._ty += dy; this._dirty = true; }
+    setRotation(deg)   { this._rotation = ((+deg || 0) % 360 + 360) % 360; this._dirty = true; }
 
     // Zoom-at-cursor: keeps the world point under screen point (sx, sy) fixed.
     // sx, sy are CONTAINER-relative pixels (clientX - ctnrRect.left).
@@ -70,11 +73,12 @@ class CameraMatrix {
         };
     }
 
-    getState()  { return { zoom: this._zoom, tx: this._tx, ty: this._ty }; }
+    getState()  { return { zoom: this._zoom, tx: this._tx, ty: this._ty, rotation: this._rotation }; }
     setState(s) {
-        this._zoom = s.zoom;
-        this._tx   = s.tx;
-        this._ty   = s.ty;
+        if (s.zoom     !== undefined) this._zoom     = s.zoom;
+        if (s.tx       !== undefined) this._tx       = s.tx;
+        if (s.ty       !== undefined) this._ty       = s.ty;
+        if (s.rotation !== undefined) this._rotation = s.rotation;
         this._dirty = true;
     }
 }

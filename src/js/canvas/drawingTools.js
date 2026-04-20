@@ -81,7 +81,7 @@ Object.assign(MobileSVGEditor.prototype, {
                 case 'ellipse': this._ellipseStart(snapped); break;
                 case 'polygon': this._polygonClick(snapped); break;
                 case 'text': this._textPlace(snapped); break;
-                case 'wire': this._wireStart(snapped); break;
+                case 'wire': this._wireClick(snapped); break;
             }
         });
 
@@ -107,24 +107,23 @@ Object.assign(MobileSVGEditor.prototype, {
                 case 'line': this._lineEnd(); break;
                 case 'rect': this._rectEnd(); break;
                 case 'ellipse': this._ellipseEnd(); break;
-                case 'wire': this._wireEnd(); break;
+                // wire: click-to-commit; no action on mouseup (committed by dblclick/Enter)
             }
         });
 
-        // Double-click to finish polygon
+        // Double-click: finish polygon or commit wire
         this.$svgContainer.on('dblclick.draw', (e) => {
-            if (this.activeTool === 'polygon' && this._drawState) {
-                e.preventDefault();
-                this._polygonClose();
-            }
+            if (!this._drawState) return;
+            e.preventDefault();
+            if (this.activeTool === 'polygon') this._polygonClose();
+            if (this.activeTool === 'wire')    this._wireCommit();
         });
 
-        // Escape cancels
+        // Escape cancels; Enter commits wire
         $(document).on('keydown.draw', (e) => {
-            if (e.key === 'Escape' && this._drawState) {
-                e.preventDefault();
-                this._cancelDraw();
-            }
+            if (!this._drawState) return;
+            if (e.key === 'Escape') { e.preventDefault(); this._cancelDraw(); }
+            if (e.key === 'Enter' && this.activeTool === 'wire') { e.preventDefault(); this._wireCommit(); }
         });
     },
 
@@ -373,37 +372,90 @@ Object.assign(MobileSVGEditor.prototype, {
         }
     },
 
-    // ── WIRE (Manhattan routing + Smooth Trace toggle) ────────
-    _wireStart(pt) {
-        this._drawState = {
-            before: this._captureFullState(),
-            x1: pt.x, y1: pt.y,
-        };
-        const el = this._makePreview('path');
-        el.setAttribute('d', `M ${pt.x} ${pt.y} L ${pt.x} ${pt.y}`);
-        el.setAttribute('stroke', this._drawStyle.stroke || '#4facfe');
-        el.setAttribute('stroke-width', '2');
-        el.setAttribute('fill', 'none');
+    // ── WIRE (click-to-commit, Manhattan routing, snap-to-port) ──
+    //   Click: add waypoint.  Dblclick / Enter: commit.  Escape: cancel.
+    //   _smoothTrace toggles Manhattan vs straight mid-draw without restart.
+    _wireClick(pt) {
+        const snapped = this._wireSnapToPort(pt);
+        if (!this._drawState) {
+            // First click — start a new wire
+            this._drawState = {
+                before: this._captureFullState(),
+                tool: 'wire',
+                points: [snapped],
+            };
+            const el = this._makePreview('path');
+            el.setAttribute('d', `M ${snapped.x} ${snapped.y}`);
+            el.setAttribute('stroke', this._drawStyle.stroke || '#4facfe');
+            el.setAttribute('stroke-width', '2');
+            el.setAttribute('fill', 'none');
+        } else {
+            // Subsequent clicks — add waypoint and update preview
+            this._drawState.points.push(snapped);
+            const d = this._wirePathFromPoints(this._drawState.points);
+            this._drawPreview?.setAttribute('d', d);
+        }
     },
 
     _wireMove(pt) {
         if (!this._drawPreview || !this._drawState) return;
-        const { x1, y1 } = this._drawState;
-        const d = this._smoothTrace
-            ? `M ${x1} ${y1} L ${pt.x} ${pt.y}`
-            : `M ${x1} ${y1} L ${x1} ${pt.y} L ${pt.x} ${pt.y}`;  // Manhattan
+        const snapped = this._wireSnapToPort(pt);
+        // Live preview: committed waypoints + ghost segment to cursor
+        const d = this._wirePathFromPoints([...this._drawState.points, snapped]);
         this._drawPreview.setAttribute('d', d);
     },
 
-    _wireEnd() {
-        if (!this._drawState) return;
-        const d = this._drawPreview.getAttribute('d');
-        if (!d || d.length < 10) { this._cancelDraw(); return; }
-
+    _wireCommit() {
+        if (!this._drawState || !this._drawState.points || this._drawState.points.length < 2) {
+            this._cancelDraw(); return;
+        }
+        const d = this._wirePathFromPoints(this._drawState.points);
         const el = document.createElementNS(this.SVG_NS, 'path');
         el.setAttribute('d', d);
         el.setAttribute('fill', 'none');
-        // el.classList.add('wire-group');
         this._commitElement(el);
+    },
+
+    // Build SVG path string from waypoints.  Manhattan mode reads _smoothTrace live
+    // so toggling mid-draw immediately reflects in the preview.
+    _wirePathFromPoints(pts) {
+        if (!pts.length) return '';
+        let d = `M ${pts[0].x} ${pts[0].y}`;
+        for (let i = 1; i < pts.length; i++) {
+            const prev = pts[i - 1], curr = pts[i];
+            if (this._smoothTrace) {
+                d += ` L ${curr.x} ${curr.y}`;
+            } else {
+                // Manhattan: horizontal-first elbow
+                d += ` L ${prev.x} ${curr.y} L ${curr.x} ${curr.y}`;
+            }
+        }
+        return d;
+    },
+
+    // Snap pt to a nearby .pin-point circle within 12 SVG units.
+    _wireSnapToPort(pt) {
+        const THRESHOLD = 12;
+        let best = null, bestDist = THRESHOLD;
+        this._contentRoot?.querySelectorAll('.pin-point').forEach(pin => {
+            const cx = parseFloat(pin.getAttribute('cx') || 0);
+            const cy = parseFloat(pin.getAttribute('cy') || 0);
+            // Transform pin center to document-local space via its own CTM chain
+            let m = new DOMMatrix();
+            let node = pin;
+            const svg = this.$svgDisplay[0];
+            while (node && node !== svg && node.id !== '_cameraRotGroup') {
+                const tv = node.transform?.baseVal;
+                if (tv?.length) {
+                    const lm = tv.consolidate()?.matrix;
+                    if (lm) m = new DOMMatrix([lm.a, lm.b, lm.c, lm.d, lm.e, lm.f]).multiply(m);
+                }
+                node = node.parentElement;
+            }
+            const wp = new DOMPoint(cx, cy).matrixTransform(m);
+            const dist = Math.hypot(wp.x - pt.x, wp.y - pt.y);
+            if (dist < bestDist) { bestDist = dist; best = { x: wp.x, y: wp.y }; }
+        });
+        return best || pt;
     },
 });
