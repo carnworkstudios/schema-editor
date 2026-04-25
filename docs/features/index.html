@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema Editor Features — Wiring, Layers, Precision & Measurement | GINEXYS</title>
+<meta name="description" content="Detailed feature reference for GINEXYS Schema Editor: Manhattan routing, trace and highlight tools, layer management, grouping, precision snap, and measurement tools.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ginexys.com/tools/schema-editor/docs/features/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Schema Editor Features — Wiring, Layers, Precision & Measurement | GINEXYS">
+<meta property="og:description" content="Detailed feature reference for GINEXYS Schema Editor: Manhattan routing, trace and highlight tools, layer management, grouping, precision snap, and measurement tools.">
+<meta property="og:url" content="https://ginexys.com/tools/schema-editor/docs/features/">
+<meta property="og:site_name" content="GINEXYS">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "Schema Editor Features — Wiring, Layers, Precision & Measurement",
+      "description": "Detailed feature reference for GINEXYS Schema Editor: Manhattan routing, trace and highlight tools, layer management, grouping, precision snap, and measurement tools.",
+      "url": "https://ginexys.com/tools/schema-editor/docs/features/",
+      "isPartOf": {
+        "@type": "WebApplication",
+        "name": "Schema Editor",
+        "url": "https://ginexys.com/tools/schema-editor/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "GINEXYS",
+        "url": "https://ginexys.com"
+      },
+      "dateModified": "2026-04-25"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "GINEXYS",
+          "item": "https://ginexys.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Tools",
+          "item": "https://ginexys.com/tools/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Schema Editor",
+          "item": "https://ginexys.com/tools/schema-editor/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Docs",
+          "item": "https://ginexys.com/tools/schema-editor/docs/getting-started.html"
+        },
+        {
+          "@type": "ListItem",
+          "position": 5,
+          "name": "Features"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>:root { --bg:#0b1018;--bg-r:#0f1720;--bg-o:#162030;--br:#1e3348;--br-s:#2a4a66;--ac:#c9a84c;--ac2:#00b4d8;--tx:#d8eaf8;--txs:#6a90b0;--txd:#354d63;--radius:6px; }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--tx);font-family:'DM Mono','Courier New',monospace;font-size:13px;line-height:1.65;}
+  .gx-nav{height:44px;background:var(--bg-r);border-bottom:1px solid var(--br);display:flex;align-items:center;padding:0 20px;gap:0;position:sticky;top:0;z-index:10;}
+  .gx-breadcrumb{list-style:none;display:flex;align-items:center;gap:0;flex:1;min-width:0;overflow:hidden;}
+  .gx-breadcrumb li{display:flex;align-items:center;font-size:11px;letter-spacing:.05em;white-space:nowrap;color:var(--txd);}
+  .gx-breadcrumb li+li::before{content:'/';margin:0 6px;color:var(--txd);}
+  .gx-breadcrumb a{color:var(--txs);text-decoration:none;transition:color .15s;}
+  .gx-breadcrumb a:hover{color:var(--ac);}
+  .gx-breadcrumb li:last-child{color:var(--tx);overflow:hidden;text-overflow:ellipsis;}
+  .gx-open-btn{font-size:10px;letter-spacing:.08em;color:var(--txs);text-decoration:none;border:1px solid var(--br);border-radius:var(--radius);padding:4px 12px;white-space:nowrap;transition:border-color .15s,color .15s;flex-shrink:0;}
+  .gx-open-btn:hover{border-color:var(--ac);color:var(--ac);}
+  .gx-docs-wrap{max-width:760px;margin:0 auto;padding:36px 24px 80px;}
+  .gx-docs-content h1{font-size:24px;color:var(--tx);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--br);line-height:1.3;}
+  .gx-docs-content h2{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx);margin:28px 0 10px;padding-left:8px;border-left:2px solid var(--ac);}
+  .gx-docs-content h3{font-size:12px;color:var(--ac2);margin:18px 0 6px;}
+  .gx-docs-content h4{font-size:12px;color:var(--txs);margin:14px 0 4px;font-style:italic;}
+  .gx-docs-content p{color:var(--txs);margin-bottom:12px;line-height:1.8;}
+  .gx-docs-content ul,.gx-docs-content ol{margin:8px 0 14px 20px;color:var(--txs);}
+  .gx-docs-content li{margin-bottom:5px;line-height:1.7;}
+  .gx-docs-content strong{color:var(--tx);font-weight:500;}
+  .gx-docs-content em{color:var(--txs);font-style:italic;}
+  .gx-docs-content code{background:var(--bg-o);padding:1px 5px;border:1px solid var(--br);font-size:11px;color:var(--ac2);border-radius:3px;}
+  .gx-docs-content pre{background:var(--bg-o);border:1px solid var(--br);border-left:2px solid var(--ac);padding:14px 16px;margin:14px 0;overflow-x:auto;border-radius:var(--radius);}
+  .gx-docs-content pre code{background:none;border:none;padding:0;color:var(--txs);font-size:11px;line-height:1.65;}
+  .gx-docs-content blockquote{border-left:3px solid var(--ac);padding:10px 16px;background:rgba(201,168,76,.06);margin:14px 0;color:var(--txs);border-radius:0 var(--radius) var(--radius) 0;}
+  .gx-docs-content blockquote.note{border-left-color:var(--ac2);background:rgba(0,180,216,.06);}
+  .gx-docs-content hr{border:none;border-top:1px solid var(--br);margin:24px 0;}
+  .gx-docs-content a{color:var(--ac2);text-decoration:none;}
+  .gx-docs-content a:hover{text-decoration:underline;}
+  .gx-docs-content img{width:100%;border-radius:var(--radius);margin:12px 0;display:block;}
+  .gx-docs-content .table-wrap{overflow-x:auto;margin:14px 0;}
+  .gx-docs-content table{width:100%;border-collapse:collapse;font-size:12px;}
+  .gx-docs-content th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txs);padding:8px 12px;border-bottom:1px solid var(--br);background:var(--bg-o);}
+  .gx-docs-content td{padding:7px 12px;border-bottom:1px solid var(--br);color:var(--txs);vertical-align:top;}
+  .gx-docs-related{margin-top:40px;padding-top:20px;border-top:1px solid var(--br);}
+  .gx-docs-related-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--txd);margin-bottom:10px;}
+  .gx-link-row{display:flex;flex-wrap:wrap;gap:8px;}
+  .gx-link-chip{font-size:11px;color:var(--txs);text-decoration:none;border:1px solid var(--br);border-radius:var(--radius);padding:5px 12px;transition:border-color .15s,color .15s;white-space:nowrap;}
+  .gx-link-chip:hover{border-color:var(--ac2);color:var(--ac2);}</style>
+</head>
+<body>
+<nav class="gx-nav" aria-label="Breadcrumb">
+  <ol class="gx-breadcrumb"><li><a href="/">GINEXYS</a></li><li><a href="/tools/">Tools</a></li><li><a href="/tools/schema-editor/">Schema Editor</a></li><li><a href="/tools/schema-editor/docs/getting-started.html">Docs</a></li><li aria-current="page">Features</li></ol>
+  <a class="gx-open-btn" href="/tools/schema-editor/">Open Tool ↗</a>
+</nav>
+<div class="gx-docs-wrap">
+  <article class="gx-docs-content"><h1 id="features-reference">Features Reference</h1>
+<p>This document provides a detailed reference for the advanced tools available in the Schematics Editor.</p>
+<hr>
+<h2 id="1-wiring-and-connectivity">1. Wiring and Connectivity</h2>
+<p>The Schematics Editor features a sophisticated connectivity engine specifically designed for electrical and logical diagrams.</p>
+<h3 id="manhattan-routing-wire-tool">Manhattan Routing (<code>Wire</code> Tool)</h3>
+<p>The <strong>Wire</strong> tool (W) uses Manhattan routing, which ensures that connections only use horizontal and vertical lines with 90 or 45-degree bends.</p>
+<ul><li><strong>How to use</strong>: Click a starting point, click to add anchor points, and double-click to finish.</li>
+<li><strong>Smooth Bends</strong>: Toggle the <strong>Smooth</strong> button in the toolbar to switch between sharp 90-degree corners and 45-degree chamfered bends.</li></ul>
+<h3 id="tracing-and-highlighting">Tracing and Highlighting</h3>
+<p>Use the <strong>Wiring</strong> accordion in the toolbar to analyze your diagram's connectivity:</p>
+<ul><li><strong>Trace Mode (Toggle Switch)</strong>: When ON, selecting a wire or component will highlight every connected element in real-time, allowing you to verify complete circuit paths.</li>
+<li><strong>Highlight Components</strong>: Automatically highlights all symbols on the canvas to distinguish them from background geometry.</li>
+<li><strong>Show Connections</strong>: Renders a temporary "netlist" overlay showing logical connections between pins.</li></ul>
+<hr>
+<h2 id="2-arrangement-and-layers">2. Arrangement and Layers</h2>
+<h3 id="layer-management">Layer Management</h3>
+<p>Open the <strong>Side Panel</strong> and select the <strong>Layers</strong> tab to manage the depth and visibility of your diagram.</p>
+<ul><li><strong>Tree View</strong>: View all elements as a hierarchical list.</li>
+<li><strong>Visibility (👁)</strong>: Toggle the visibility of individual elements or groups.</li>
+<li><strong>Locking (🔒)</strong>: Prevent accidental transformation of background elements.</li>
+<li><strong>Ordering</strong>: Elements at the top of the list render in front of those below.</li></ul>
+<h3 id="grouping-logic">Grouping logic</h3>
+<ul><li><strong>Group (Ctrl+G)</strong>: Combines selected elements into a single movable unit.</li>
+<li><strong>Ungroup (Ctrl+Shift+G)</strong>: Breaks a group back into its component parts.</li>
+<li><strong>Nested Groups</strong>: The editor supports infinite levels of grouping for complex component management.</li></ul>
+<hr>
+<h2 id="3-precision-and-measurement">3. Precision and Measurement</h2>
+<h3 id="the-measurement-system">The Measurement System</h3>
+<p>Select <strong>Measure</strong> (📏) in the bottom toolbar to configure the diagram scale.</p>
+<ul><li><strong>Units</strong>: Switch between <strong>Pixels</strong>, <strong>Metric</strong> (mm, cm, m), and <strong>Imperial</strong> (in, ft, yd).</li>
+<li><strong>Scale Calibration</strong>: Set a custom scale (e.g., <code>100px = 1m</code>).</li>
+<li><strong>Measurement Tool</strong>: Once calibrated, clicking and dragging on the canvas will display real-world distances in the status bar.</li></ul>
+<hr>
+<h2 id="4-3d-view-transformations">4. 3D View Transformations</h2>
+<p>A unique feature of the Schematics Editor is the ability to view and present 2D vector diagrams in 3D space.</p>
+<ul><li><strong>Tilt/Pitch</strong>: Tilts the diagram towards or away from the viewer.</li>
+<li><strong>Yaw</strong>: Rotates the diagram sideways.</li>
+<li><strong>Zoom Slider</strong>: Adjusts the overall scale while maintaining the 3D perspective.</li>
+<li><strong>Reset View</strong>: Instantly returns the canvas to a flat, 2D orientation at 100% scale.</li></ul>
+<blockquote class="note note">All 3D transformations are visual only and do not affect the underlying X/Y coordinates of your components. Exporting to SVG will save the 2D representation, while exporting to HTML will preserve the interactive 3D capabilities.</blockquote></article>
+  <aside class="gx-docs-related">
+    <p class="gx-docs-related-label">Related</p>
+    <div class="gx-link-row"><a class="gx-link-chip" href="/tools/schema-editor/docs/getting-started.html">Getting Started</a>
+      <a class="gx-link-chip" href="/tools/schema-editor/docs/modes/">Modes Overview</a></div>
+  </aside>
+</div>
+</body>
+</html>

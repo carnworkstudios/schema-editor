@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Schema Editor Modes — Electrical, UML, Floorplan & General | GINEXYS</title>
+<meta name="description" content="Overview of all domain modes in GINEXYS Schema Editor: General vector drawing, Electrical/PCB with circuit symbols and BOM generation, UML for software architecture, and Floorplan for architectural layouts.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ginexys.com/tools/schema-editor/docs/modes/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Schema Editor Modes — Electrical, UML, Floorplan & General | GINEXYS">
+<meta property="og:description" content="Overview of all domain modes in GINEXYS Schema Editor: General vector drawing, Electrical/PCB with circuit symbols and BOM generation, UML for software architecture, and Floorplan for architectural layouts.">
+<meta property="og:url" content="https://ginexys.com/tools/schema-editor/docs/modes/">
+<meta property="og:site_name" content="GINEXYS">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "Schema Editor Modes — Electrical, UML, Floorplan & General",
+      "description": "Overview of all domain modes in GINEXYS Schema Editor: General vector drawing, Electrical/PCB with circuit symbols and BOM generation, UML for software architecture, and Floorplan for architectural layouts.",
+      "url": "https://ginexys.com/tools/schema-editor/docs/modes/",
+      "isPartOf": {
+        "@type": "WebApplication",
+        "name": "Schema Editor",
+        "url": "https://ginexys.com/tools/schema-editor/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "GINEXYS",
+        "url": "https://ginexys.com"
+      },
+      "dateModified": "2026-04-25"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "GINEXYS",
+          "item": "https://ginexys.com/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Tools",
+          "item": "https://ginexys.com/tools/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 3,
+          "name": "Schema Editor",
+          "item": "https://ginexys.com/tools/schema-editor/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 4,
+          "name": "Docs",
+          "item": "https://ginexys.com/tools/schema-editor/docs/getting-started.html"
+        },
+        {
+          "@type": "ListItem",
+          "position": 5,
+          "name": "Modes"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>:root { --bg:#0b1018;--bg-r:#0f1720;--bg-o:#162030;--br:#1e3348;--br-s:#2a4a66;--ac:#c9a84c;--ac2:#00b4d8;--tx:#d8eaf8;--txs:#6a90b0;--txd:#354d63;--radius:6px; }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--tx);font-family:'DM Mono','Courier New',monospace;font-size:13px;line-height:1.65;}
+  .gx-nav{height:44px;background:var(--bg-r);border-bottom:1px solid var(--br);display:flex;align-items:center;padding:0 20px;gap:0;position:sticky;top:0;z-index:10;}
+  .gx-breadcrumb{list-style:none;display:flex;align-items:center;gap:0;flex:1;min-width:0;overflow:hidden;}
+  .gx-breadcrumb li{display:flex;align-items:center;font-size:11px;letter-spacing:.05em;white-space:nowrap;color:var(--txd);}
+  .gx-breadcrumb li+li::before{content:'/';margin:0 6px;color:var(--txd);}
+  .gx-breadcrumb a{color:var(--txs);text-decoration:none;transition:color .15s;}
+  .gx-breadcrumb a:hover{color:var(--ac);}
+  .gx-breadcrumb li:last-child{color:var(--tx);overflow:hidden;text-overflow:ellipsis;}
+  .gx-open-btn{font-size:10px;letter-spacing:.08em;color:var(--txs);text-decoration:none;border:1px solid var(--br);border-radius:var(--radius);padding:4px 12px;white-space:nowrap;transition:border-color .15s,color .15s;flex-shrink:0;}
+  .gx-open-btn:hover{border-color:var(--ac);color:var(--ac);}
+  .gx-docs-wrap{max-width:760px;margin:0 auto;padding:36px 24px 80px;}
+  .gx-docs-content h1{font-size:24px;color:var(--tx);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--br);line-height:1.3;}
+  .gx-docs-content h2{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx);margin:28px 0 10px;padding-left:8px;border-left:2px solid var(--ac);}
+  .gx-docs-content h3{font-size:12px;color:var(--ac2);margin:18px 0 6px;}
+  .gx-docs-content h4{font-size:12px;color:var(--txs);margin:14px 0 4px;font-style:italic;}
+  .gx-docs-content p{color:var(--txs);margin-bottom:12px;line-height:1.8;}
+  .gx-docs-content ul,.gx-docs-content ol{margin:8px 0 14px 20px;color:var(--txs);}
+  .gx-docs-content li{margin-bottom:5px;line-height:1.7;}
+  .gx-docs-content strong{color:var(--tx);font-weight:500;}
+  .gx-docs-content em{color:var(--txs);font-style:italic;}
+  .gx-docs-content code{background:var(--bg-o);padding:1px 5px;border:1px solid var(--br);font-size:11px;color:var(--ac2);border-radius:3px;}
+  .gx-docs-content pre{background:var(--bg-o);border:1px solid var(--br);border-left:2px solid var(--ac);padding:14px 16px;margin:14px 0;overflow-x:auto;border-radius:var(--radius);}
+  .gx-docs-content pre code{background:none;border:none;padding:0;color:var(--txs);font-size:11px;line-height:1.65;}
+  .gx-docs-content blockquote{border-left:3px solid var(--ac);padding:10px 16px;background:rgba(201,168,76,.06);margin:14px 0;color:var(--txs);border-radius:0 var(--radius) var(--radius) 0;}
+  .gx-docs-content blockquote.note{border-left-color:var(--ac2);background:rgba(0,180,216,.06);}
+  .gx-docs-content hr{border:none;border-top:1px solid var(--br);margin:24px 0;}
+  .gx-docs-content a{color:var(--ac2);text-decoration:none;}
+  .gx-docs-content a:hover{text-decoration:underline;}
+  .gx-docs-content img{width:100%;border-radius:var(--radius);margin:12px 0;display:block;}
+  .gx-docs-content .table-wrap{overflow-x:auto;margin:14px 0;}
+  .gx-docs-content table{width:100%;border-collapse:collapse;font-size:12px;}
+  .gx-docs-content th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txs);padding:8px 12px;border-bottom:1px solid var(--br);background:var(--bg-o);}
+  .gx-docs-content td{padding:7px 12px;border-bottom:1px solid var(--br);color:var(--txs);vertical-align:top;}
+  .gx-docs-related{margin-top:40px;padding-top:20px;border-top:1px solid var(--br);}
+  .gx-docs-related-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--txd);margin-bottom:10px;}
+  .gx-link-row{display:flex;flex-wrap:wrap;gap:8px;}
+  .gx-link-chip{font-size:11px;color:var(--txs);text-decoration:none;border:1px solid var(--br);border-radius:var(--radius);padding:5px 12px;transition:border-color .15s,color .15s;white-space:nowrap;}
+  .gx-link-chip:hover{border-color:var(--ac2);color:var(--ac2);}</style>
+</head>
+<body>
+<nav class="gx-nav" aria-label="Breadcrumb">
+  <ol class="gx-breadcrumb"><li><a href="/">GINEXYS</a></li><li><a href="/tools/">Tools</a></li><li><a href="/tools/schema-editor/">Schema Editor</a></li><li><a href="/tools/schema-editor/docs/getting-started.html">Docs</a></li><li aria-current="page">Modes</li></ol>
+  <a class="gx-open-btn" href="/tools/schema-editor/">Open Tool ↗</a>
+</nav>
+<div class="gx-docs-wrap">
+  <article class="gx-docs-content"><h1 id="domain-modes">Domain Modes</h1>
+<p>The Schematics Editor features specialized modes that tailor the interface and symbol library to specific industries. Use the <strong>Mode Switcher</strong> pill in the secondary toolbar to change domains.</p>
+<hr>
+<h2 id="1-general-mode">1. General Mode</h2>
+<p>The default vector drawing environment.</p>
+<ul><li><strong>Best For</strong>: General-purpose illustrations, icon design, and freeform sketching.</li>
+<li><strong>Symbol Palette</strong>: Empty by default, allowing for maximum canvas space.</li>
+<li><strong>Behavior</strong>: Standard vector manipulation without specialized connectivity logic.</li></ul>
+<hr>
+<h2 id="2-electrical-pcb-mode">2. Electrical / PCB Mode ⚡</h2>
+<p>A specialized environment for creating circuit diagrams and wiring schematics.</p>
+<ul><li><strong>Best For</strong>: Circuit design, electrical system mapping, and PCB layouts.</li>
+<li><strong>Symbol Palette</strong>: Includes standardized electrical components (Resistors, Capacitors, ICs, Transistors, and Connectors).</li>
+<li><strong>Key Features</strong>:</li>
+<li><strong>Pins & Terminals</strong>: Components have predefined connection points.</li>
+<li><strong>Trace Integration</strong>: Activating <strong>Trace</strong> mode highlights the specific path of an electrical signal through the diagram.</li>
+<li><strong>Smooth Routing</strong>: Toggle <strong>Smooth</strong> to enable 45-degree bends in wiring, reducing visual clutter in complex schematics.</li></ul>
+<hr>
+<h2 id="3-uml-software-architecture">3. UML / Software Architecture ◈</h2>
+<p>Designed for software engineers and architects to map out system relationships.</p>
+<ul><li><strong>Best For</strong>: Class diagrams, Flowcharts, Sequence diagrams, and System architecture.</li>
+<li><strong>Symbol Palette</strong>: Standard UML shapes including Actors, Classes, Interfaces, Databases, and Decision diamonds.</li>
+<li><strong>Key Features</strong>:</li>
+<li><strong>Auto-Flow</strong>: Wires behave as relational arrows that can be customized with head/tail styles (Composition, Inheritance, etc.) via the Properties panel.</li>
+<li><strong>Text Integration</strong>: Double-click any UML block to edit its name or attributes directly.</li></ul>
+<hr>
+<h2 id="4-floorplan-mode">4. Floorplan Mode ⬛</h2>
+<p>A tool for architectural layout and interior planning.</p>
+<ul><li><strong>Best For</strong>: Room layouts, HVAC mapping, and simple architectural floorplans.</li>
+<li><strong>Symbol Palette</strong>: Architectural symbols such as Walls, Doors, Windows, HVAC units, and basic furniture.</li>
+<li><strong>Key Features</strong>:</li>
+<li><strong>Measurement Sync</strong>: Designed to be used with the <strong>Metric</strong> or <strong>Imperial</strong> measurement systems.</li>
+<li><strong>Coordinate Precision</strong>: Every element has precise X/Y/W/H properties that translate to real-world dimensions based on the defined scale.</li></ul>
+<hr>
+<h2 id="switching-modes">Switching Modes</h2>
+<ol><li>Select the desired mode pill (e.g., <strong>Electrical</strong>) in the top toolbar.</li>
+<li>The <strong>Symbol Palette</strong> will automatically open on the left with the corresponding library.</li>
+<li>Drag symbols from the palette directly onto the canvas.</li>
+<li>Switch back to <strong>General</strong> to hide the palette and maximize your viewport.</li></ol>
+<blockquote class="note tip">Each mode saves its own symbol layout. You can mix elements from multiple modes by dragging a symbol onto the canvas, switching modes, and then dragging another.</blockquote></article>
+  <aside class="gx-docs-related">
+    <p class="gx-docs-related-label">Related</p>
+    <div class="gx-link-row"><a class="gx-link-chip" href="/tools/schema-editor/docs/getting-started.html">Getting Started</a>
+      <a class="gx-link-chip" href="/tools/schema-editor/docs/features/">Features Reference</a></div>
+  </aside>
+</div>
+</body>
+</html>

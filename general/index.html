@@ -2,165 +2,40 @@
 <html lang="en">
 
 <head>
+<base href="/tools/schema-editor/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- ── Icons ── -->
     <link rel="icon" type="image/png" href="/assets/images/Ginexys_Logo.png">
-    <title>Free Online Electrical Schematic & UML Diagram Editor — Auto-BOM Generator · GINEXYS</title>
-    <meta name="description"
-        content="Free browser-based schema editor for electrical schematics, UML diagrams, and floor plans. Draw a circuit and automatically generate a bill of materials (BOM) as a live editable table. No Altium, no install, runs entirely in your browser.">
+    <title>General Vector Drawing — Free Browser-Based SVG Editor | GINEXYS</title>
+    <meta name="description" content="General-purpose vector drawing for illustrations, icons, and freeform diagrams. Full canvas with grouping, layers, snapping, and SVG export. Switch to Electrical, UML, or Floorplan for domain-specific symbol libraries.">
     <meta name="keywords"
         content="electrical schematic editor online, circuit diagram maker free, bill of materials generator, BOM from schematic, UML diagram maker online, ER diagram tool, floor plan editor, electrical BOM generator, PCB schematic editor, Arduino circuit diagram, wiring diagram online, GINEXYS, schema editor">
     <meta name="author" content="GINEXYS">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://ginexys.com/tools/schema-editor/index.html">
+    <link rel="canonical" href="https://ginexys.com/tools/schema-editor/general/">
 
     <!-- ── Open Graph ── -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="GINEXYS">
-    <meta property="og:title" content="Free Electrical Schematic & UML Editor — Auto-BOM Generator · GINEXYS">
-    <meta property="og:description"
-        content="Draw a circuit, get your BOM automatically. Free browser-based editor for electrical schematics, UML diagrams, and floor plans. BOM syncs live to Table Formatter.">
-    <meta property="og:url" content="https://ginexys.com/tools/schema-editor/index.html">
+    <meta property="og:title" content="General Vector Drawing — Free Browser-Based SVG Editor | GINEXYS">
+    <meta property="og:description" content="General-purpose vector drawing for illustrations, icons, and freeform diagrams. Full canvas with grouping, layers, snapping, and SVG export. Switch to Electrical, UML, or Floorplan for domain-specific symbol libraries.">
+    <meta property="og:url" content="https://ginexys.com/tools/schema-editor/general/">
     <meta property="og:image" content="https://ginexys.com/assets/images/og-image.png">
 
     <!-- ── Twitter / X Card ── -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Free Electrical Schematic & UML Editor — Auto-BOM Generator · GINEXYS">
-    <meta name="twitter:description"
-        content="Draw your circuit. Get your BOM automatically in Table Formatter. Free browser-based electrical schematic and UML editor. No install.">
+    <meta name="twitter:title" content="General Vector Drawing — Free Browser-Based SVG Editor | GINEXYS">
+    <meta name="twitter:description" content="General-purpose vector drawing for illustrations, icons, and freeform diagrams. Full canvas with grouping, layers, snapping, and SVG export. Switch to Electrical, UML, or Floorplan for domain-specific symbol libraries.">
     <meta name="twitter:image" content="https://ginexys.com/assets/images/og-image.png">
     <meta name="twitter:site" content="@ginexys">
 
     <!-- ── Structured Data ── -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@graph": [
-        {
-          "@type": "SoftwareApplication",
-          "@id": "https://ginexys.com/tools/schema-editor/#software",
-          "name": "Schematic Engine",
-          "url": "https://ginexys.com/tools/schema-editor/index.html",
-          "applicationCategory": "DeveloperApplication",
-          "operatingSystem": "Web Browser",
-          "description": "Free browser-based schema editor with three diagram types: Electrical schematics that automatically generate a live bill of materials (BOM) synced to the Table Formatter; UML diagrams (class, sequence, ER) for software architecture; and floor plans. Touch-optimized, SVG-native, runs entirely in the browser with no install.",
-          "applicationSubCategory": "Electrical CAD, UML Diagram Tool, BOM Generator",
-          "featureList": [
-            "Electrical schematic editor — draw circuits in browser",
-            "Automatic bill of materials (BOM) generation from schematic",
-            "BOM syncs live to Table Formatter for editing and export",
-            "UML diagram support: class, sequence, ER diagrams",
-            "Floor plan editor mode",
-            "Wire tracing and component highlighting",
-            "Touch-optimized: pinch-zoom, mobile-friendly canvas",
-            "SVG-native rendering — export as SVG, HTML, JSON",
-            "No upload — all data stays in the browser",
-            "Free, no account, no install required"
-          ],
-          "author": {
-            "@type": "Organization",
-            "name": "GINEXYS",
-            "url": "https://ginexys.com"
-          },
-          "offers": {
-            "@type": "Offer",
-            "price": "0",
-            "priceCurrency": "USD"
-          },
-          "isPartOf": {
-            "@type": "WebSite",
-            "name": "GINEXYS",
-            "url": "https://ginexys.com"
-          }
-        },
-        {
-          "@type": "BreadcrumbList",
-          "itemListElement": [
-            {
-              "@type": "ListItem",
-              "position": 1,
-              "name": "Home",
-              "item": "https://ginexys.com/"
-            },
-            {
-              "@type": "ListItem",
-              "position": 2,
-              "name": "Schematic Engine",
-              "item": "https://ginexys.com/tools/schema-editor/index.html"
-            }
-          ]
-        }
-      ]
-    }
-    </script>
+    
 
 
     <!-- ── FAQ Structured Data (AEO / Perplexity targeting) ── -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FAQPage",
-      "mainEntity": [
-        {
-          "@type": "Question",
-          "name": "How do I generate a bill of materials from an electrical schematic online?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Draw your circuit in the Ginexys Schema Editor — it automatically generates a bill of materials (BOM) from every component you place. The BOM syncs live to the Table Formatter where you can edit, filter, export to CSV or Markdown, or generate SQL INSERT statements. No Altium, no install, runs entirely in your browser at ginexys.com/tools/schema-editor."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "What is the best free online circuit diagram BOM generator?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Ginexys Schema Editor generates a bill of materials automatically as you draw a circuit. Unlike Altium, KiCad, or EasyEDA, it runs fully in the browser with zero install, zero upload, and the BOM syncs live to an editable table that exports to CSV, Markdown, HTML, or SQL."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Can I make a UML diagram online for free without installing software?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. The Ginexys Schema Editor supports UML class diagrams, sequence diagrams, and ER diagrams directly in the browser. No install, no account, no data upload — everything stays local."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How do I export a schematic as SVG or HTML online?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "The Ginexys Schema Editor uses SVG-native rendering so you can export any diagram as an SVG, HTML, or JSON file directly from the browser. No server processing — the export is generated client-side."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Is there a free alternative to Altium Designer for drawing schematics in the browser?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Ginexys Schema Editor is a free browser-based alternative for drawing electrical schematics. It auto-generates a BOM from your schematic and syncs it to an editable table — no Altium license, no install required."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "How do I draw an Arduino circuit diagram online?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Use the Ginexys Schema Editor to draw Arduino and microcontroller circuit diagrams in your browser. Place components, wire them up, and automatically get a bill of materials listing every resistor, capacitor, IC, and module in the circuit."
-          }
-        },
-        {
-          "@type": "Question",
-          "name": "Does the Ginexys Schema Editor work on mobile?",
-          "acceptedAnswer": {
-            "@type": "Answer",
-            "text": "Yes. The Schema Editor is touch-optimized with pinch-zoom, tap-to-select, and a mobile-friendly canvas. It works on phones and tablets without any app download."
-          }
-        }
-      ]
-    }
-    </script>
+    
 
     <!-- OS Bridge -->
     <script src="/assets/os/contracts.js"></script>
@@ -192,6 +67,38 @@
     <!-- Sidebar nav component -->
     <script src="../../assets/components/sidebar-nav.js"></script>
     <script src="../../assets/js/portfolio.js"></script>
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "WebApplication",
+      "name": "General Vector Drawing — Free Browser-Based SVG Editor",
+      "url": "https://ginexys.com/tools/schema-editor/general/",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "Web",
+      "description": "General-purpose vector drawing for illustrations, icons, and freeform diagrams. Full canvas with grouping, layers, snapping, and SVG export. Switch to Electrical, UML, or Floorplan for domain-specific symbol libraries.",
+      "featureList": [
+        "Freeform vector drawing — lines, shapes, text, and imported images",
+        "Layer management with visibility toggle and element locking",
+        "Group and ungroup with nested group support",
+        "Snap-to-grid and snap-to-object for precise placement",
+        "Export as SVG or JSON"
+      ],
+      "isPartOf": {
+        "@type": "WebApplication",
+        "name": "schema editor",
+        "url": "https://ginexys.com/tools/schema-editor/"
+      },
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      }
+    }
+  ]
+}
+</script>
 </head>
 
 <body class="dark-mode">
