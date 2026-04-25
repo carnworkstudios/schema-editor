@@ -10,43 +10,7 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Compute the base viewBox that fills the container ─────
     //    Called on init, on container resize, and after loading SVG.
     _computeBaseViewBox() {
-        const svg = this.$svgDisplay[0];
-        const container = this.$svgContainer[0];
-        if (!svg || !container) return;
-
-        // Original document viewBox (the "content area").
-        // Prefer the stored snapshot over the live attribute — the live attribute can contain
-        // corrupted overflow values if a previous updateTransform wrote bad numbers.
-        const raw = (this.originalViewBox || svg.getAttribute('viewBox') || '0 0 1200 800').trim();
-        const vb = raw.split(/[\s,]+/).map(Number);
-        const vbOk = vb.length === 4 && vb.every(isFinite) && vb[2] > 0 && vb[3] > 0;
-        const safe = vbOk ? vb : [0, 0, 1200, 800];
-        this._origDocViewBox = { x: safe[0], y: safe[1], w: safe[2], h: safe[3] };
-
-        const cW = container.clientWidth || 1;
-        const cH = container.clientHeight || 1;
-        const doc = this._origDocViewBox;
-        const docAR = doc.w / doc.h;
-        const containerAR = cW / cH;
-
-        // Expand viewBox to match container aspect ratio → no letterboxing
-        if (containerAR > docAR) {
-            const newW = doc.h * containerAR;
-            this._baseViewBox = {
-                x: doc.x - (newW - doc.w) / 2,
-                y: doc.y,
-                w: newW,
-                h: doc.h,
-            };
-        } else {
-            const newH = doc.w / containerAR;
-            this._baseViewBox = {
-                x: doc.x,
-                y: doc.y - (newH - doc.h) / 2,
-                w: doc.w,
-                h: newH,
-            };
-        }
+        // [DEPRECATED] ViewBox is now pure absolute math derived entirely from zoom/pan.
     },
 
     // ── Setters ──────────────────────────────────────────────
@@ -92,38 +56,19 @@ Object.assign(MobileSVGEditor.prototype, {
         const svg = this.$svgDisplay[0];
         if (!svg) return;
 
-        if (!this._baseViewBox) this._computeBaseViewBox();
-        const base = this._baseViewBox;
-        if (!base) return;
-
         const container = this.$svgContainer[0];
         const cW = container.clientWidth || 1;
-        const zoom = this.camera.zoom;
-        const tx = this.camera.tx;
-        const ty = this.camera.ty;
+        const cH = container.clientHeight || 1;
 
-        // ── viewBox: zoom + pan (always crisp) ──────────────
-        const vbW = base.w / zoom;
-        const vbH = base.h / zoom;
-        const svgPerPx = base.w / (zoom * cW);   // SVG units per screen pixel
-        const vbX = base.x - tx * svgPerPx;
-        const vbY = base.y - ty * svgPerPx;
-
-        if (!isFinite(vbX) || !isFinite(vbY) || !isFinite(vbW) || !isFinite(vbH) || vbW <= 0 || vbH <= 0) {
-            console.warn('[viewTransform] viewBox overflow — resetting camera', { zoom, tx, ty, vbX, vbY, vbW, vbH });
-            this.camera.setState({ zoom: 1, tx: 0, ty: 0 });
-            this._computeBaseViewBox();
-            return;
-        }
-
-        svg.setAttribute('viewBox', `${vbX} ${vbY} ${vbW} ${vbH}`);
+        // ── viewBox: absolute zoom + pan (always crisp) ──────────────
+        const vb = this.camera.toViewBox(cW, cH);
+        svg.setAttribute('viewBox', vb.str);
 
         // ── Rotation → _cameraRotGroup SVG transform (world-space, no CSS) ──
         // Uses camera.rotation as the single source of truth so any module
         // querying camera state gets the full composite transform.
         const rotGroup = svg.querySelector('#_cameraRotGroup');
         if (rotGroup) {
-            const vb = this.camera.toViewBox(base, cW);
             const wx = vb.x + vb.w / 2;   // world center of current view
             const wy = vb.y + vb.h / 2;
             const deg = this.camera.rotation;
@@ -179,14 +124,29 @@ Object.assign(MobileSVGEditor.prototype, {
         const container = this.$svgContainer[0];
         if (!container) return;
 
-        // Use original document dimensions (not the dynamic viewBox)
-        const doc = this._origDocViewBox || { x: 0, y: 0, w: 1200, h: 800 };
         const cW = container.clientWidth;
         const cH = container.clientHeight;
 
+        // Find the #_canvasBg to center on, or fallback to an arbitrary rect
+        const bg = this.$svgDisplay[0].querySelector('#_canvasBg');
+        let doc = { x: 0, y: 0, w: 1200, h: 800 };
+        if (bg) {
+            doc = {
+                x: parseFloat(bg.getAttribute('x')) || 0,
+                y: parseFloat(bg.getAttribute('y')) || 0,
+                w: parseFloat(bg.getAttribute('width')) || 1200,
+                h: parseFloat(bg.getAttribute('height')) || 800
+            };
+        } else if (this.originalViewBox) {
+            const vb = this.originalViewBox.split(/[\s,]+/).map(Number);
+            if (vb.length === 4 && vb.every(isFinite)) {
+                doc = { x: vb[0], y: vb[1], w: vb[2], h: vb[3] };
+            }
+        }
+
         const targetZoom = Math.min(cW / doc.w, cH / doc.h) * 0.92;
-        const targetTx = (cW - doc.w * targetZoom) / 2;
-        const targetTy = (cH - doc.h * targetZoom) / 2;
+        const targetTx = (cW - doc.w * targetZoom) / 2 - (doc.x * targetZoom);
+        const targetTy = (cH - doc.h * targetZoom) / 2 - (doc.y * targetZoom);
 
         this._cameraTween.zoom = this.camera.zoom;
         this._cameraTween.rot = this.currentRotation;
@@ -331,7 +291,6 @@ Object.assign(MobileSVGEditor.prototype, {
 
     handleOrientationChange() {
         setTimeout(() => {
-            this._computeBaseViewBox();
             this.updateTransform();
             this.updateMiniMap?.();
         }, 100);

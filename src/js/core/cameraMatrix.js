@@ -59,14 +59,13 @@ class CameraMatrix {
         return { x: p.x, y: p.y };
     }
 
-    // Compute SVG viewBox string from zoom + pan (no rotation component).
-    // origVB = { x, y, w, h }  containerW = #svgContainer clientWidth
-    toViewBox(origVB, containerW) {
-        const vbW = origVB.w / this._zoom;
-        const vbH = origVB.h / this._zoom;
-        const spp = origVB.w / (this._zoom * containerW);  // SVG units per screen pixel
-        const vbX = origVB.x - this._tx * spp;
-        const vbY = origVB.y - this._ty * spp;
+    // Compute SVG viewBox string from absolute zoom + pan.
+    // cW, cH are the container dimensions in screen pixels.
+    toViewBox(cW, cH) {
+        const vbW = cW / this._zoom;
+        const vbH = cH / this._zoom;
+        const vbX = -this._tx / this._zoom;
+        const vbY = -this._ty / this._zoom;
         return {
             x: vbX, y: vbY, w: vbW, h: vbH,
             str: `${vbX} ${vbY} ${vbW} ${vbH}`,

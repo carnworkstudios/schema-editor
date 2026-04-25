@@ -83,10 +83,8 @@ class MobileSVGEditor {
         this.initGeometryEngine();      // geometryEngine.js  (spatial indices)
 
         // ── viewBox-based zoom: recompute base on container resize ──
-        this._computeBaseViewBox();
         if (typeof ResizeObserver !== 'undefined') {
             this._containerRO = new ResizeObserver(() => {
-                this._computeBaseViewBox();
                 this.updateTransform();
             });
             this._containerRO.observe(this.$svgContainer[0]);

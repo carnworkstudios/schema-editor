@@ -287,7 +287,6 @@ Object.assign(MobileSVGEditor.prototype, {
         // Reset view state then fit content into viewport
         this.camera.setState({ zoom: 1, tx: 0, ty: 0 });
         this.currentRotation  = 0;
-        this._computeBaseViewBox();     // recompute for new SVG dimensions
         this.updateTransform();
 
         // Delay fitToView so the DOM has painted and getBoundingClientRect is accurate
