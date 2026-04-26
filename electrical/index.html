@@ -187,11 +187,11 @@
                     <button class="mode-pill active" data-mode="electrical" title="Electrical / PCB mode">
                         <iconify-icon icon="material-symbols:bolt"></iconify-icon> Electrical
                     </button>
-                    <button class="mode-pill" data-mode="uml" title="UML / Software Architecture mode">
-                        <iconify-icon icon="material-symbols:schema-outline"></iconify-icon> UML
+                    <button class="mode-pill" data-mode="software" title="Software Design — ERD, Sequence, FSM">
+                        <iconify-icon icon="material-symbols:schema-outline"></iconify-icon> Software
                     </button>
-                    <button class="mode-pill" data-mode="floorplan" title="Floorplan / Architecture mode">
-                        <iconify-icon icon="material-symbols:floor-lamp-outline"></iconify-icon> Floorplan
+                    <button class="mode-pill" data-mode="construction" title="Construction / Architecture mode">
+                        <iconify-icon icon="material-symbols:architecture"></iconify-icon> Construction
                     </button>
                 </div>
 
@@ -200,8 +200,8 @@
                     aria-label="Select canvas mode">
                     <option value="general">✏ General</option>
                     <option value="electrical">⚡ Electrical</option>
-                    <option value="uml">◈ UML</option>
-                    <option value="floorplan">⬛ Floorplan</option>
+                    <option value="software">◈ Software</option>
+                    <option value="construction">🏗 Construction</option>
                 </select>
 
                 <div class="control-group-flex" style="margin-left:auto;">
@@ -402,6 +402,27 @@
                 <button class="btn" id="batchExportBtn" title="Batch export all loaded diagrams as SVG">
                     <iconify-icon icon="material-symbols:download-for-offline-outline"></iconify-icon>
                     <span class="panel-content">Batch</span>
+                </button>
+                <!-- Software (ERD / Sequence / FSM) exports -->
+                <button class="btn export-domain-btn" data-mode="software" id="exportSqlBtn" title="Export ERD as SQL DDL">
+                    <iconify-icon icon="material-symbols:database-outline"></iconify-icon>
+                    <span class="panel-content">SQL</span>
+                </button>
+                <button class="btn export-domain-btn" data-mode="software" id="exportMermaidSeqBtn" title="Export Sequence as Mermaid (.mmd)">
+                    <iconify-icon icon="material-symbols:swap-horiz"></iconify-icon>
+                    <span class="panel-content">Mermaid</span>
+                </button>
+                <button class="btn export-domain-btn" data-mode="software" id="exportFsmJsonBtn" title="Export FSM as JSON">
+                    <iconify-icon icon="material-symbols:data-object"></iconify-icon>
+                    <span class="panel-content">FSM JSON</span>
+                </button>
+                <button class="btn export-domain-btn" data-mode="software" id="exportXStateBtn" title="Export FSM as XState (TypeScript)">
+                    <iconify-icon icon="material-symbols:code"></iconify-icon>
+                    <span class="panel-content">XState</span>
+                </button>
+                <button class="btn export-domain-btn" data-mode="software" id="sendFsmToTafneBtn" title="Send FSM to TAFNE Node Editor">
+                    <iconify-icon icon="material-symbols:send-outline"></iconify-icon>
+                    <span class="panel-content">→ TAFNE</span>
                 </button>
             </div>
 
@@ -724,9 +745,10 @@
 
     <!-- Domain Kits (Phase 2) -->
     <script src="src/js/domains/domainManager.js"></script>
+    <script src="src/js/domains/generalKit.js"></script>
     <script src="src/js/domains/electricalKit.js"></script>
-    <script src="src/js/domains/umlKit.js"></script>
-    <script src="src/js/domains/floorplanKit.js"></script>
+    <script src="src/js/domains/softwareKit.js"></script>
+    <script src="src/js/domains/constructionKit.js"></script>
 
     <!-- Features -->
     <script src="src/js/features/viewTransform.js"></script>
@@ -818,6 +840,17 @@
 
             // CWS IPC: send netlist to TAFNE
             $('#sendToTafneBtn').on('click', () => window.editor.sendNetlistToTafne());
+
+            // ERD exports
+            $('#exportSqlBtn').on('click', () => window.editor.exportAsSqlDdl());
+
+            // Sequence exports
+            $('#exportMermaidSeqBtn').on('click', () => window.editor.exportAsMermaidSequence());
+
+            // FSM exports
+            $('#exportFsmJsonBtn').on('click', () => window.editor.exportAsFsmJson());
+            $('#exportXStateBtn').on('click', () => window.editor.exportAsXState());
+            $('#sendFsmToTafneBtn').on('click', () => window.editor.sendFsmToTafne());
 
             // CWS IPC: receive back-annotation from TAFNE
             CwsBridge.onData(function (envelope) {

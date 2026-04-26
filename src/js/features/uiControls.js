@@ -349,4 +349,248 @@ ${svgData}
     showLoading(show) {
         $('#loadingIndicator').toggle(show);
     },
+
+    // ── ERD → SQL DDL export ─────────────────────────────────
+
+    exportAsSqlDdl() {
+        const name = this.displays[this.activeDisplayIdx]?.name || 'diagram';
+        const entities = this._contentRoot
+            ? Array.from(this._contentRoot.querySelectorAll('[data-symbol="entity"],[data-symbol="weak-entity"]'))
+            : [];
+
+        if (!entities.length) {
+            this.showToast('No entities on canvas', 'error');
+            return;
+        }
+
+        const colRx = /^(?:[🔑🔗]\s*)?(.+?)\s*:\s*(.+)$/u;
+
+        const sql = entities.map(g => {
+            const tableName = (g.querySelector('text.sym-value')?.textContent || 'unknown')
+                .trim().replace(/\s+/g, '_').toLowerCase();
+            const isWeak = g.dataset.symbol === 'weak-entity';
+
+            const cols = Array.from(g.querySelectorAll('text.erd-col'))
+                .map(t => t.textContent.trim())
+                .filter(t => t && !t.startsWith('+'));
+
+            const colDefs = cols.map(raw => {
+                const icon = raw.startsWith('🔑') ? 'PK' : raw.startsWith('🔗') ? 'FK' : '';
+                const m = colRx.exec(raw);
+                if (!m) return `    -- (unparsed) ${raw}`;
+                const colName = m[1].trim().replace(/\s+/g, '_').toLowerCase();
+                let typePart = m[2].trim();
+                const isPK   = icon === 'PK' || /\bPK\b/i.test(typePart);
+                const isFK   = icon === 'FK' || /\bFK\b/i.test(typePart);
+                const isNN   = isPK || /\bNN\b|NOT\s*NULL/i.test(typePart);
+                const isUQ   = /\bUQ\b|UNIQUE/i.test(typePart);
+                typePart = typePart.replace(/\b(PK|FK|NN|UQ|NOT\s*NULL|UNIQUE)\b/gi, '').trim();
+
+                let def = `    ${colName} ${typePart}`;
+                if (isNN)  def += ' NOT NULL';
+                if (isUQ)  def += ' UNIQUE';
+                if (isPK)  def += ' PRIMARY KEY';
+                return def;
+            });
+
+            const comment = isWeak ? ' -- WEAK ENTITY' : '';
+            return `CREATE TABLE ${tableName} (${comment}\n${colDefs.join(',\n')}\n);`;
+        }).join('\n\n');
+
+        const base = name.replace(/\.[^.]+$/, '');
+        this._triggerDownload(sql, `${base}.sql`, 'text/plain;charset=utf-8');
+        this.showToast(`SQL exported (${entities.length} table${entities.length > 1 ? 's' : ''})`, 'success');
+    },
+
+    // ── Sequence → Mermaid export ─────────────────────────────
+
+    exportAsMermaidSequence() {
+        const name = this.displays[this.activeDisplayIdx]?.name || 'diagram';
+        const root = this._contentRoot;
+        if (!root) { this.showToast('No canvas', 'error'); return; }
+
+        const getX = g => {
+            const m = (g.getAttribute('transform') || '').match(/translate\(\s*([\d.+-]+)/);
+            return m ? parseFloat(m[1]) : 0;
+        };
+        const getY = g => {
+            const m = (g.getAttribute('transform') || '').match(/translate\(\s*[\d.+-]+[,\s]+([\d.+-]+)/);
+            return m ? parseFloat(m[1]) : 0;
+        };
+        const label = g => (g.querySelector('text.sym-value')?.textContent || '').trim();
+
+        // Participants sorted left → right
+        const actors = Array.from(root.querySelectorAll('[data-symbol="sq-actor"],[data-symbol="sq-system"]'))
+            .sort((a, b) => getX(a) - getX(b));
+
+        // Messages sorted top → bottom
+        const messages = Array.from(root.querySelectorAll('[data-symbol="sq-message"],[data-symbol="sq-return"]'))
+            .sort((a, b) => getY(a) - getY(b));
+
+        const actorNames = actors.map((a, i) => label(a) || `P${i + 1}`);
+
+        const resolveActor = (msgX, msgW = 150) => {
+            const cx = msgX + msgW / 2;
+            const srcX = msgX;
+            const dstX = msgX + msgW;
+            // Nearest actor to srcX = sender; nearest to dstX = receiver
+            let src = actorNames[0], dst = actorNames[0];
+            let srcDist = Infinity, dstDist = Infinity;
+            actors.forEach((a, i) => {
+                const ax = getX(a) + 60; // center of 120px box
+                if (Math.abs(ax - srcX) < srcDist) { srcDist = Math.abs(ax - srcX); src = actorNames[i]; }
+                if (Math.abs(ax - dstX) < dstDist) { dstDist = Math.abs(ax - dstX); dst = actorNames[i]; }
+            });
+            return { src, dst };
+        };
+
+        const lines = ['sequenceDiagram'];
+        actorNames.forEach(n => lines.push(`    participant ${n}`));
+
+        messages.forEach(g => {
+            const isReturn = g.dataset.symbol === 'sq-return';
+            const x = getX(g);
+            const { src, dst } = resolveActor(x);
+            const text = label(g) || (isReturn ? 'return' : 'message()');
+            const arrow = isReturn ? `${src}-->${dst}` : `${src}->>${dst}`;
+            lines.push(`    ${arrow}: ${text}`);
+        });
+
+        const base = name.replace(/\.[^.]+$/, '');
+        this._triggerDownload(lines.join('\n'), `${base}.mmd`, 'text/plain;charset=utf-8');
+        this.showToast(`Mermaid exported (${messages.length} message${messages.length !== 1 ? 's' : ''})`, 'success');
+    },
+
+    // ── FSM → JSON / XState export ───────────────────────────
+
+    buildFsmJson() {
+        const root = this._contentRoot;
+        if (!root) return null;
+        const name = this.displays[this.activeDisplayIdx]?.name || 'diagram';
+
+        const getTransform = g => {
+            const m = (g.getAttribute('transform') || '').match(/translate\(\s*([\d.+-]+)[,\s]+([\d.+-]+)/);
+            return m ? { x: parseFloat(m[1]), y: parseFloat(m[2]) } : { x: 0, y: 0 };
+        };
+
+        const stateEls = Array.from(root.querySelectorAll(
+            '[data-symbol="fsm-state"],[data-symbol="fsm-initial"],[data-symbol="fsm-final"],[data-symbol="fsm-choice"],[data-symbol="fsm-composite"]'
+        ));
+
+        const states = stateEls.map(g => {
+            const { x, y } = getTransform(g);
+            return {
+                id:   g.id || `state_${Math.random().toString(36).slice(2, 7)}`,
+                name: (g.querySelector('text.sym-value')?.textContent || '').trim() || g.dataset.symbol,
+                type: g.dataset.symbol.replace('fsm-', ''),
+                x, y,
+            };
+        });
+
+        // Transition labels (fsm-transition symbols provide event/action text near wires)
+        const transitionLabels = Array.from(root.querySelectorAll('[data-symbol="fsm-transition"]'))
+            .map(g => ({
+                text: (g.querySelector('text.sym-value')?.textContent || '').trim(),
+                ...getTransform(g),
+            }));
+
+        // Wires between states — read from this.wires if available
+        const stateIds = new Set(states.map(s => s.id));
+        const transitions = (this.wires || [])
+            .filter(w => w.from && w.to && stateIds.has(w.from) && stateIds.has(w.to))
+            .map((w, i) => {
+                // Find nearest transition label by proximity to wire midpoint
+                const fromState = states.find(s => s.id === w.from);
+                const toState   = states.find(s => s.id === w.to);
+                let event = '', action = '';
+                if (fromState && toState && transitionLabels.length) {
+                    const mx = (fromState.x + toState.x) / 2;
+                    const my = (fromState.y + toState.y) / 2;
+                    const nearest = transitionLabels.reduce((best, t) =>
+                        Math.hypot(t.x - mx, t.y - my) < Math.hypot(best.x - mx, best.y - my) ? t : best
+                    );
+                    const parts = nearest.text.split('/').map(p => p.trim());
+                    event  = parts[0] || '';
+                    action = parts[1] || '';
+                }
+                return { id: w.id || `t_${i}`, from: w.from, to: w.to, event, action };
+            });
+
+        return { schema: 'cws-fsm-v1', name, states, transitions };
+    },
+
+    exportAsFsmJson() {
+        const fsm = this.buildFsmJson();
+        if (!fsm) { this.showToast('No canvas', 'error'); return; }
+        if (!fsm.states.length) { this.showToast('No states on canvas', 'error'); return; }
+
+        const base = fsm.name.replace(/\.[^.]+$/, '');
+        this._triggerDownload(JSON.stringify(fsm, null, 2), `${base}__fsm.json`, 'application/json');
+        this.showToast(`FSM JSON exported (${fsm.states.length} states)`, 'success');
+    },
+
+    exportAsXState() {
+        const fsm = this.buildFsmJson();
+        if (!fsm?.states.length) { this.showToast('No states on canvas', 'error'); return; }
+
+        const initial = fsm.states.find(s => s.type === 'initial') || fsm.states[0];
+        const stateMap = {};
+        fsm.states
+            .filter(s => s.type !== 'initial' && s.type !== 'final')
+            .forEach(s => {
+                const safeName = s.name.replace(/\s+/g, '_').toUpperCase();
+                const ons = fsm.transitions
+                    .filter(t => t.from === s.id)
+                    .reduce((acc, t) => {
+                        const target = fsm.states.find(st => st.id === t.to);
+                        if (target) acc[t.event || 'NEXT'] = target.name.replace(/\s+/g, '_').toUpperCase();
+                        return acc;
+                    }, {});
+                stateMap[safeName] = Object.keys(ons).length ? { on: ons } : {};
+            });
+
+        const xstateConfig = {
+            id:      fsm.name.replace(/\s+/g, '_').toLowerCase(),
+            initial: (initial.name || 'idle').replace(/\s+/g, '_').toUpperCase(),
+            states:  stateMap,
+        };
+
+        const base = fsm.name.replace(/\.[^.]+$/, '');
+        const code = `import { createMachine } from 'xstate';\n\nexport const machine = createMachine(${JSON.stringify(xstateConfig, null, 2)});\n`;
+        this._triggerDownload(code, `${base}__machine.ts`, 'text/plain;charset=utf-8');
+        this.showToast(`XState machine exported`, 'success');
+    },
+
+    async sendFsmToTafne() {
+        const fsm = this.buildFsmJson();
+        if (!fsm?.states.length) { this.showToast('No states on canvas', 'error'); return; }
+
+        if (!CwsBridge.isEmbedded) {
+            const base = fsm.name.replace(/\.[^.]+$/, '');
+            this._triggerDownload(JSON.stringify(fsm, null, 2), `${base}__fsm.json`, 'application/json');
+            this.showToast('Saved FSM JSON (not embedded)', 'success');
+            return;
+        }
+        if (!CwsBridge.isConnected) {
+            this.showToast('OS connection lost — reload the page', 'error');
+            return;
+        }
+        try {
+            this.showToast('Sending FSM to TAFNE…', 'success');
+            const pointerId = await CwsBridge.requestStore(JSON.stringify(fsm), 'json-data');
+            CwsBridge.offerData(CwsContracts.createEnvelope({
+                pointer:     pointerId,
+                contentType: 'json-data',
+                metadata: {
+                    source:      'schema-editor',
+                    diagramName: fsm.name,
+                    stateCount:  fsm.states.length,
+                },
+                hints: { suggestedTarget: 'tifany', action: 'load-fsm' },
+            }));
+            this.showToast(`Sent ${fsm.states.length} states → TAFNE`, 'success');
+        } catch (e) {
+            this.showToast('Send failed: ' + e.message, 'error');
+        }
+    },
 });

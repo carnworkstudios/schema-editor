@@ -7,29 +7,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- ── Icons ── -->
     <link rel="icon" type="image/png" href="/assets/images/Ginexys_Logo.png">
-    <title>Floor Plan Editor — Free Browser-Based Architectural Layout Tool | GINEXYS</title>
+    <title>Software Design Editor — Free ERD, Sequence, and FSM Tool | GINEXYS</title>
     <meta name="description"
-        content="Design room layouts, HVAC maps, and architectural floor plans in your browser. Architectural symbols, precise coordinate system, metric and imperial measurement support. No AutoCAD, no install.">
+        content="Design software architecture visually. Create ERDs with crow's foot notation, Sequence diagrams, and Finite State Machines (FSM). Export to code or documentation. No install.">
     <meta name="keywords"
-        content="electrical schematic editor online, circuit diagram maker free, bill of materials generator, BOM from schematic, UML diagram maker online, ER diagram tool, floor plan editor, electrical BOM generator, PCB schematic editor, Arduino circuit diagram, wiring diagram online, GINEXYS, schema editor">
+        content="Software design tool online free, ERD maker, sequence diagram tool, FSM editor, architecture diagram, UML alternative, Mermaid export, database schema designer, GINEXYS schema editor">
     <meta name="author" content="GINEXYS">
     <meta name="robots" content="index, follow">
-    <link rel="canonical" href="https://ginexys.com/tools/schema-editor/floorplan/">
+    <link rel="canonical" href="https://ginexys.com/tools/schema-editor/erd/">
 
     <!-- ── Open Graph ── -->
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="GINEXYS">
-    <meta property="og:title" content="Floor Plan Editor — Free Browser-Based Architectural Layout Tool | GINEXYS">
+    <meta property="og:title" content="ERD Diagram Editor — Free Entity Relationship Diagram Tool | GINEXYS">
     <meta property="og:description"
-        content="Design room layouts, HVAC maps, and architectural floor plans in your browser. Architectural symbols, precise coordinate system, metric and imperial measurement support. No AutoCAD, no install.">
-    <meta property="og:url" content="https://ginexys.com/tools/schema-editor/floorplan/">
+        content="Design database schemas visually with crow's foot ERD notation. Export to SQL DDL or Mermaid ER. No install.">
+    <meta property="og:url" content="https://ginexys.com/tools/schema-editor/erd/">
     <meta property="og:image" content="https://ginexys.com/assets/images/og-image.png">
 
     <!-- ── Twitter / X Card ── -->
     <meta name="twitter:card" content="summary_large_image">
-    <meta name="twitter:title" content="Floor Plan Editor — Free Browser-Based Architectural Layout Tool | GINEXYS">
+    <meta name="twitter:title" content="ERD Diagram Editor — Free Entity Relationship Diagram Tool | GINEXYS">
     <meta name="twitter:description"
-        content="Design room layouts, HVAC maps, and architectural floor plans in your browser. Architectural symbols, precise coordinate system, metric and imperial measurement support. No AutoCAD, no install.">
+        content="Design database schemas visually with crow's foot ERD notation. Export to SQL DDL or Mermaid ER. No install.">
     <meta name="twitter:image" content="https://ginexys.com/assets/images/og-image.png">
     <meta name="twitter:site" content="@ginexys">
 
@@ -47,10 +47,10 @@
           "mainEntity": [
             {
               "@type": "Question",
-              "name": "Does the schema editor support architectural floor plans with metric measurements?",
+              "name": "What is the best free online ERD tool that exports to SQL?",
               "acceptedAnswer": {
                 "@type": "Answer",
-                "text": "Yes, the <a href=\"https://ginexys.com/tools/schema-editor/floorplan/index.html\">Floorplan Mode</a> supports precise coordinate systems syncing with Metric or Imperial measurements for room layouts and HVAC mapping."
+                "text": "The <a href=\"https://ginexys.com/tools/schema-editor/erd/\">GINEXYS ERD Editor</a> lets you visually design entity-relationship diagrams using crow's foot notation, then export directly to SQL DDL (CREATE TABLE statements) or Mermaid ER syntax. No install required."
               }
             }
           ]
@@ -96,18 +96,18 @@
   "@graph": [
     {
       "@type": "WebApplication",
-      "name": "Floor Plan Editor — Free Browser-Based Architectural Layout Tool",
-      "url": "https://ginexys.com/tools/schema-editor/floorplan/",
+      "name": "ERD Diagram Editor — Free Entity Relationship Diagram Tool",
+      "url": "https://ginexys.com/tools/schema-editor/erd/",
       "applicationCategory": "DeveloperApplication",
       "operatingSystem": "Web",
-      "description": "Design room layouts, HVAC maps, and architectural floor plans in your browser. Architectural symbols, precise coordinate system, metric and imperial measurement support. No AutoCAD, no install.",
+      "description": "Design database schemas visually with crow's foot ERD notation. Place entity tables, define columns with types and constraints, draw relationships. Export to SQL DDL or Mermaid ER.",
       "featureList": [
-        "Architectural symbol library — walls, doors, windows, HVAC units, basic furniture",
-        "Metric and imperial measurement system support",
-        "Precise X/Y/W/H coordinate properties that translate to real-world dimensions",
-        "Snap-to-grid for accurate element alignment",
-        "Layer management with visibility and lock controls",
-        "Export as SVG"
+        "Entity table symbols with named columns, data types, and PK/FK/NN/UNIQUE constraints",
+        "Crow's foot cardinality markers — 1:1, 1:N, 0..1, 0..N, M:N",
+        "Relationship diamonds for many-to-many join tables",
+        "Export to SQL DDL — generates CREATE TABLE statements for every entity",
+        "Export to Mermaid ER syntax for documentation",
+        "All modes available: switch to Electrical, Software, or Construction from the toolbar"
       ],
       "isPartOf": {
         "@type": "WebApplication",
@@ -184,14 +184,14 @@
                     <button class="mode-pill" data-mode="general" title="General drawing mode">
                         <iconify-icon icon="material-symbols:draw-outline"></iconify-icon> General
                     </button>
-                    <button class="mode-pill" data-mode="electrical" title="Electrical / PCB mode">
+                    <button class="mode-pill active" data-mode="electrical" title="Electrical / PCB mode">
                         <iconify-icon icon="material-symbols:bolt"></iconify-icon> Electrical
                     </button>
-                    <button class="mode-pill" data-mode="uml" title="UML / Software Architecture mode">
-                        <iconify-icon icon="material-symbols:schema-outline"></iconify-icon> UML
+                    <button class="mode-pill active" data-mode="software" title="Software Design — ERD, Sequence, FSM">
+                        <iconify-icon icon="material-symbols:schema-outline"></iconify-icon> Software
                     </button>
-                    <button class="mode-pill active" data-mode="floorplan" title="Floorplan / Architecture mode">
-                        <iconify-icon icon="material-symbols:floor-lamp-outline"></iconify-icon> Floorplan
+                    <button class="mode-pill" data-mode="construction" title="Construction / Architecture mode">
+                        <iconify-icon icon="material-symbols:architecture"></iconify-icon> Construction
                     </button>
                 </div>
 
@@ -200,8 +200,8 @@
                     aria-label="Select canvas mode">
                     <option value="general">✏ General</option>
                     <option value="electrical">⚡ Electrical</option>
-                    <option value="uml">◈ UML</option>
-                    <option value="floorplan">⬛ Floorplan</option>
+                    <option value="software">◈ Software</option>
+                    <option value="construction">🏗 Construction</option>
                 </select>
 
                 <div class="control-group-flex" style="margin-left:auto;">
@@ -402,6 +402,28 @@
                 <button class="btn" id="batchExportBtn" title="Batch export all loaded diagrams as SVG">
                     <iconify-icon icon="material-symbols:download-for-offline-outline"></iconify-icon>
                     <span class="panel-content">Batch</span>
+                </button>
+                <!-- ERD exports -->
+                <button class="btn export-domain-btn" data-mode="software" id="exportSqlBtn" title="Export ERD as SQL DDL (CREATE TABLE statements)">
+                    <iconify-icon icon="material-symbols:database-outline"></iconify-icon>
+                    <span class="panel-content">SQL</span>
+                </button>
+                <!-- Software (ERD / Sequence / FSM) exports -->
+                <button class="btn export-domain-btn" data-mode="software" id="exportMermaidSeqBtn" title="Export Sequence Diagram as Mermaid (.mmd)">
+                    <iconify-icon icon="material-symbols:swap-horiz"></iconify-icon>
+                    <span class="panel-content">Mermaid</span>
+                </button>
+                <button class="btn export-domain-btn" data-mode="software" id="exportFsmJsonBtn" title="Export FSM as JSON">
+                    <iconify-icon icon="material-symbols:data-object"></iconify-icon>
+                    <span class="panel-content">FSM JSON</span>
+                </button>
+                <button class="btn export-domain-btn" data-mode="software" id="exportXStateBtn" title="Export FSM as XState machine (TypeScript)">
+                    <iconify-icon icon="material-symbols:code"></iconify-icon>
+                    <span class="panel-content">XState</span>
+                </button>
+                <button class="btn export-domain-btn" data-mode="software" id="sendFsmToTafneBtn" title="Send FSM to TAFNE Node Editor">
+                    <iconify-icon icon="material-symbols:send-outline"></iconify-icon>
+                    <span class="panel-content">→ TAFNE</span>
                 </button>
             </div>
 
@@ -724,9 +746,10 @@
 
     <!-- Domain Kits (Phase 2) -->
     <script src="src/js/domains/domainManager.js"></script>
+    <script src="src/js/domains/generalKit.js"></script>
     <script src="src/js/domains/electricalKit.js"></script>
-    <script src="src/js/domains/umlKit.js"></script>
-    <script src="src/js/domains/floorplanKit.js"></script>
+    <script src="src/js/domains/softwareKit.js"></script>
+    <script src="src/js/domains/constructionKit.js"></script>
 
     <!-- Features -->
     <script src="src/js/features/viewTransform.js"></script>
@@ -818,6 +841,17 @@
 
             // CWS IPC: send netlist to TAFNE
             $('#sendToTafneBtn').on('click', () => window.editor.sendNetlistToTafne());
+
+            // ERD exports
+            $('#exportSqlBtn').on('click', () => window.editor.exportAsSqlDdl());
+
+            // Sequence exports
+            $('#exportMermaidSeqBtn').on('click', () => window.editor.exportAsMermaidSequence());
+
+            // FSM exports
+            $('#exportFsmJsonBtn').on('click', () => window.editor.exportAsFsmJson());
+            $('#exportXStateBtn').on('click', () => window.editor.exportAsXState());
+            $('#sendFsmToTafneBtn').on('click', () => window.editor.sendFsmToTafne());
 
             // CWS IPC: receive back-annotation from TAFNE
             CwsBridge.onData(function (envelope) {

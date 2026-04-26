@@ -874,9 +874,23 @@ Object.assign(MobileSVGEditor.prototype, {
      *  Including it would make Ctrl+Z un-rotate the view rather than undo an edit. */
     _captureFullState() {
         const els = {};
-        this.$svgDisplay[0].querySelectorAll('[id]').forEach(el => {
-            if (el.id === '_cameraRotGroup') return;  // Step 9: camera state ≠ doc state
+        const svg = this.$svgDisplay[0];
+        // Select all elements within the content root (where user drawings live)
+        // AND any other significant children of the display.
+        const allElements = svg.querySelectorAll('*');
+        
+        allElements.forEach(el => {
+            if (el.id === '_cameraRotGroup') return;
+            // Skip system-only overlays and guides
+            if (el.dataset.seSystem === 'true' || el.classList.contains('snap-guide') || 
+                el.classList.contains('draw-preview') || el.id === '_gridLayer') return;
+            
+            // Assign a stable ID if missing (crucial for attribute-diff history to track the element)
+            if (!el.id && el.tagName !== 'svg' && el.tagName !== 'defs') {
+                el.id = `auto_${Math.random().toString(36).substr(2, 9)}`;
+            }
             if (!el.id) return;
+
             const attrs = {};
             for (const a of el.attributes) attrs[a.name] = a.value;
             els[el.id] = { tag: el.tagName, attrs, parentId: el.parentElement?.id || '' };

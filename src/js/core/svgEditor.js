@@ -301,22 +301,23 @@ class MobileSVGEditor {
             if (e.key === ' ') { e.preventDefault(); this._spaceHeld = true; }
 
             const ctrl = e.ctrlKey || e.metaKey;
+            const key  = e.key.toLowerCase();
 
-            // Undo / redo
-            if (ctrl && !e.shiftKey && e.key === 'z') { e.preventDefault(); this.undo(); }
-            if (ctrl && (e.key === 'y' || (e.shiftKey && e.key === 'z'))) { e.preventDefault(); this.redo(); }
+            // Undo / redo (Case-insensitive)
+            if (ctrl && !e.shiftKey && key === 'z') { e.preventDefault(); this.undo(); }
+            if (ctrl && (key === 'y' || (e.shiftKey && key === 'z'))) { e.preventDefault(); this.redo(); }
 
             // Delete selected
-            if ((e.key === 'Delete' || e.key === 'Backspace') && this._selection?.length) {
+            if ((e.key === 'Delete' || e.key === 'Backspace') && (this._selection?.length || this.selectedElements?.length)) {
                 e.preventDefault(); this.deleteSelected();
             }
 
             // Ctrl+A = select all
-            if (ctrl && e.key === 'a') { e.preventDefault(); this.selectAll(); }
+            if (ctrl && key === 'a') { e.preventDefault(); this.selectAll(); }
 
             // Ctrl+G / Ctrl+Shift+G = group/ungroup
-            if (ctrl && !e.shiftKey && e.key === 'g') { e.preventDefault(); this.groupSelected(); }
-            if (ctrl && e.shiftKey  && e.key === 'G') { e.preventDefault(); this.ungroupSelected(); }
+            if (ctrl && !e.shiftKey && key === 'g') { e.preventDefault(); this.groupSelected(); }
+            if (ctrl && e.shiftKey  && key === 'g') { e.preventDefault(); this.ungroupSelected(); }
 
             // Escape = select tool
             if (e.key === 'Escape' && this.activeTool !== 'select') {
