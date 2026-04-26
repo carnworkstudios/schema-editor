@@ -2,13 +2,14 @@
 <html lang="en">
 
 <head>
-<base href="/tools/schema-editor/">
+    <base href="/tools/schema-editor/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- ── Icons ── -->
     <link rel="icon" type="image/png" href="/assets/images/Ginexys_Logo.png">
     <title>Electrical Schematic Editor — Free Online Circuit Diagram Maker | GINEXYS</title>
-    <meta name="description" content="Draw circuit diagrams and PCB schematics in your browser. Standardized electrical symbols, automatic BOM generation synced live to Table Formatter, trace mode for connectivity verification. No Altium, no install.">
+    <meta name="description"
+        content="Draw circuit diagrams and PCB schematics in your browser. Standardized electrical symbols, automatic BOM generation synced live to Table Formatter, trace mode for connectivity verification. No Altium, no install.">
     <meta name="keywords"
         content="electrical schematic editor online, circuit diagram maker free, bill of materials generator, BOM from schematic, UML diagram maker online, ER diagram tool, floor plan editor, electrical BOM generator, PCB schematic editor, Arduino circuit diagram, wiring diagram online, GINEXYS, schema editor">
     <meta name="author" content="GINEXYS">
@@ -19,19 +20,21 @@
     <meta property="og:type" content="website">
     <meta property="og:site_name" content="GINEXYS">
     <meta property="og:title" content="Electrical Schematic Editor — Free Online Circuit Diagram Maker | GINEXYS">
-    <meta property="og:description" content="Draw circuit diagrams and PCB schematics in your browser. Standardized electrical symbols, automatic BOM generation synced live to Table Formatter, trace mode for connectivity verification. No Altium, no install.">
+    <meta property="og:description"
+        content="Draw circuit diagrams and PCB schematics in your browser. Standardized electrical symbols, automatic BOM generation synced live to Table Formatter, trace mode for connectivity verification. No Altium, no install.">
     <meta property="og:url" content="https://ginexys.com/tools/schema-editor/electrical/">
     <meta property="og:image" content="https://ginexys.com/assets/images/og-image.png">
 
     <!-- ── Twitter / X Card ── -->
     <meta name="twitter:card" content="summary_large_image">
     <meta name="twitter:title" content="Electrical Schematic Editor — Free Online Circuit Diagram Maker | GINEXYS">
-    <meta name="twitter:description" content="Draw circuit diagrams and PCB schematics in your browser. Standardized electrical symbols, automatic BOM generation synced live to Table Formatter, trace mode for connectivity verification. No Altium, no install.">
+    <meta name="twitter:description"
+        content="Draw circuit diagrams and PCB schematics in your browser. Standardized electrical symbols, automatic BOM generation synced live to Table Formatter, trace mode for connectivity verification. No Altium, no install.">
     <meta name="twitter:image" content="https://ginexys.com/assets/images/og-image.png">
     <meta name="twitter:site" content="@ginexys">
 
     <!-- ── Structured Data ── -->
-    
+
 
 
     <!-- ── FAQ Structured Data (AEO — Answer Engine Optimization) ── -->
@@ -55,7 +58,7 @@
       ]
     }
     </script>
-    
+
 
     <!-- OS Bridge -->
     <script src="/assets/os/contracts.js"></script>
@@ -87,7 +90,7 @@
     <!-- Sidebar nav component -->
     <script src="../../assets/components/sidebar-nav.js"></script>
     <script src="../../assets/js/portfolio.js"></script>
-<script type="application/ld+json">
+    <script type="application/ld+json">
 {
   "@context": "https://schema.org",
   "@graph": [
@@ -240,9 +243,10 @@
                     <input type="checkbox" aria-label="Toggle wire tracing">
                     <span class="switch-slider"></span>
                 </div>
-                <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light" aria-label="Toggle dark mode">
-                <iconify-icon icon="material-symbols:dark-mode-outline" style="font-size:16px;"></iconify-icon>
-            </button>
+                <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light"
+                    aria-label="Toggle dark mode">
+                    <iconify-icon icon="material-symbols:dark-mode-outline" style="font-size:16px;"></iconify-icon>
+                </button>
 
             </div>
         </div>
@@ -433,11 +437,11 @@
                                  is applied in SVG world-space, not CSS — keeps getScreenCTM() correct. -->
                             <g id="_cameraRotGroup"></g>
                             <!-- Placeholder text -->
-                            <text x="600" y="385" text-anchor="middle" fill="gray" font-size="15"
+                            <!-- <text x="600" y="385" text-anchor="middle" fill="gray" font-size="15"
                                 font-family="Inter,sans-serif">
                                 Click <tspan fill="#4facfe">New</tspan> to create a blank canvas, or <tspan
                                     fill="#4facfe">Load</tspan> to import a file
-                            </text>
+                            </text> -->
                             <text x="600" y="410" text-anchor="middle" fill="gray" font-size="11"
                                 font-family="Inter,sans-serif">
                                 Supports SVG · PDF · HPGL/PLT · PNG · JPG · DWF
@@ -446,7 +450,7 @@
                         <!-- Canvas overlay: draws selection/rotation handles pixel-perfect
                              via getScreenCTM() — correct once CSS transforms removed from #svgWrapper. -->
                         <canvas id="overlayCanvas"
-                                style="position:absolute;top:0;left:0;pointer-events:none;z-index:10;">
+                            style="position:absolute;top:0;left:0;pointer-events:none;z-index:10;">
                         </canvas>
                     </div>
                     <div class="loading" id="loadingIndicator" style="display:none;color:rgba(255,255,255,0.7);">
@@ -823,23 +827,23 @@
         });
     </script>
     <script>
-    // Mode routing — path-based activation + URL sync on switch
-    (function () {
-      // On load: read pathname to activate correct mode
-      var m = (location.pathname.match(/\/schema-editor\/([^\/]+)\//) || [])[1];
-      if (m && m !== 'docs') {
-        var btn = document.querySelector('.mode-pill[data-mode="' + m + '"]');
-        if (btn) btn.click();
-      }
+        // Mode routing — path-based activation + URL sync on switch
+        (function () {
+            // On load: read pathname to activate correct mode
+            var m = (location.pathname.match(/\/schema-editor\/([^\/]+)\//) || [])[1];
+            if (m && m !== 'docs') {
+                var btn = document.querySelector('.mode-pill[data-mode="' + m + '"]');
+                if (btn) btn.click();
+            }
 
-      // On switch: keep URL in sync (enables shareable mode URLs + cross-tool routing)
-      document.addEventListener('click', function (e) {
-        var pill = e.target.closest('.mode-pill');
-        if (!pill) return;
-        var mode = pill.dataset.mode;
-        if (mode) history.replaceState({}, '', '/tools/schema-editor/' + mode + '/');
-      });
-    })();
+            // On switch: keep URL in sync (enables shareable mode URLs + cross-tool routing)
+            document.addEventListener('click', function (e) {
+                var pill = e.target.closest('.mode-pill');
+                if (!pill) return;
+                var mode = pill.dataset.mode;
+                if (mode) history.replaceState({}, '', '/tools/schema-editor/' + mode + '/');
+            });
+        })();
     </script>
 
 </body>

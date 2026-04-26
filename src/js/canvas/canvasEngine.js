@@ -79,7 +79,7 @@ Object.assign(MobileSVGEditor.prototype, {
         this._selection.forEach(el => el.classList.remove('se-selected'));
         this._selection = [];
         this.$svgDisplay.find('*').not(
-            '#_gridLayer, #_gridDefs, defs, [data-se-system], .snap-guide, .draw-preview, ' +
+            '#_cameraRotGroup, [data-se-system="true"], [data-se-system="true"] *, .snap-guide, .draw-preview, ' +
             '.selection-handle-group, .selection-handle, .rotation-handle'
         ).each((_, el) => {
             try {
@@ -104,9 +104,12 @@ Object.assign(MobileSVGEditor.prototype, {
     deleteSelected() {
         if (!this._selection.length) return;
         const unlocked = this._selection.filter(
-            el => el.dataset.locked !== 'true' && el.dataset.seSystem !== 'true');
+            el => el.dataset.locked !== 'true' && 
+                  el.dataset.seSystem !== 'true' &&
+                  !el.id?.startsWith('_') // extra safety against deleting system layers
+        );
         if (unlocked.length < this._selection.length)
-            this.showToast('Locked elements skipped — unlock in Layers panel first', 'error');
+            this.showToast('Locked or system elements skipped', 'error');
         if (!unlocked.length) return;
         const before = this._captureFullState();
         unlocked.forEach(el => {
@@ -593,10 +596,10 @@ Object.assign(MobileSVGEditor.prototype, {
         // Critically: do NOT filter by el.id — domain symbols placed via domainManager
         // bypass _commitElement and have no id, but are still valid targets.
         this.$svgDisplay.find('*').not(
-            '#_gridLayer, #_gridDefs, defs, [data-se-system], .snap-guide, .draw-preview, ' +
+            '#_cameraRotGroup, [data-se-system="true"], [data-se-system="true"] *, .snap-guide, .draw-preview, ' +
             '.selection-handle-group, .selection-handle, .rotation-handle'
         ).each((_, el) => {
-            if (el.dataset.locked === 'true') return;
+            if (el.dataset.locked === 'true' || el.id?.startsWith('_')) return;
 
             let bb;
             try { bb = el.getBBox(); } catch (_) { return; }
@@ -674,10 +677,9 @@ Object.assign(MobileSVGEditor.prototype, {
             }
 
             const target = e.target;
-            const ignored = ['svg', 'svgDisplay', '_gridLayer', '_gridDefs', '_cameraRotGroup'];
-            // Check the element itself for data-se-system — NOT closest(), because _cameraRotGroup
-            // carries that flag and all user content lives inside it; closest() would match everything.
+            const ignored = ['svg', 'svgDisplay', '_cameraRotGroup'];
             const isIgnored = ignored.includes(target.id) || target.tagName.toLowerCase() === 'svg' ||
+                target.closest('[data-se-system="true"]') ||
                 target.dataset.seSystem === 'true' ||
                 target.classList.contains('snap-guide') ||
                 target.classList.contains('draw-preview') ||
@@ -753,11 +755,20 @@ Object.assign(MobileSVGEditor.prototype, {
         // Double-click → inline text edit if target is <text> inside a domain-symbol
         this.$svgDisplay.on('dblclick.canvas', (e) => {
             if (this.activeTool !== 'select') return;
-            const textEl = e.target.tagName?.toLowerCase() === 'text'
+            let textEl = e.target.tagName?.toLowerCase() === 'text'
                 ? e.target
                 : e.target.closest?.('text');
+
+            if (!textEl) {
+                const group = e.target.closest?.('.domain-symbol');
+                if (group) {
+                    textEl = group.querySelector('text.sym-value') || group.querySelector('text');
+                }
+            }
+
             if (!textEl) return;
             if (!textEl.closest('.domain-symbol')) return;
+            
             e.preventDefault();
             e.stopPropagation();
             this._editSymbolText(textEl);

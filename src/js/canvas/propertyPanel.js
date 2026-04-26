@@ -15,6 +15,37 @@ Object.assign(MobileSVGEditor.prototype, {
         this._switchSidePanelTab('layers');
     },
 
+    // ── Helper to find the visual shape inside a component group ──
+    _getVisualTarget(el) {
+        const $el = $(el);
+        if ($el.hasClass('component-group') || $el.hasClass('wire-group')) {
+            const visual = $el.children().not('.component-hitbox, .wire-hitbox, [data-locked="true"]').first()[0];
+            return visual || el;
+        }
+        return el;
+    },
+
+    // ── Helper to deep-apply visual styles to all nested shapes ──
+    _applyStyle(el, attr, val) {
+        const target = this._getVisualTarget(el);
+        // Apply to the top-level visual target
+        if (val === null) target.removeAttribute(attr);
+        else target.setAttribute(attr, val);
+
+        // For complex groups (like domain-symbols), force the style on all inner primitive shapes
+        // so that explicit attributes on children don't block the group inheritance.
+        if (target.tagName.toLowerCase() === 'g') {
+            const shapes = target.querySelectorAll('path, rect, circle, ellipse, line, polyline, polygon, text');
+            shapes.forEach(shape => {
+                if (shape.classList.contains('component-hitbox') || shape.classList.contains('wire-hitbox')) return;
+                if (shape.getAttribute('data-locked') === 'true') return;
+                
+                if (val === null) shape.removeAttribute(attr);
+                else shape.setAttribute(attr, val);
+            });
+        }
+    },
+
     // ── Build panel HTML ──────────────────────────────────────
     _buildPropertyPanelHTML() {
         const html = `
@@ -176,13 +207,36 @@ Object.assign(MobileSVGEditor.prototype, {
         const tag = el.tagName.toLowerCase();
         $('#prop-el-tag').text(tag + (el.id ? `#${el.id.slice(0,12)}` : ''));
 
-        // Position / size via bounding box
+        // Target for visual properties
+        const visualTarget = this._getVisualTarget(el);
+
+        // Position / size via world bounding box projection
         try {
             const bb = el.getBBox();
-            $('#prop-x').val(Math.round(bb.x));
-            $('#prop-y').val(Math.round(bb.y));
-            $('#prop-w').val(Math.round(bb.width));
-            $('#prop-h').val(Math.round(bb.height));
+            const rootCTM = this._contentRoot.getCTM();
+            const elCTM = el.getCTM();
+            let matrix = new DOMMatrix();
+            if (rootCTM && elCTM) {
+                matrix = rootCTM.inverse().multiply(elCTM);
+            }
+            
+            const pt = this.$svgDisplay[0].createSVGPoint();
+            pt.x = bb.x; pt.y = bb.y;
+            const worldPt = pt.matrixTransform(matrix);
+            
+            const scaleX = Math.sqrt(matrix.a * matrix.a + matrix.b * matrix.b) || 1;
+            const scaleY = Math.sqrt(matrix.c * matrix.c + matrix.d * matrix.d) || 1;
+
+            $('#prop-x').val(Math.round(worldPt.x));
+            $('#prop-y').val(Math.round(worldPt.y));
+            $('#prop-w').val(Math.round(bb.width * scaleX));
+            $('#prop-h').val(Math.round(bb.height * scaleY));
+
+            // Store current world values on the DOM node for the change handlers to diff against
+            $('#prop-x').data('world', worldPt.x);
+            $('#prop-y').data('world', worldPt.y);
+            $('#prop-w').data('world', bb.width * scaleX);
+            $('#prop-h').data('world', bb.height * scaleY);
         } catch (_) {}
 
         // Rotation from transform
@@ -192,10 +246,10 @@ Object.assign(MobileSVGEditor.prototype, {
         $('#prop-rotation').val(rotVal);
         $('#prop-rotation-val').text(`${Math.round(rotVal)}°`);
 
-        // Stroke
-        const stroke = el.getAttribute('stroke') || this._drawStyle.stroke;
-        const sw     = el.getAttribute('stroke-width') || this._drawStyle.strokeWidth;
-        const dash   = el.getAttribute('stroke-dasharray') || 'none';
+        // Stroke (use visualTarget)
+        const stroke = visualTarget.getAttribute('stroke') || this._drawStyle.stroke;
+        const sw     = visualTarget.getAttribute('stroke-width') || this._drawStyle.strokeWidth;
+        const dash   = visualTarget.getAttribute('stroke-dasharray') || 'none';
         if (this._isValidColor(stroke)) {
             $('#prop-stroke-color').val(this._toHex(stroke));
             $('#prop-stroke-hex').text(this._toHex(stroke));
@@ -203,9 +257,9 @@ Object.assign(MobileSVGEditor.prototype, {
         $('#prop-stroke-width').val(parseFloat(sw) || 2);
         $('#prop-stroke-dash').val(dash);
 
-        // Fill
-        const fill       = el.getAttribute('fill') || 'none';
-        const fillOp     = parseFloat(el.getAttribute('fill-opacity') || '1');
+        // Fill (use visualTarget)
+        const fill       = visualTarget.getAttribute('fill') || 'none';
+        const fillOp     = parseFloat(visualTarget.getAttribute('fill-opacity') || '1');
         if (fill !== 'none' && this._isValidColor(fill)) {
             $('#prop-fill-color').val(this._toHex(fill));
             $('#prop-fill-hex').text(this._toHex(fill));
@@ -269,31 +323,43 @@ Object.assign(MobileSVGEditor.prototype, {
             });
         };
 
-        // Position inputs (use translate)
+        // Position inputs (use absolute world delta)
         live('#prop-x, #prop-y', function (el) {
-            const x  = parseFloat($('#prop-x').val()) || 0;
-            const y  = parseFloat($('#prop-y').val()) || 0;
-            try {
-                const bb = el.getBBox();
-                const dx = x - bb.x;
-                const dy = y - bb.y;
-                const t  = el.getAttribute('transform') || '';
-                el.setAttribute('transform', `translate(${dx},${dy}) ${t}`);
-            } catch (_) {}
+            const newX = parseFloat($('#prop-x').val()) || 0;
+            const newY = parseFloat($('#prop-y').val()) || 0;
+            const oldX = parseFloat($('#prop-x').data('world')) || 0;
+            const oldY = parseFloat($('#prop-y').data('world')) || 0;
+            
+            const dx = newX - oldX;
+            const dy = newY - oldY;
+            if (dx === 0 && dy === 0) return;
+
+            const t = el.getAttribute('transform') || '';
+            el.setAttribute('transform', `translate(${dx},${dy}) ${t}`);
+            
+            $('#prop-x').data('world', newX);
+            $('#prop-y').data('world', newY);
         });
 
-        // Size inputs (scale)
+        // Size inputs (scale delta)
         live('#prop-w, #prop-h', function (el) {
-            const nw = parseFloat($('#prop-w').val()) || 1;
-            const nh = parseFloat($('#prop-h').val()) || 1;
+            const newW = parseFloat($('#prop-w').val()) || 1;
+            const newH = parseFloat($('#prop-h').val()) || 1;
+            const oldW = parseFloat($('#prop-w').data('world')) || 1;
+            const oldH = parseFloat($('#prop-h').data('world')) || 1;
+            
+            const sx = newW / oldW;
+            const sy = newH / oldH;
+            if (sx === 1 && sy === 1) return;
+
             try {
                 const bb = el.getBBox();
-                const sx = nw / (bb.width  || 1);
-                const sy = nh / (bb.height || 1);
-                const t  = el.getAttribute('transform') || '';
+                const t = el.getAttribute('transform') || '';
                 el.setAttribute('transform',
                     `translate(${bb.x},${bb.y}) scale(${sx},${sy}) translate(${-bb.x},${-bb.y}) ${t}`
                 );
+                $('#prop-w').data('world', newW);
+                $('#prop-h').data('world', newH);
             } catch (_) {}
         });
 
@@ -313,7 +379,7 @@ Object.assign(MobileSVGEditor.prototype, {
         // Stroke color
         live('#prop-stroke-color', function (el) {
             const val = $(this).val();
-            el.setAttribute('stroke', val);
+            self._applyStyle(el, 'stroke', val);
             self._drawStyle.stroke = val;
             $('#prop-stroke-hex').text(val);
         });
@@ -321,15 +387,15 @@ Object.assign(MobileSVGEditor.prototype, {
         // Stroke width
         live('#prop-stroke-width', function (el) {
             const val = $(this).val();
-            el.setAttribute('stroke-width', val);
+            self._applyStyle(el, 'stroke-width', val);
             self._drawStyle.strokeWidth = val;
         });
 
         // Stroke dash
         live('#prop-stroke-dash', function (el) {
             const val = $(this).val();
-            if (val === 'none') el.removeAttribute('stroke-dasharray');
-            else el.setAttribute('stroke-dasharray', val);
+            if (val === 'none') self._applyStyle(el, 'stroke-dasharray', null);
+            else self._applyStyle(el, 'stroke-dasharray', val);
             self._drawStyle.strokeDasharray = val;
         });
 
@@ -338,8 +404,8 @@ Object.assign(MobileSVGEditor.prototype, {
             const val   = $(this).val();
             const opStr = $('#prop-fill-opacity').val();
             const op    = parseFloat(opStr);
-            el.setAttribute('fill', val);
-            el.setAttribute('fill-opacity', String(isNaN(op) ? 1 : op));
+            self._applyStyle(el, 'fill', val);
+            self._applyStyle(el, 'fill-opacity', String(isNaN(op) ? 1 : op));
             self._drawStyle.fill = val;
             $('#prop-fill-hex').text(val);
         });
@@ -347,14 +413,14 @@ Object.assign(MobileSVGEditor.prototype, {
         // Fill opacity
         live('#prop-fill-opacity', function (el) {
             const op = parseFloat($(this).val());
-            el.setAttribute('fill-opacity', String(op));
+            self._applyStyle(el, 'fill-opacity', String(op));
         });
 
         // No fill
         $(document).on('click.prop', '#prop-no-fill', function () {
             if (!self._propPanelTarget) return;
-            self._propPanelTarget.setAttribute('fill', 'none');
-            self._propPanelTarget.removeAttribute('fill-opacity');
+            self._applyStyle(self._propPanelTarget, 'fill', 'none');
+            self._applyStyle(self._propPanelTarget, 'fill-opacity', null);
             self._drawStyle.fill = 'none';
             $('#prop-fill-opacity').val(0);
         });

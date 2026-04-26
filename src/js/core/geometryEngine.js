@@ -298,6 +298,7 @@ Object.assign(MobileSVGEditor.prototype, {
             for (const g of groups) {
                 // Skip user-created groups and all internal _ groups (camera, grid, etc.)
                 if (g.id && (g.id.startsWith('group_') || g.id.startsWith('_'))) continue;
+                if (g.closest('#_gridLayer, #_gridDefs, #_canvasBg, [data-se-system="true"], .snap-guide, .draw-preview, .selection-handle-group')) continue;
                 // Skip editor overlay groups and placed schematic symbols
                 if (g.classList.contains('wire-group') ||
                     g.classList.contains('component-group') ||
@@ -385,6 +386,7 @@ Object.assign(MobileSVGEditor.prototype, {
         for (const path of paths) {
             if (path.classList.contains('wire-group') ||
                 path.classList.contains('draw-preview')) continue;
+            if (path.closest('#_gridLayer, #_gridDefs, #_canvasBg, [data-se-system="true"], .snap-guide, .draw-preview, .selection-handle-group')) continue;
             const d = path.getAttribute('d') || '';
             const cmds = PathData.parse(d);
             const subs = PathData.splitSubpaths(cmds);
@@ -447,7 +449,9 @@ Object.assign(MobileSVGEditor.prototype, {
             if (node === svgEl) continue;
             const tag = node.tagName?.toLowerCase();
             if (!tag || SKIP.has(tag)) continue;
-            if (node.id?.startsWith('_')) continue;  // skip all internal editor elements
+            if (node.id === '_cameraRotGroup') continue;
+            if (node.id?.startsWith('_') && node.id !== '_cameraRotGroup') continue;
+            if (node.closest('#_gridLayer, #_gridDefs, #_canvasBg, [data-se-system="true"], .snap-guide, .draw-preview, .selection-handle-group')) continue;
             if (node.classList.contains('wire-group')  ||
                 node.classList.contains('component-group') ||
                 node.classList.contains('selection-handle-group') ||
@@ -889,6 +893,9 @@ Object.assign(MobileSVGEditor.prototype, {
     // ==========================================================
 
     _classifyComponentType(el, circularity) {
+        const manualClass = el.getAttribute('data-geo-class');
+        if (manualClass && manualClass !== 'wire') return manualClass;
+
         const tag = el.tagName?.toLowerCase();
         const cls = el.getAttribute('class') || '';
         const id  = el.getAttribute('id')    || '';

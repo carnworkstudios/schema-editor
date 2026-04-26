@@ -256,7 +256,6 @@ Object.assign(MobileSVGEditor.prototype, {
         const NS = this.SVG_NS;
         const rotGroup = document.createElementNS(NS, 'g');
         rotGroup.id = '_cameraRotGroup';
-        rotGroup.dataset.seSystem = 'true';
         this.$svgDisplay[0].appendChild(rotGroup);
         // Re-insert _gridDefs at SVG root and _gridLayer as first child of rotGroup
         this._renderGridPattern();
@@ -274,9 +273,9 @@ Object.assign(MobileSVGEditor.prototype, {
             contentRoot.appendChild(document.importNode(child, true));
         });
 
-        // Lock any imported canvas background so it can't be accidentally moved/deleted.
+        // Apply system shield to any imported canvas background so it can't be accidentally moved/deleted.
         const importedBg = contentRoot.querySelector('#_canvasBg');
-        if (importedBg) importedBg.setAttribute('data-locked', 'true');
+        if (importedBg) importedBg.setAttribute('data-se-system', 'true');
 
         // If a white canvas page background was imported (_canvasBg), move _gridLayer
         // to sit just after it so the grid is visible on the white surface.
