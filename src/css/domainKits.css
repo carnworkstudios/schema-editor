@@ -289,6 +289,124 @@ body:not(.dark-mode) .palette-label {
     filter: drop-shadow(0 0 4px #00f2fe);
 }
 
+/* Wire draw approaching a snap target */
+.domain-symbol .pin-point.pin-snap {
+    r: 6;
+    fill: #00f2fe;
+    filter: drop-shadow(0 0 4px #00f2fe88);
+}
+
+/* ── Symbol Picker Popover ────────────────────────────────── */
+.se-sym-picker {
+    position: fixed;
+    flex-direction: column;
+    background: #0d1b2a;
+    border: 1px solid #2d4a6d;
+    border-radius: 8px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.75);
+    z-index: 9999;
+    width: 280px;
+    max-height: 360px;
+    overflow: hidden;
+    font-family: Inter, sans-serif;
+    font-size: 12px;
+    color: #ccd6f6;
+    display: none; /* toggled inline */
+}
+.se-sym-picker-header {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #1e3a5a;
+    flex-shrink: 0;
+}
+.se-sym-picker-title {
+    font-size: 10px;
+    font-weight: 700;
+    color: #8892b0;
+    white-space: nowrap;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+.se-sym-picker-search {
+    flex: 1;
+    background: #162030;
+    border: 1px solid #2d4a6d;
+    border-radius: 4px;
+    color: #ccd6f6;
+    padding: 4px 8px;
+    font-size: 11px;
+    outline: none;
+}
+.se-sym-picker-search:focus { border-color: #4facfe; }
+.se-sym-picker-close {
+    background: none;
+    border: none;
+    color: #8892b0;
+    cursor: pointer;
+    font-size: 16px;
+    line-height: 1;
+    padding: 0 2px;
+    flex-shrink: 0;
+}
+.se-sym-picker-close:hover { color: #ccd6f6; }
+.se-sym-picker-body {
+    overflow-y: auto;
+    flex: 1;
+    padding: 6px 8px;
+    scrollbar-width: thin;
+    scrollbar-color: #2d4a6d transparent;
+}
+.se-sym-picker-group {
+    font-size: 10px;
+    font-weight: 700;
+    color: #4facfe;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    padding: 6px 0 2px;
+}
+.se-sym-picker-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 4px;
+}
+.se-sym-picker-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 56px;
+    padding: 4px 2px;
+    border-radius: 5px;
+    cursor: pointer;
+    border: 1px solid transparent;
+    transition: background 0.1s, border-color 0.1s;
+}
+.se-sym-picker-item:hover {
+    background: #162030;
+    border-color: #4facfe;
+}
+.se-sym-picker-icon {
+    width: 40px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none;
+}
+.se-sym-picker-label {
+    font-size: 9px;
+    color: #8892b0;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    width: 100%;
+    margin-top: 2px;
+    pointer-events: none;
+}
+
 /* ── UML ─────────────────────────────────────────────────── */
 .domain-symbol.symbol-class-box rect {
     transition: fill 0.15s;

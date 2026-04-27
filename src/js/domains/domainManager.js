@@ -180,12 +180,24 @@ Object.assign(MobileSVGEditor.prototype, {
         }
 
         this._contentRoot.appendChild(g);
+
+        // Proximity snap: align a pin to the nearest open wire endpoint or wire body
+        const wireSnap = this._trySnapSymbolToWire?.(g);
+        if (wireSnap) {
+            const tf = g.getAttribute('transform') || '';
+            const mt = tf.match(/translate\(([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)\)/);
+            if (mt) g.setAttribute('transform',
+                `translate(${parseFloat(mt[1]) + wireSnap.dx},${parseFloat(mt[2]) + wireSnap.dy})`);
+            this._commitWireSnap?.(wireSnap, g);
+        }
+
         const after = this._captureFullState();
         this.pushHistory(`Place ${sym.label}`, before, after);
         this.selectEl(g);
         this.showToast(`Placed: ${sym.label}`, 'success');
         if (typeof this.buildLayersTree === 'function') this.buildLayersTree();
         this._scheduleGeoAnalysis();
+        return g;
     },
 
     // ── Debounced live GeoEngine pass (electrical mode only) ─────

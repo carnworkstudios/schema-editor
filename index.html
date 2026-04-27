@@ -354,6 +354,12 @@
                     <span class="panel-content">Ungroup</span>
                 </button>
 
+                <!-- Straighten wires -->
+                <button class="btn" id="straightenWiresBtn" title="Straighten selected wires (⌃/⌘+⇧+L)">
+                    <iconify-icon icon="material-symbols:route-outline"></iconify-icon>
+                    <span class="panel-content">Straighten</span>
+                </button>
+
                 <!-- Delete -->
                 <button class="btn" id="deleteBtn" title="Delete (Del/⌫)">
                     <iconify-icon icon="material-symbols:delete-outline"></iconify-icon>
@@ -827,6 +833,7 @@
             $('#groupBtn').on('click', () => window.editor.groupSelected());
             $('#ungroupBtn').on('click', () => window.editor.ungroupSelected());
             $('#deleteBtn').on('click', () => window.editor.deleteSelected());
+            $('#straightenWiresBtn').on('click', () => window.editor._straightenSelectedWires());
 
             // Service Worker
             if ('serviceWorker' in navigator) {

@@ -80,11 +80,12 @@ Object.assign(MobileSVGEditor.prototype, {
             if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
             const ctrl = e.ctrlKey || e.metaKey;
             if (!ctrl) return;
+            const key = e.key.toLowerCase();
 
-            if (e.key === 'c' && !e.shiftKey) { e.preventDefault(); this.copySelected(); }
-            if (e.key === 'x' && !e.shiftKey) { e.preventDefault(); this.cutSelected(); }
-            if (e.key === 'v' && !e.shiftKey) { e.preventDefault(); this.pasteClipboard(); }
-            if (e.key === 'd' && !e.shiftKey) { e.preventDefault(); this.duplicateSelected(); }
+            if (key === 'c' && !e.shiftKey) { e.preventDefault(); this.copySelected(); }
+            if (key === 'x' && !e.shiftKey) { e.preventDefault(); this.cutSelected(); }
+            if (key === 'v' && !e.shiftKey) { e.preventDefault(); this.pasteClipboard(); }
+            if (key === 'd' && !e.shiftKey) { e.preventDefault(); this.duplicateSelected(); }
         });
     },
 });

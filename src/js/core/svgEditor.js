@@ -323,6 +323,19 @@ class MobileSVGEditor {
             if (e.key === 'Escape' && this.activeTool !== 'select') {
                 this.setActiveTool('select');
             }
+
+            // Tool hotkeys — single key, no modifier (match button title= hints)
+            if (!ctrl && !e.altKey && !e.shiftKey) {
+                switch (key) {
+                    case 'v': e.preventDefault(); this.setActiveTool('select');  break;
+                    case 'w': e.preventDefault(); this.setActiveTool('wire');    break;
+                    case 'l': e.preventDefault(); this.setActiveTool('line');    break;
+                    case 'r': e.preventDefault(); this.setActiveTool('rect');    break;
+                    case 'e': e.preventDefault(); this.setActiveTool('ellipse'); break;
+                    case 'p': e.preventDefault(); this.setActiveTool('pen');     break;
+                    case 't': e.preventDefault(); this.setActiveTool('text');    break;
+                }
+            }
         });
 
         $(document).on('keyup', (e) => {

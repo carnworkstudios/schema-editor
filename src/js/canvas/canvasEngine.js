@@ -63,6 +63,11 @@ Object.assign(MobileSVGEditor.prototype, {
 
     selectEl(svgEl, additive = false) {
         if (!svgEl) return;
+        // Hitboxes are invisible click targets — select their visual sibling instead
+        if (svgEl.classList.contains('wire-hitbox') || svgEl.classList.contains('component-hitbox')) {
+            const prev = svgEl.previousElementSibling;
+            if (prev) svgEl = prev; else return;
+        }
         if (!additive) {
             this._selection.forEach(el => el.classList.remove('se-selected'));
             this._selection = [];
@@ -446,6 +451,8 @@ Object.assign(MobileSVGEditor.prototype, {
             } else {
                 this._applyResize(startTransforms, startBB, type, dx, dy, ev.shiftKey);
             }
+            // Re-route wires after every rotate/resize frame
+            this._updateWiresForSelection();
             if (!this._handleRafPending) {
                 this._handleRafPending = true;
                 requestAnimationFrame(() => {
@@ -511,6 +518,7 @@ Object.assign(MobileSVGEditor.prototype, {
         const before = this._captureFullState();
         const svgStart = this.screenToSVG(startClientX, startClientY);
         const origTransforms = this._selection.map(el => el.getAttribute('transform') || '');
+        let pendingWireSnap = null;
 
         const onMove = (ev) => {
             const svgNow = this.screenToSVG(ev.clientX, ev.clientY);
@@ -521,21 +529,489 @@ Object.assign(MobileSVGEditor.prototype, {
             if (this._grid.snapOn) this.showSnapGuides(pt.x, pt.y);
 
             this._selection.forEach((el, i) => {
-                const base = origTransforms[i];
-                el.setAttribute('transform', `translate(${snapped.x},${snapped.y}) ${base}`);
+                el.setAttribute('transform', `translate(${snapped.x},${snapped.y}) ${origTransforms[i]}`);
             });
+
+            // Wire-body proximity snap: nudge so a pin aligns to a nearby wire
+            // (must run after transforms are applied so _pinWorldPos is current)
+            const wireAdj = this._computeWireSnapAdjustment();
+            if (wireAdj) {
+                const adjX = snapped.x + wireAdj.dx;
+                const adjY = snapped.y + wireAdj.dy;
+                this._selection.forEach((el, i) => {
+                    el.setAttribute('transform', `translate(${adjX},${adjY}) ${origTransforms[i]}`);
+                });
+            }
+            pendingWireSnap = wireAdj || null;
+
+            // Re-route any wires whose endpoints are pinned to a moved symbol
+            this._updateWiresForSelection();
             this._renderHandles();
         };
 
         const onUp = () => {
             $(document).off('mousemove.move mouseup.move');
             this._removeSnapGuides();
+            // Commit wire snap: endpoint link or body T-junction split
+            if (pendingWireSnap) this._commitWireSnap(pendingWireSnap, pendingWireSnap.symEl);
             const after = this._captureFullState();
             this.pushHistory('Move', before, after);
             this._refreshPropertyPanel();
         };
 
         $(document).on('mousemove.move', onMove).on('mouseup.move', onUp);
+    },
+
+    // Re-route all wires whose endpoints are pinned to any currently selected symbol.
+    // Called after every move, rotate, and resize frame.
+    _updateWiresForSelection() {
+        this._selection.forEach(el => {
+            const id = el.id;
+            if (!id) return;
+            this._contentRoot?.querySelectorAll(
+                `[data-from-sym="${id}"], [data-to-sym="${id}"]`
+            ).forEach(wire => this._updateAttachedWire(wire, id));
+        });
+    },
+
+    // Get a pin element's current position in SVG document-local space.
+    // Mirrors the CTM chain walk in drawingTools._wireSnapToPort.
+    _pinWorldPos(pinEl) {
+        const cx = parseFloat(pinEl.getAttribute('cx') || 0);
+        const cy = parseFloat(pinEl.getAttribute('cy') || 0);
+        let m = new DOMMatrix();
+        let node = pinEl;
+        const svg = this.$svgDisplay?.[0];
+        while (node && node !== svg && node.id !== '_cameraRotGroup') {
+            const tv = node.transform?.baseVal;
+            if (tv?.length) {
+                const lm = tv.consolidate()?.matrix;
+                if (lm) m = new DOMMatrix([lm.a, lm.b, lm.c, lm.d, lm.e, lm.f]).multiply(m);
+            }
+            node = node.parentElement;
+        }
+        return new DOMPoint(cx, cy).matrixTransform(m);
+    },
+
+    // Re-route a wire path whose from- or to-endpoint belongs to a symbol being dragged.
+    _updateAttachedWire(wirePath, movedSymId) {
+        const fromSymId = wirePath.getAttribute('data-from-sym');
+        const toSymId   = wirePath.getAttribute('data-to-sym');
+
+        const resolvePin = (symId, pinId) => {
+            const sym = document.getElementById(symId);
+            if (!sym) return null;
+            const pin = sym.querySelector(`.pin-point[data-pin="${pinId}"]`) || sym.querySelector('.pin-point');
+            return pin ? this._pinWorldPos(pin) : null;
+        };
+
+        // Parse current path endpoints as fallback for the static end
+        const d = wirePath.getAttribute('d') || '';
+        const coords = [...d.matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
+            .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+        const staticFrom = coords[0]                   || { x: 0, y: 0 };
+        const staticTo   = coords[coords.length - 1]   || { x: 0, y: 0 };
+
+        const fromPt = fromSymId
+            ? (resolvePin(fromSymId, wirePath.getAttribute('data-from-pin') || '0') || staticFrom)
+            : staticFrom;
+        const toPt = toSymId
+            ? (resolvePin(toSymId,   wirePath.getAttribute('data-to-pin')   || '0') || staticTo)
+            : staticTo;
+
+        // Vertical-first Manhattan route matching _wirePathFromPoints behaviour
+        const newD = `M ${fromPt.x} ${fromPt.y} L ${fromPt.x} ${toPt.y} L ${toPt.x} ${toPt.y}`;
+        wirePath.setAttribute('d', newD);
+    },
+
+    // ── Feature 3: Alt+click wire → branch new wire from that point ──
+
+    _startWireBranch(wirePath, clientX, clientY) {
+        const svgPt = this.screenToSVG(clientX, clientY);
+
+        // Snap to nearest point on the wire path
+        const len = wirePath.getTotalLength?.() || 0;
+        let branchPt = svgPt, bestDist = Infinity;
+        for (let i = 0; i <= 60; i++) {
+            const pt = wirePath.getPointAtLength(i / 60 * len);
+            const d = Math.hypot(pt.x - svgPt.x, pt.y - svgPt.y);
+            if (d < bestDist) { bestDist = d; branchPt = { x: pt.x, y: pt.y }; }
+        }
+
+        // Place junction dot at branch point
+        const junc = document.createElementNS(this.SVG_NS, 'circle');
+        junc.setAttribute('cx', branchPt.x);
+        junc.setAttribute('cy', branchPt.y);
+        junc.setAttribute('r', '4');
+        junc.setAttribute('fill', wirePath.getAttribute('stroke') || '#4facfe');
+        junc.setAttribute('class', 'wire-junction');
+        junc.setAttribute('data-geo-class', 'junction');
+        junc.setAttribute('pointer-events', 'none');
+        this._contentRoot.appendChild(junc);
+
+        // Switch to wire tool and start drawing from the branch point
+        this.setTool('wire');
+        this._wireClick(branchPt);
+    },
+
+    // ── Feature 1: Dblclick wire → split and insert component ──
+
+    _splitWireAtClick(wirePath, clientX, clientY) {
+        const svgPt = this.screenToSVG(clientX, clientY);
+
+        // Nearest point on the wire path
+        const len = wirePath.getTotalLength?.() || 0;
+        let splitPt = svgPt, bestDist = Infinity;
+        for (let i = 0; i <= 80; i++) {
+            const pt = wirePath.getPointAtLength(i / 80 * len);
+            const d = Math.hypot(pt.x - svgPt.x, pt.y - svgPt.y);
+            if (d < bestDist) { bestDist = d; splitPt = { x: pt.x, y: pt.y }; }
+        }
+
+        // Parse original wire endpoints and metadata
+        const d = wirePath.getAttribute('d') || '';
+        const coords = [...d.matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
+            .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+        if (coords.length < 2) return;
+
+        const fromPt   = coords[0];
+        const toPt     = coords[coords.length - 1];
+        const stroke   = wirePath.getAttribute('stroke') || '#4facfe';
+        const sWidth   = wirePath.getAttribute('stroke-width') || '2';
+        const fromSym  = wirePath.getAttribute('data-from-sym');
+        const fromPin  = wirePath.getAttribute('data-from-pin');
+        const toSym    = wirePath.getAttribute('data-to-sym');
+        const toPin    = wirePath.getAttribute('data-to-pin');
+
+        const before = this._captureFullState();
+
+        const mkWire = (f, t) => {
+            const p = document.createElementNS(this.SVG_NS, 'path');
+            p.id = `el_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
+            p.setAttribute('d', `M ${f.x} ${f.y} L ${f.x} ${t.y} L ${t.x} ${t.y}`);
+            p.setAttribute('fill', 'none');
+            p.setAttribute('stroke', stroke);
+            p.setAttribute('stroke-width', sWidth);
+            p.setAttribute('data-geo-class', 'wire');
+            return p;
+        };
+
+        // Left segment: original-from → split point
+        const seg1 = mkWire(fromPt, splitPt);
+        if (fromSym) { seg1.setAttribute('data-from-sym', fromSym); seg1.setAttribute('data-from-pin', fromPin); }
+
+        // Right segment: split point → original-to
+        const seg2 = mkWire(splitPt, toPt);
+        if (toSym)   { seg2.setAttribute('data-to-sym', toSym);     seg2.setAttribute('data-to-pin', toPin); }
+
+        wirePath.remove();
+        this._contentRoot.appendChild(seg1);
+        this._contentRoot.appendChild(seg2);
+
+        const after = this._captureFullState();
+        this.pushHistory('Split Wire', before, after);
+
+        // Open symbol picker — seg2Ref wires the exit pin automatically
+        this._showSymbolPicker(splitPt, seg1, clientX, clientY, seg2);
+    },
+
+    // ── Wire-body snap utilities ─────────────────────────────────────────
+
+    // 80-step sample of a path; returns {x,y,t,dist} closest to pt.
+    _closestPointOnPath(wirePath, pt) {
+        const len = wirePath.getTotalLength?.() || 0;
+        if (!len) return null;
+        let bx = pt.x, by = pt.y, bd = Infinity, bt = 0;
+        for (let i = 0; i <= 80; i++) {
+            const t = i / 80;
+            const p = wirePath.getPointAtLength(t * len);
+            const d = Math.hypot(p.x - pt.x, p.y - pt.y);
+            if (d < bd) { bd = d; bx = p.x; by = p.y; bt = t; }
+        }
+        return { x: bx, y: by, t: bt, dist: bd };
+    },
+
+    // Closest point on wire BODY — returns null if snap is at either endpoint (within endpointEPS).
+    _closestWireBodySnap(wirePath, pt, endpointEPS = 6) {
+        const snap = this._closestPointOnPath(wirePath, pt);
+        if (!snap) return null;
+        const coords = [...(wirePath.getAttribute('d') || '')
+            .matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
+            .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+        if (coords.length < 2) return null;
+        const s = coords[0], e = coords[coords.length - 1];
+        if (Math.hypot(snap.x - s.x, snap.y - s.y) < endpointEPS) return null;
+        if (Math.hypot(snap.x - e.x, snap.y - e.y) < endpointEPS) return null;
+        return snap;
+    },
+
+    // Nearest wire-body snap for a point across all drawn wires; skips IDs in excludeIds.
+    _findNearestWireBodySnap(pt, threshold = 14, excludeIds = new Set()) {
+        let best = null, bestDist = threshold;
+        this._contentRoot?.querySelectorAll('path[data-geo-class="wire"]').forEach(wire => {
+            if (excludeIds.has(wire.id)) return;
+            const snap = this._closestWireBodySnap(wire, pt);
+            if (snap && snap.dist < bestDist) { bestDist = snap.dist; best = { wire, pt: snap }; }
+        });
+        return best;
+    },
+
+    // Nearest OPEN (unconnected) wire endpoint within threshold.
+    // Returns {wire, pt:{x,y}, which:'from'|'to', dist} or null.
+    _findNearestWireEndpointSnap(pt, threshold = 16, excludeIds = new Set()) {
+        let best = null, bestDist = threshold;
+        this._contentRoot?.querySelectorAll('path[data-geo-class="wire"]').forEach(wire => {
+            if (excludeIds.has(wire.id)) return;
+            const coords = [...(wire.getAttribute('d') || '')
+                .matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
+                .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+            if (coords.length < 2) return;
+            if (!wire.getAttribute('data-from-sym')) {
+                const dist = Math.hypot(coords[0].x - pt.x, coords[0].y - pt.y);
+                if (dist < bestDist) { bestDist = dist; best = { wire, pt: coords[0], which: 'from', dist }; }
+            }
+            if (!wire.getAttribute('data-to-sym')) {
+                const ep = coords[coords.length - 1];
+                const dist = Math.hypot(ep.x - pt.x, ep.y - pt.y);
+                if (dist < bestDist) { bestDist = dist; best = { wire, pt: ep, which: 'to', dist }; }
+            }
+        });
+        return best;
+    },
+
+    // Build exclude-set: selected element IDs + IDs of wires already attached to them.
+    _buildSnapExcludeIds() {
+        const selIds = new Set(this._selection.map(e => e.id).filter(Boolean));
+        const excludeIds = new Set(selIds);
+        this._contentRoot?.querySelectorAll('path[data-geo-class="wire"]').forEach(wire => {
+            const fs = wire.getAttribute('data-from-sym'), ts = wire.getAttribute('data-to-sym');
+            if ((fs && selIds.has(fs)) || (ts && selIds.has(ts))) excludeIds.add(wire.id);
+        });
+        return excludeIds;
+    },
+
+    // Commit a snap result onto the SVG: endpoint snap → set data-from/to-sym attributes
+    // so the wire follows the symbol; body snap → split wire + T-junction.
+    _commitWireSnap(snap, symEl) {
+        if (!snap || !symEl?.id) return;
+        if (snap.type === 'endpoint') {
+            const symAttr = snap.which === 'from' ? 'data-from-sym' : 'data-to-sym';
+            const pinAttr = snap.which === 'from' ? 'data-from-pin' : 'data-to-pin';
+            snap.wire.setAttribute(symAttr, symEl.id);
+            snap.wire.setAttribute(pinAttr, snap.pinEl?.getAttribute('data-pin') || '0');
+        } else {
+            const split = this._splitWireAtPoint(snap.wire, snap.snapPt);
+            if (split) {
+                split.seg1.setAttribute('data-to-sym', symEl.id);
+                split.seg1.setAttribute('data-to-pin', snap.pinEl?.getAttribute('data-pin') || '0');
+                symEl.setAttribute('data-wire-snap', split.seg1.id);
+            }
+        }
+        this._scheduleGeoAnalysis?.();
+    },
+
+    // Compute snap adjustment for the current drag (call AFTER applying transforms).
+    // Endpoint snap takes priority (just a link); body snap creates a T-junction on commit.
+    _computeWireSnapAdjustment() {
+        const THRESHOLD = 16;
+        const excludeIds = this._buildSnapExcludeIds();
+        let bestAdj = null, bestDist = THRESHOLD;
+        this._selection.forEach(el => {
+            if (!el.classList.contains('domain-symbol')) return;
+            el.querySelectorAll('.pin-point').forEach(pin => {
+                const pp = this._pinWorldPos(pin);
+                // Priority 1: open wire endpoint
+                const ep = this._findNearestWireEndpointSnap(pp, THRESHOLD, excludeIds);
+                if (ep && ep.dist < bestDist) {
+                    bestDist = ep.dist;
+                    bestAdj = { type: 'endpoint', dx: ep.pt.x - pp.x, dy: ep.pt.y - pp.y,
+                                wire: ep.wire, which: ep.which, snapPt: ep.pt, pinEl: pin, symEl: el };
+                }
+                // Priority 2: wire body (mid-wire T-junction on drop)
+                const body = this._findNearestWireBodySnap(pp, THRESHOLD, excludeIds);
+                if (body && body.pt.dist < bestDist) {
+                    bestDist = body.pt.dist;
+                    bestAdj = { type: 'body', dx: body.pt.x - pp.x, dy: body.pt.y - pp.y,
+                                wire: body.wire, snapPt: body.pt, pinEl: pin, symEl: el };
+                }
+            });
+        });
+        return bestAdj;
+    },
+
+    // One-shot snap for a freshly placed symbol (wider threshold for imprecise drops).
+    _trySnapSymbolToWire(symEl) {
+        const THRESHOLD = 20;
+        const excludeIds = new Set([symEl.id].filter(Boolean));
+        let best = null, bestDist = THRESHOLD;
+        symEl.querySelectorAll('.pin-point').forEach(pin => {
+            const pp = this._pinWorldPos(pin);
+            const ep = this._findNearestWireEndpointSnap(pp, THRESHOLD, excludeIds);
+            if (ep && ep.dist < bestDist) {
+                bestDist = ep.dist;
+                best = { type: 'endpoint', dx: ep.pt.x - pp.x, dy: ep.pt.y - pp.y,
+                         wire: ep.wire, which: ep.which, snapPt: ep.pt, pinEl: pin };
+            }
+            const body = this._findNearestWireBodySnap(pp, THRESHOLD, excludeIds);
+            if (body && body.pt.dist < bestDist) {
+                bestDist = body.pt.dist;
+                best = { type: 'body', dx: body.pt.x - pp.x, dy: body.pt.y - pp.y,
+                         wire: body.wire, snapPt: body.pt, pinEl: pin };
+            }
+        });
+        return best;
+    },
+
+    // Split wirePath at pt into two segments; insert a junction circle at the split point.
+    // Handles wire-group wrappers (created by the geometry pipeline).
+    _splitWireAtPoint(wirePath, pt) {
+        const d = wirePath.getAttribute('d') || '';
+        const coords = [...d.matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
+            .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+        if (coords.length < 2) return null;
+
+        const fromPt = coords[0], toPt = coords[coords.length - 1];
+        const stroke = wirePath.getAttribute('stroke') || '#4facfe';
+        const sw     = wirePath.getAttribute('stroke-width') || '2';
+        const fromSym = wirePath.getAttribute('data-from-sym');
+        const fromPin = wirePath.getAttribute('data-from-pin');
+        const toSym   = wirePath.getAttribute('data-to-sym');
+        const toPin   = wirePath.getAttribute('data-to-pin');
+
+        const mkSeg = (f, t) => {
+            const p = document.createElementNS(this.SVG_NS, 'path');
+            p.id = `el_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
+            p.setAttribute('d', `M ${f.x} ${f.y} L ${f.x} ${t.y} L ${t.x} ${t.y}`);
+            p.setAttribute('fill', 'none');
+            p.setAttribute('stroke', stroke);
+            p.setAttribute('stroke-width', sw);
+            p.setAttribute('data-geo-class', 'wire');
+            return p;
+        };
+
+        const seg1 = mkSeg(fromPt, pt);
+        if (fromSym) { seg1.setAttribute('data-from-sym', fromSym); seg1.setAttribute('data-from-pin', fromPin || '0'); }
+        const seg2 = mkSeg(pt, toPt);
+        if (toSym) { seg2.setAttribute('data-to-sym', toSym); seg2.setAttribute('data-to-pin', toPin || '0'); }
+
+        const junc = document.createElementNS(this.SVG_NS, 'circle');
+        junc.setAttribute('cx', pt.x); junc.setAttribute('cy', pt.y); junc.setAttribute('r', '4');
+        junc.setAttribute('class', 'wire-junction'); junc.setAttribute('data-geo-class', 'junction');
+        junc.setAttribute('pointer-events', 'none');
+
+        const container = wirePath.closest('.wire-group') || wirePath;
+        const parent = container.parentNode;
+        if (!parent) return null;
+        parent.insertBefore(seg1, container);
+        parent.insertBefore(seg2, container);
+        parent.insertBefore(junc, container);
+        container.remove();
+
+        return { seg1, seg2, junc };
+    },
+
+    // Called after a new wire is committed: if the terminal point lands on another wire's
+    // body (not at an endpoint), split that wire and insert a T-junction circle.
+    _checkWireTJunction(newWire, terminalPt) {
+        const found = this._findNearestWireBodySnap(terminalPt, 8, new Set([newWire.id].filter(Boolean)));
+        if (!found) return;
+        const before = this._captureFullState();
+        this._splitWireAtPoint(found.wire, { x: found.pt.x, y: found.pt.y });
+        this.pushHistory('T-Junction', before, this._captureFullState());
+        this._scheduleGeoAnalysis?.();
+    },
+
+    // ── Feature 5 + 2: Net glow — highlight all wires in the same net ──
+
+    _highlightNetForWire(wirePath) {
+        this._clearNetHighlight();
+        if (!wirePath) return;
+
+        const endpointsOf = (w) => {
+            const pts = [...(w.getAttribute('d') || '')
+                .matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
+                .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+            return pts.length ? [pts[0], pts[pts.length - 1]] : [];
+        };
+
+        // BFS: find all wires connected by endpoint proximity
+        const EPS = 2;
+        const visited = new Set([wirePath]);
+        const queue = [endpointsOf(wirePath)];
+
+        while (queue.length) {
+            const eps = queue.shift();
+            if (!eps.length) continue;
+            this._contentRoot?.querySelectorAll('path[data-geo-class="wire"]').forEach(w => {
+                if (visited.has(w)) return;
+                const we = endpointsOf(w);
+                if (!we.length) return;
+                const connected = eps.some(a => we.some(b =>
+                    Math.hypot(a.x - b.x, a.y - b.y) < EPS));
+                if (connected) { visited.add(w); queue.push(we); }
+            });
+        }
+
+        // Feature 2: also pull in wires sharing the same net label (disconnected nets)
+        const netName = this._getNetLabelForWire(wirePath);
+        if (netName) {
+            this._contentRoot?.querySelectorAll('path[data-geo-class="wire"]').forEach(w => {
+                if (!visited.has(w) && this._getNetLabelForWire(w) === netName) {
+                    visited.add(w);
+                }
+            });
+        }
+
+        visited.forEach(w => w.classList.add('wire-net-highlight'));
+        this._netHighlightSet = visited;
+    },
+
+    // Returns the net-label text attached to a wire endpoint, or null.
+    _getNetLabelForWire(wirePath) {
+        const pts = [...(wirePath.getAttribute('d') || '')
+            .matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
+            .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+        if (!pts.length) return null;
+        const start = pts[0], end = pts[pts.length - 1];
+        const EPS = 12;
+        let found = null;
+        this._contentRoot?.querySelectorAll('.domain-symbol[data-symbol="net-label"]').forEach(sym => {
+            const pin = sym.querySelector('.pin-point');
+            if (!pin) return;
+            const pp = this._pinWorldPos(pin);
+            if (Math.hypot(pp.x - start.x, pp.y - start.y) < EPS ||
+                Math.hypot(pp.x - end.x,   pp.y - end.y)   < EPS) {
+                found = sym.querySelector('.sym-value')?.textContent?.trim() || null;
+            }
+        });
+        return found;
+    },
+
+    _clearNetHighlight() {
+        this._contentRoot?.querySelectorAll('.wire-net-highlight')
+            .forEach(w => w.classList.remove('wire-net-highlight'));
+        this._netHighlightSet = null;
+    },
+
+    // ── Feature 8: Auto-straighten selected wires ──
+
+    _straightenSelectedWires() {
+        const wires = this._selection.filter(el => el.getAttribute('data-geo-class') === 'wire');
+        if (!wires.length) { this.showToast('Select one or more wires first', 'info'); return; }
+
+        const before = this._captureFullState();
+        wires.forEach(w => {
+            const pts = [...(w.getAttribute('d') || '')
+                .matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
+                .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+            if (pts.length < 2) return;
+            const f = pts[0], t = pts[pts.length - 1];
+            w.setAttribute('d', `M ${f.x} ${f.y} L ${f.x} ${t.y} L ${t.x} ${t.y}`);
+        });
+        this._updateWiresForSelection();
+        const after = this._captureFullState();
+        this.pushHistory('Straighten Wires', before, after);
+        this.showToast(`Straightened ${wires.length} wire${wires.length > 1 ? 's' : ''}`, 'success');
     },
 
     // ── Marquee (Ctrl+Drag) Selection ─────────────────────────
@@ -695,6 +1171,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
             if (isIgnored && !target.closest('.selection-handle-group')) {
                 this.deselectAll();
+                this._clearNetHighlight();
                 return;
             }
 
@@ -716,6 +1193,17 @@ Object.assign(MobileSVGEditor.prototype, {
             const symGroup = el.closest('.domain-symbol');
             if (symGroup) el = symGroup;
 
+            // Alt + click on a drawn wire → branch a new wire from that point
+            if (e.altKey && !symGroup) {
+                const isWire = el.tagName === 'path' && el.getAttribute('data-geo-class') === 'wire';
+                if (isWire) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    this._startWireBranch(el, e.clientX, e.clientY);
+                    return;
+                }
+            }
+
             // Locked elements (canvas background, grid) cannot be selected
             if (el.dataset.locked === 'true') {
                 this.showToast('Element is locked — unlock in Layers panel to edit', 'error');
@@ -735,6 +1223,13 @@ Object.assign(MobileSVGEditor.prototype, {
             // Shift/Ctrl → additive; plain click → exclusive (replaces existing selection)
             this.selectEl(el, e.shiftKey || e.ctrlKey || e.metaKey);
 
+            // Net glow: clicking a wire highlights its entire connected net
+            if (el.getAttribute('data-geo-class') === 'wire') {
+                this._highlightNetForWire(el);
+            } else {
+                this._clearNetHighlight();
+            }
+
             // Execute Trace mode simultaneously if active
             if (this.isWireTracing) {
                 const wire = this.wires?.find(w =>
@@ -753,8 +1248,18 @@ Object.assign(MobileSVGEditor.prototype, {
         });
 
         // Double-click → inline text edit if target is <text> inside a domain-symbol
+        //              → split + insert if target is a drawn wire path
         this.$svgDisplay.on('dblclick.canvas', (e) => {
             if (this.activeTool !== 'select') return;
+
+            // Wire: split at click point and open symbol picker to insert in-series
+            if (e.target.tagName === 'path' && e.target.getAttribute('data-geo-class') === 'wire') {
+                e.preventDefault();
+                e.stopPropagation();
+                this._splitWireAtClick(e.target, e.clientX, e.clientY);
+                return;
+            }
+
             let textEl = e.target.tagName?.toLowerCase() === 'text'
                 ? e.target
                 : e.target.closest?.('text');
@@ -798,6 +1303,15 @@ Object.assign(MobileSVGEditor.prototype, {
             const after = this._captureFullState();
             this.pushHistory('Nudge', before, after);
             this._refreshPropertyPanel();
+        });
+
+        // Ctrl/Cmd+Shift+L — straighten selected wires
+        $(document).on('keydown.straighten', (e) => {
+            const ctrl = e.ctrlKey || e.metaKey;
+            if (ctrl && e.shiftKey && e.code === 'KeyL') {
+                e.preventDefault();
+                this._straightenSelectedWires();
+            }
         });
     },
 
