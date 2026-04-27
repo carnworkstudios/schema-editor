@@ -294,6 +294,11 @@ Object.assign(MobileSVGEditor.prototype, {
         this.updateMiniMap?.();
         this.showToast(toastMsg, 'success');
         this.closeSidePanel();
+
+        // Re-attach the MutationObserver to the freshly-created _cameraRotGroup.
+        // _mountParsedSvg wipes and recreates the DOM, so the old observer target
+        // is gone — without this call the layers panel never auto-updates after load.
+        this._initLayerObserver?.();
     },
 
 

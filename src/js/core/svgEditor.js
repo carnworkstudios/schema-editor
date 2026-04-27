@@ -222,7 +222,13 @@ class MobileSVGEditor {
         $('#fitViewBtn').on('click',    () => this.fitToView());
         $('#rotateBtn').on('click',     () => this.rotateView());
         $('#rotateLeftBtn').on('click', () => this.rotateViewLeft());
-        $('#layersBtn').on('click',     () => this.toggleSidePanel());
+        $('#layersBtn').on('click', () => {
+            if (this.$sidePanel?.hasClass('open')) {
+                this.closeSidePanel();
+            } else {
+                this.showLayers();
+            }
+        });
         $('#measureBtn').on('click',    () => this.toggleMeasureTool());
         $('#gridToggleBtn').on('click', () => this.toggleGrid());
         $('#snapToggleBtn').on('click', () => this.toggleSnap());

@@ -125,9 +125,9 @@
 .wire-junction {
     fill: #4facfe;
     stroke: #0d1b2a;
-    stroke-width: 1px;
+    stroke-width: 2px;
     pointer-events: none;
-    filter: drop-shadow(0 0 3px rgba(79, 172, 254, 0.6));
+    filter: drop-shadow(0 0 4px rgba(79, 172, 254, 0.6));
 }
 
 /* ============================================================

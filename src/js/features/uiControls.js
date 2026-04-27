@@ -34,6 +34,13 @@ Object.assign(MobileSVGEditor.prototype, {
 
     // ── Export ───────────────────────────────────────────────
 
+    _trackExport() {
+        try {
+            const n = parseInt(localStorage.getItem('schema_export_count') || '0', 10);
+            localStorage.setItem('schema_export_count', String(n + 1));
+        } catch (_) {}
+    },
+
     _triggerDownload(content, filename, mimeType) {
         const blob = new Blob([content], { type: mimeType });
         const url  = URL.createObjectURL(blob);
@@ -44,6 +51,7 @@ Object.assign(MobileSVGEditor.prototype, {
         link.click();
         document.body.removeChild(link);
         URL.revokeObjectURL(url);
+        this._trackExport();
     },
 
     exportCurrentView() {
@@ -165,26 +173,84 @@ ${svgData}
         };
     },
 
+    // ── TAFNE Pipeline ───────────────────────────────────────────
+    //
+    //  Steps:
+    //   0  Gather schema
+    //   1  Check kernel heartbeat   (wake if sleeping)
+    //   2  Probe TAFNE              (is table-formatter running?)
+    //   3  Open TAFNE               (if not, ask kernel to launch it)
+    //   4  Store data               (kernel pointer store)
+    //   5  Deliver to TAFNE
+    //
     async sendNetlistToTafne() {
+        // ── Build netlist ──────────────────────────────────────
         const netlist = this.buildNetlistJson();
         if (!netlist.components.length && !netlist.connections.length) {
             this.showToast('No wiring data — run analysis first', 'error');
             return;
         }
+
+        // ── Standalone (not inside OS shell) → download JSON ───
         if (!CwsBridge.isEmbedded) {
             const base = netlist.diagramName.replace(/\.[^.]+$/, '');
             this._triggerDownload(JSON.stringify(netlist, null, 2),
                 `${base}__netlist.json`, 'application/json');
-            this.showToast('Saved netlist JSON (not embedded)', 'success');
+            this.showToast('Saved netlist JSON (not in OS shell)', 'success');
             return;
         }
-        if (!CwsBridge.isConnected) {
-            this.showToast('OS connection lost — reload the page', 'error');
-            return;
-        }
+
+        // ── Open pipeline modal ────────────────────────────────
+        const pipeline = this._openTafnePipeline();
+
         try {
-            this.showToast('Sending to TAFNE…', 'success');
+            // ── Step 0: Schema gathered ────────────────────────
+            pipeline.step(0, 'done',
+                `${netlist.components.length} components · ${netlist.connections.length} connections`);
+
+            // ── Step 1: Kernel heartbeat ───────────────────────
+            pipeline.step(1, 'running', 'Checking…');
+            if (!CwsBridge.isConnected) {
+                pipeline.step(1, 'running', 'Kernel sleeping — waking…');
+                // Trigger the bridge's own reconnect handshake
+                try { window.parent.postMessage({ type: 'cws:ready' }, '*'); } catch (_) {}
+                const connected = await this._cwsWaitForConnection(8000);
+                if (pipeline.cancelled) return;
+                if (!connected) {
+                    pipeline.step(1, 'error', 'Kernel offline');
+                    pipeline.fail('Kernel did not respond. Make sure the Ginexys OS shell is open.');
+                    return;
+                }
+            }
+            pipeline.step(1, 'done', 'Connected');
+
+            // ── Step 2: Probe TAFNE ────────────────────────────
+            pipeline.step(2, 'running', 'Probing Table Formatter…');
+            const tafneRunning = await this._cwsProbeTafne(3500);
+            if (pipeline.cancelled) return;
+
+            // ── Step 3: Open TAFNE if not running ─────────────
+            if (tafneRunning) {
+                pipeline.step(2, 'done', 'Already open');
+                pipeline.step(3, 'skipped', 'Not needed');
+            } else {
+                pipeline.step(2, 'done', 'Not running');
+                pipeline.step(3, 'running', 'Requesting kernel to open TAFNE…');
+                CwsBridge.send('cws:tool:launch', { toolId: 'tifany', focusAfterLaunch: true }, 'os');
+                const launched = await this._cwsWaitForToolLaunch('tifany', 12000);
+                if (pipeline.cancelled) return;
+                pipeline.step(3, launched ? 'done' : 'running',
+                    launched ? 'TAFNE opened' : 'No ack — continuing anyway…');
+            }
+
+            // ── Step 4: Store data ─────────────────────────────
+            pipeline.step(4, 'running', 'Storing netlist…');
             const pointerId = await CwsBridge.requestStore(JSON.stringify(netlist), 'json-data');
+            if (pipeline.cancelled) return;
+            pipeline.step(4, 'done', `ID: ${pointerId.slice(0, 10)}…`);
+
+            // ── Step 5: Deliver ────────────────────────────────
+            pipeline.step(5, 'running', 'Delivering…');
             CwsBridge.offerData(CwsContracts.createEnvelope({
                 pointer:     pointerId,
                 contentType: 'json-data',
@@ -196,10 +262,171 @@ ${svgData}
                 },
                 hints: { suggestedTarget: 'tifany', action: 'load-netlist' },
             }));
-            this.showToast(`Sent ${netlist.components.length} components → TAFNE`, 'success');
-        } catch (e) {
-            this.showToast('Send failed: ' + e.message, 'error');
+            this._trackExport();
+            pipeline.step(5, 'done',
+                `${netlist.components.length} components → TAFNE`);
+            pipeline.success(`Sent ${netlist.components.length} components and ${netlist.connections.length} connections`);
+
+        } catch (err) {
+            pipeline.fail(err.message || 'Unexpected error');
         }
+    },
+
+    // ── Pipeline modal factory ────────────────────────────────
+    _openTafnePipeline() {
+        $('#tafnePipelineModal').remove();
+
+        const STEPS = [
+            'Gather schema',
+            'Check kernel heartbeat',
+            'Probe Table Formatter',
+            'Open Table Formatter',
+            'Store data',
+            'Deliver to TAFNE',
+        ];
+
+        const stepsHtml = STEPS.map((label, i) => `
+            <div class="tafne-step" data-idx="${i}" data-state="pending">
+                <div class="tafne-step-icon pending">○</div>
+                <div class="tafne-step-text">
+                    <span class="tafne-step-label">${label}</span>
+                    <span class="tafne-step-detail"></span>
+                </div>
+            </div>`).join('');
+
+        const $modal = $(`
+            <div class="modal-backdrop open" id="tafnePipelineModal" role="dialog" aria-modal="true">
+                <div class="modal tafne-pipeline-modal">
+                    <h3 class="modal-title">
+                        <iconify-icon icon="material-symbols:send-outline" style="font-size:16px;"></iconify-icon>
+                        Send to TAFNE
+                    </h3>
+                    <div class="tafne-steps">${stepsHtml}</div>
+                    <div class="tafne-pipeline-footer info" id="tafnePipelineFooter">Initializing…</div>
+                    <div class="modal-actions">
+                        <button class="btn btn-ghost" id="tafnePipelineCancel">Cancel</button>
+                        <button class="btn btn-ghost" id="tafnePipelineClose" style="display:none;">Close</button>
+                    </div>
+                </div>
+            </div>`);
+
+        $('body').append($modal);
+
+        // Set first step immediately to running
+        this._tafnePipelineStep(0, 'running', 'Building…');
+
+        let _cancelled = false;
+        let _currentRunningStep = -1;
+        $('#tafnePipelineCancel').on('click', () => {
+            _cancelled = true;
+            $modal.remove();
+        });
+        $('#tafnePipelineClose').on('click', () => $modal.remove());
+
+        const self = this;
+        return {
+            get cancelled() { return _cancelled; },
+            step(idx, state, detail) {
+                if (state === 'running') _currentRunningStep = idx;
+                else if (_currentRunningStep === idx) _currentRunningStep = -1;
+                self._tafnePipelineStep(idx, state, detail);
+            },
+            success(msg) {
+                $('#tafnePipelineFooter').text(`✓ ${msg}`).attr('class', 'tafne-pipeline-footer success');
+                $('#tafnePipelineCancel').hide();
+                $('#tafnePipelineClose').show();
+                setTimeout(() => $modal.remove(), 3000);
+            },
+            fail(msg) {
+                if (_currentRunningStep >= 0) {
+                    self._tafnePipelineStep(_currentRunningStep, 'error', msg);
+                    _currentRunningStep = -1;
+                }
+                $('#tafnePipelineFooter').text(`✗ ${msg}`).attr('class', 'tafne-pipeline-footer error');
+                $('#tafnePipelineCancel').hide();
+                $('#tafnePipelineClose').show();
+            },
+        };
+    },
+
+    _tafnePipelineStep(idx, state, detail) {
+        const $step = $(`#tafnePipelineModal .tafne-step[data-idx="${idx}"]`);
+        if (!$step.length) return;
+        const ICONS = { pending: '○', running: '', done: '✓', error: '✗', skipped: '–' };
+        $step.attr('data-state', state);
+        $step.find('.tafne-step-icon')
+            .attr('class', `tafne-step-icon ${state}`)
+            .text(ICONS[state] ?? '○');
+        if (detail != null) $step.find('.tafne-step-detail').text(detail);
+    },
+
+    // ── CWS helpers ───────────────────────────────────────────
+
+    _cwsWaitForConnection(timeout) {
+        return new Promise(resolve => {
+            if (CwsBridge.isConnected) { resolve(true); return; }
+            const deadline = Date.now() + timeout;
+            const timer = setInterval(() => {
+                if (CwsBridge.isConnected) { clearInterval(timer); resolve(true); }
+                else if (Date.now() >= deadline) { clearInterval(timer); resolve(false); }
+            }, 250);
+        });
+    },
+
+    // Sends cws:tool:probe to the kernel and waits for cws:tool:probe-result.
+    // If kernel does not support the message type, resolves false after timeout.
+    _cwsProbeTafne(timeout) {
+        return new Promise(resolve => {
+            let resolved = false;
+            const probeId = typeof crypto !== 'undefined' ? crypto.randomUUID() : `probe_${Date.now()}`;
+
+            const handler = (e) => {
+                if (e.data?.type === 'cws:tool:probe-result' &&
+                    e.data?.payload?.probeId === probeId) {
+                    if (!resolved) {
+                        resolved = true;
+                        window.removeEventListener('message', handler);
+                        resolve(e.data.payload.running === true);
+                    }
+                }
+            };
+            window.addEventListener('message', handler);
+            CwsBridge.send('cws:tool:probe', { toolId: 'tifany', probeId }, 'os');
+
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    window.removeEventListener('message', handler);
+                    resolve(false);
+                }
+            }, timeout);
+        });
+    },
+
+    // Waits for a cws:tool:launch-ack from the kernel confirming the tool opened.
+    _cwsWaitForToolLaunch(toolId, timeout) {
+        return new Promise(resolve => {
+            let resolved = false;
+            const handler = (e) => {
+                if ((e.data?.type === 'cws:tool:launch-ack' ||
+                     e.data?.type === 'cws:lifecycle:registered') &&
+                    (e.data?.payload?.toolId === toolId || !e.data?.payload?.toolId)) {
+                    if (!resolved) {
+                        resolved = true;
+                        window.removeEventListener('message', handler);
+                        resolve(true);
+                    }
+                }
+            };
+            window.addEventListener('message', handler);
+            setTimeout(() => {
+                if (!resolved) {
+                    resolved = true;
+                    window.removeEventListener('message', handler);
+                    resolve(false);
+                }
+            }, timeout);
+        });
     },
 
     async receiveBackAnnotation(envelope) {
@@ -209,27 +436,196 @@ ${svgData}
                 ? await CwsBridge.getStore(envelope.pointer)
                 : envelope.inline;
         } catch (e) {
-            this.showToast('Back-annotation: fetch failed', 'error');
+            this.showToast('Back-annotation: could not fetch data', 'error');
             return;
         }
-        let rows;
-        try { rows = JSON.parse(raw); } catch (e) {
-            this.showToast('Back-annotation: bad JSON', 'error');
+
+        let incoming;
+        try { incoming = typeof raw === 'string' ? JSON.parse(raw) : raw; }
+        catch (e) { this.showToast('Back-annotation: invalid JSON', 'error'); return; }
+
+        if (Array.isArray(incoming)) incoming = { components: incoming, connections: [] };
+        if (!incoming?.components?.length) {
+            this.showToast('Back-annotation: no component data', 'error');
             return;
         }
-        if (!Array.isArray(rows)) rows = rows.components || [];
-        let updated = 0;
-        rows.forEach(row => {
-            if (!row.id) return;
-            const el = this._contentRoot?.querySelector(`g#${CSS.escape(row.id)}[data-symbol]`);
+
+        const current = this.buildNetlistJson();
+        const diff = this._diffNetlists(incoming, current);
+
+        if (!diff.safe.length && !diff.review.length) {
+            this.showToast('Back-annotate: no changes detected', 'success');
+            return;
+        }
+
+        this._openBackAnnotateModal(diff);
+    },
+
+    // ── Diff engine ────────────────────────────────────────────
+    _diffNetlists(incoming, current) {
+        const safe   = [];
+        const review = [];
+
+        const currentById = new Map(current.components.map(c => [c.id, c]));
+        const incomingById = new Map(incoming.components.map(c => [c.id, c]));
+        const seen = new Set();
+
+        for (const inc of incoming.components) {
+            // Match by ID first, then by refdes as fallback
+            let cur = currentById.get(inc.id);
+            if (!cur && inc.refdes) {
+                cur = current.components.find(c => c.refdes && c.refdes === inc.refdes) || null;
+            }
+
+            if (!cur) {
+                review.push({ kind: 'added', component: inc });
+                continue;
+            }
+
+            seen.add(cur.id);
+
+            const valueChanged  = inc.value   && inc.value   !== cur.value;
+            const refdesChanged = inc.refdes   && inc.refdes  !== cur.refdes;
+            const typeChanged   = inc.symbolType && inc.symbolType !== cur.symbolType;
+
+            if (typeChanged) {
+                review.push({ kind: 'type_changed', id: cur.id,
+                    refdes: cur.refdes || cur.id, from: cur.symbolType, to: inc.symbolType });
+            }
+            if (valueChanged) {
+                safe.push({ kind: 'modified', id: cur.id,
+                    refdes: cur.refdes || cur.id, field: 'value', from: cur.value, to: inc.value });
+            }
+            if (refdesChanged && !typeChanged) {
+                safe.push({ kind: 'modified', id: cur.id,
+                    refdes: cur.refdes || cur.id, field: 'refdes', from: cur.refdes, to: inc.refdes });
+            }
+        }
+
+        // Components in current but absent in incoming → removed
+        for (const cur of current.components) {
+            if (!seen.has(cur.id) && !incomingById.has(cur.id)) {
+                review.push({ kind: 'removed', component: cur });
+            }
+        }
+
+        return { safe, review };
+    },
+
+    // ── Back-annotate validation modal ────────────────────────
+    _openBackAnnotateModal(diff) {
+        $('#backAnnotateModal').remove();
+
+        const nSafe   = diff.safe.length;
+        const nReview = diff.review.length;
+
+        const safeRowsHtml = nSafe
+            ? diff.safe.map(ch => `
+                <div class="ba-row">
+                    <span class="ba-tag safe">${ch.field}</span>
+                    <span class="ba-desc">
+                        <strong>${ch.refdes}</strong>
+                        <span class="ba-from">${ch.from || '—'}</span>
+                        <span class="ba-arrow">→</span>
+                        <span class="ba-to">${ch.to}</span>
+                    </span>
+                </div>`).join('')
+            : '<div class="ba-empty">No safe changes</div>';
+
+        const reviewRowsHtml = nReview
+            ? diff.review.map(ch => {
+                if (ch.kind === 'added') return `
+                    <div class="ba-row">
+                        <span class="ba-tag added">new</span>
+                        <span class="ba-desc"><strong>${ch.component.refdes || ch.component.id}</strong>
+                        (${ch.component.symbolType || 'unknown'}) — not in schema</span>
+                    </div>`;
+                if (ch.kind === 'removed') return `
+                    <div class="ba-row">
+                        <span class="ba-tag removed">del</span>
+                        <span class="ba-desc"><strong>${ch.component.refdes || ch.component.id}</strong>
+                        removed in TAFNE</span>
+                    </div>`;
+                if (ch.kind === 'type_changed') return `
+                    <div class="ba-row">
+                        <span class="ba-tag conflict">type</span>
+                        <span class="ba-desc"><strong>${ch.refdes}</strong>
+                        ${ch.from} → ${ch.to}</span>
+                    </div>`;
+                return '';
+            }).join('')
+            : '<div class="ba-empty">None</div>';
+
+        const $modal = $(`
+            <div class="modal-backdrop open" id="backAnnotateModal" role="dialog" aria-modal="true">
+                <div class="modal ba-modal">
+                    <h3 class="modal-title">
+                        <iconify-icon icon="material-symbols:undo" style="font-size:16px;"></iconify-icon>
+                        Back-Annotate from TAFNE
+                    </h3>
+                    <p class="ba-summary">
+                        ${nSafe + nReview} change${nSafe + nReview !== 1 ? 's' : ''} ·
+                        <span class="ba-safe-ct">${nSafe} safe</span> ·
+                        <span class="ba-review-ct">${nReview} need${nReview !== 1 ? '' : 's'} review</span>
+                    </p>
+                    ${nSafe ? `
+                    <div class="ba-section">
+                        <div class="ba-section-hdr safe">✓ Safe to apply (${nSafe})</div>
+                        <div class="ba-rows">${safeRowsHtml}</div>
+                    </div>` : ''}
+                    ${nReview ? `
+                    <div class="ba-section">
+                        <div class="ba-section-hdr review">⚠ Needs review (${nReview})</div>
+                        <div class="ba-rows">${reviewRowsHtml}</div>
+                    </div>` : ''}
+                    <div class="modal-actions">
+                        <button class="btn btn-ghost" id="baDismissBtn">Dismiss</button>
+                        ${nSafe ? `<button class="btn btn-primary" id="baApplyBtn">
+                            Apply ${nSafe} safe change${nSafe !== 1 ? 's' : ''}
+                        </button>` : ''}
+                    </div>
+                </div>
+            </div>`);
+
+        $('body').append($modal);
+        $('#baDismissBtn').on('click', () => $modal.remove());
+
+        if (nSafe) {
+            const self = this;
+            $('#baApplyBtn').on('click', () => {
+                const applied = self._applyBackAnnotateChanges(diff.safe);
+                $modal.remove();
+                self.showToast(
+                    applied ? `Back-annotated: ${applied} change${applied !== 1 ? 's' : ''} applied`
+                            : 'Back-annotate: no matching elements found',
+                    applied ? 'success' : 'error'
+                );
+            });
+        }
+    },
+
+    // ── Apply safe back-annotate changes to SVG ───────────────
+    _applyBackAnnotateChanges(safeChanges) {
+        if (!safeChanges.length) return 0;
+
+        const before = this._captureFullState?.();
+        let applied = 0;
+
+        safeChanges.forEach(ch => {
+            const el = this._contentRoot?.querySelector(`g#${CSS.escape(ch.id)}[data-symbol]`);
             if (!el) return;
-            const label = el.querySelector('text.sym-value');
-            if (!label) return;
-            const text = row.value || row.refdes;
-            if (text) { label.textContent = text; updated++; }
+            const labelEl = el.querySelector('text.sym-value');
+            if (!labelEl) return;
+            labelEl.textContent = ch.to;
+            applied++;
         });
-        this.showToast(`Back-annotated: ${updated} updated`, 'success');
-        if (typeof this.pushHistory === 'function') this.pushHistory('Back-annotate', null, null);
+
+        if (applied > 0 && typeof this.pushHistory === 'function') {
+            const after = this._captureFullState?.();
+            this.pushHistory('Back-annotate', before, after);
+        }
+
+        return applied;
     },
 
     batchExport() {
@@ -588,6 +984,7 @@ ${svgData}
                 },
                 hints: { suggestedTarget: 'tifany', action: 'load-fsm' },
             }));
+            this._trackExport();
             this.showToast(`Sent ${fsm.states.length} states → TAFNE`, 'success');
         } catch (e) {
             this.showToast('Send failed: ' + e.message, 'error');

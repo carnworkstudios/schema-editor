@@ -90,6 +90,10 @@
     <!-- Sidebar nav component -->
     <script src="../../assets/components/sidebar-nav.js"></script>
     <script src="../../assets/js/portfolio.js"></script>
+
+    <!-- Ginexys gate + star toast -->
+    <link rel="stylesheet" href="/assets/css/ginexys-modals.css">
+    <script src="/assets/js/ginexys-gate.js" defer></script>
     <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -851,6 +855,21 @@
             $('#exportFsmJsonBtn').on('click', () => window.editor.exportAsFsmJson());
             $('#exportXStateBtn').on('click', () => window.editor.exportAsXState());
             $('#sendFsmToTafneBtn').on('click', () => window.editor.sendFsmToTafne());
+
+            // Gate + star toast — fires on first export per session
+            if (window.GxGate) {
+                GxGate.init({
+                    toolKey:    'schema_export_count',
+                    gateKey:    'ginexys_schema_gate_shown',
+                    repo:       'carnworkstudios/schema-editor',
+                    triggerIds: [
+                        'exportViewBtn', 'exportHtmlBtn', 'exportJsonBtn',
+                        'sendToTafneBtn', 'batchExportBtn', 'exportSqlBtn',
+                        'exportMermaidSeqBtn', 'exportFsmJsonBtn',
+                        'exportXStateBtn', 'sendFsmToTafneBtn',
+                    ],
+                });
+            }
 
             // CWS IPC: receive back-annotation from TAFNE
             CwsBridge.onData(function (envelope) {

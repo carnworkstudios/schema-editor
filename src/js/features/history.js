@@ -81,6 +81,7 @@ Object.assign(MobileSVGEditor.prototype, {
     captureHighlightState() {
         const entries = [];
         this.$svgDisplay.find('*').each(function () {
+            if (!this.style) return;
             entries.push({
                 el:          this,
                 cls:         this.getAttribute('class') || '',

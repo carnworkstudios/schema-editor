@@ -190,6 +190,7 @@ Object.assign(MobileSVGEditor.prototype, {
         this._selectionBox?.remove();
         this._selectionBox = null;
         this.$svgDisplay[0].querySelectorAll('.selection-handle-group').forEach(el => el.remove());
+        this._scheduleOverlayRender?.();
     },
 
     // ── Step 7: World → Overlay screen coords ─────────────────
@@ -1396,8 +1397,8 @@ Object.assign(MobileSVGEditor.prototype, {
         allElements.forEach(el => {
             if (el.id === '_cameraRotGroup') return;
             // Skip system-only overlays and guides
-            if (el.dataset.seSystem === 'true' || el.classList.contains('snap-guide') || 
-                el.classList.contains('draw-preview') || el.id === '_gridLayer') return;
+            if (el.dataset?.seSystem === 'true' || el.classList?.contains('snap-guide') ||
+                el.classList?.contains('draw-preview') || el.id === '_gridLayer') return;
             
             // Assign a stable ID if missing (crucial for attribute-diff history to track the element)
             if (!el.id && el.tagName !== 'svg' && el.tagName !== 'defs') {
@@ -1434,9 +1435,11 @@ Object.assign(MobileSVGEditor.prototype, {
         });
         svg.querySelectorAll('.wire-hitbox, .component-hitbox').forEach(h => h.remove());
 
-        // Remove elements not in snapshot (but preserve _cameraRotGroup)
+        // Remove elements not in snapshot (but preserve system elements)
         svg.querySelectorAll('[id]').forEach(el => {
-            if (el.id === '_cameraRotGroup') return;  // Step 9: never restore camera state
+            if (el.id === '_cameraRotGroup') return;
+            if (el.id === '_gridLayer' || el.id === '_gridDefs') return;
+            if (el.dataset?.seSystem === 'true') return;
             if (!state[el.id]) el.remove();
         });
         // Apply attribute diffs

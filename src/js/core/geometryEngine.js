@@ -226,6 +226,18 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const svgEl = this.$svgDisplay[0];
 
+        // Bail early on very large SVGs — synchronous analysis would freeze the browser.
+        // Layers will still populate via the flat DOM-walk fallback (no topology).
+        const elementCount = svgEl.querySelectorAll('*').length;
+        if (elementCount > 1200) {
+            console.warn(`[GeoEngine] Skipped pipeline: ${elementCount} elements exceeds safe limit.`);
+            const d = this.displays[this.activeDisplayIdx];
+            if (d) { d.analyzed = true; d.svgContent = new XMLSerializer().serializeToString(svgEl); }
+            if (typeof this.buildLayersTree === 'function' && this.$sidePanel?.hasClass('open'))
+                this.buildLayersTree();
+            return;
+        }
+
         // Strip hitbox wrappers from a previous run so phases 1-2 see clean geometry
         // We explicitly remove .wire-hitbox / .component-hitbox and promote their visual siblings.
         svgEl.querySelectorAll('.wire-group, .component-group').forEach(g => {
