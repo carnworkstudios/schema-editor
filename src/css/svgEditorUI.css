@@ -356,7 +356,8 @@ body {
     color: rgba(0, 0, 0, 0.6);
 }
 
-.control-btn:hover, .control-btn.active {
+.control-btn:hover,
+.control-btn.active {
     background: rgba(79, 172, 254, 0.12);
     border-color: rgba(79, 172, 254, 0.4);
     color: #0066cc;
@@ -952,7 +953,7 @@ body:not(.dark-mode) .layer-item-locked .layer-name {
     }
 
     .bottom-controls {
-        grid-template-columns: repeat(5, 1fr);
+        grid-template-columns: repeat(6, 1fr);
     }
 
     .control-group-flex {
@@ -1913,14 +1914,16 @@ body.dark-mode .draw-tool-btn.active {
     align-items: flex-start;
     gap: 10px;
     padding: 8px 4px;
-    border-bottom: 1px solid rgba(255,255,255,0.05);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
 body:not(.dark-mode) .tafne-step {
-    border-bottom-color: rgba(0,0,0,0.06);
+    border-bottom-color: rgba(0, 0, 0, 0.06);
 }
 
-.tafne-step:last-child { border-bottom: none; }
+.tafne-step:last-child {
+    border-bottom: none;
+}
 
 .tafne-step-icon {
     width: 20px;
@@ -1935,12 +1938,25 @@ body:not(.dark-mode) .tafne-step {
     margin-top: 1px;
 }
 
-.tafne-step-icon.pending  { color: rgba(255,255,255,0.25); }
-.tafne-step-icon.done     { color: #34d399; }
-.tafne-step-icon.error    { color: #ef4444; }
-.tafne-step-icon.skipped  { color: rgba(255,255,255,0.2); }
+.tafne-step-icon.pending {
+    color: rgba(255, 255, 255, 0.25);
+}
 
-body:not(.dark-mode) .tafne-step-icon.pending { color: rgba(0,0,0,0.2); }
+.tafne-step-icon.done {
+    color: #34d399;
+}
+
+.tafne-step-icon.error {
+    color: #ef4444;
+}
+
+.tafne-step-icon.skipped {
+    color: rgba(255, 255, 255, 0.2);
+}
+
+body:not(.dark-mode) .tafne-step-icon.pending {
+    color: rgba(0, 0, 0, 0.2);
+}
 
 .tafne-step-icon.running {
     position: relative;
@@ -1952,13 +1968,15 @@ body:not(.dark-mode) .tafne-step-icon.pending { color: rgba(0,0,0,0.2); }
     position: absolute;
     inset: 2px;
     border-radius: 50%;
-    border: 2px solid rgba(79,172,254,0.25);
+    border: 2px solid rgba(79, 172, 254, 0.25);
     border-top-color: #4facfe;
     animation: tafne-spin 0.7s linear infinite;
 }
 
 @keyframes tafne-spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .tafne-step-text {
@@ -1988,14 +2006,14 @@ body:not(.dark-mode) .tafne-step-icon.pending { color: rgba(0,0,0,0.2); }
 
 .tafne-step-detail {
     font-size: 10px;
-    color: rgba(255,255,255,0.4);
+    color: rgba(255, 255, 255, 0.4);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
 body:not(.dark-mode) .tafne-step-detail {
-    color: rgba(0,0,0,0.4);
+    color: rgba(0, 0, 0, 0.4);
 }
 
 .tafne-pipeline-footer {
@@ -2005,9 +2023,20 @@ body:not(.dark-mode) .tafne-step-detail {
     font-style: italic;
 }
 
-.tafne-pipeline-footer.success { color: #34d399; font-style: normal; font-weight: 600; }
-.tafne-pipeline-footer.error   { color: #ef4444; font-style: normal; }
-.tafne-pipeline-footer.info    { color: rgba(255,255,255,0.45); }
+.tafne-pipeline-footer.success {
+    color: #34d399;
+    font-style: normal;
+    font-weight: 600;
+}
+
+.tafne-pipeline-footer.error {
+    color: #ef4444;
+    font-style: normal;
+}
+
+.tafne-pipeline-footer.info {
+    color: rgba(255, 255, 255, 0.45);
+}
 
 /* ============================================================
    Back-Annotate Modal
@@ -2020,24 +2049,35 @@ body:not(.dark-mode) .tafne-step-detail {
 
 .ba-summary {
     font-size: 12px;
-    color: rgba(255,255,255,0.5);
+    color: rgba(255, 255, 255, 0.5);
     margin: 0 0 12px;
     line-height: 1.5;
 }
 
-body:not(.dark-mode) .ba-summary { color: rgba(0,0,0,0.45); }
+body:not(.dark-mode) .ba-summary {
+    color: rgba(0, 0, 0, 0.45);
+}
 
-.ba-safe-ct   { color: #34d399; font-weight: 600; }
-.ba-review-ct { color: #f59e0b; font-weight: 600; }
+.ba-safe-ct {
+    color: #34d399;
+    font-weight: 600;
+}
+
+.ba-review-ct {
+    color: #f59e0b;
+    font-weight: 600;
+}
 
 .ba-section {
     margin-bottom: 10px;
-    border: 1px solid rgba(255,255,255,0.07);
+    border: 1px solid rgba(255, 255, 255, 0.07);
     border-radius: 6px;
     overflow: hidden;
 }
 
-body:not(.dark-mode) .ba-section { border-color: rgba(0,0,0,0.09); }
+body:not(.dark-mode) .ba-section {
+    border-color: rgba(0, 0, 0, 0.09);
+}
 
 .ba-section-hdr {
     font-size: 11px;
@@ -2047,8 +2087,15 @@ body:not(.dark-mode) .ba-section { border-color: rgba(0,0,0,0.09); }
     text-transform: uppercase;
 }
 
-.ba-section-hdr.safe   { background: rgba(52,211,153,0.12); color: #34d399; }
-.ba-section-hdr.review { background: rgba(245,158,11,0.10); color: #f59e0b; }
+.ba-section-hdr.safe {
+    background: rgba(52, 211, 153, 0.12);
+    color: #34d399;
+}
+
+.ba-section-hdr.review {
+    background: rgba(245, 158, 11, 0.10);
+    color: #f59e0b;
+}
 
 .ba-rows {
     display: flex;
@@ -2060,14 +2107,18 @@ body:not(.dark-mode) .ba-section { border-color: rgba(0,0,0,0.09); }
     align-items: baseline;
     gap: 8px;
     padding: 7px 10px;
-    border-top: 1px solid rgba(255,255,255,0.04);
+    border-top: 1px solid rgba(255, 255, 255, 0.04);
     font-size: 12px;
     line-height: 1.4;
 }
 
-body:not(.dark-mode) .ba-row { border-top-color: rgba(0,0,0,0.05); }
+body:not(.dark-mode) .ba-row {
+    border-top-color: rgba(0, 0, 0, 0.05);
+}
 
-.ba-row:first-child { border-top: none; }
+.ba-row:first-child {
+    border-top: none;
+}
 
 .ba-tag {
     font-size: 9px;
@@ -2079,36 +2130,195 @@ body:not(.dark-mode) .ba-row { border-top-color: rgba(0,0,0,0.05); }
     flex-shrink: 0;
 }
 
-.ba-tag.safe     { background: rgba(52,211,153,0.15); color: #34d399; }
-.ba-tag.added    { background: rgba(79,172,254,0.15); color: #4facfe; }
-.ba-tag.removed  { background: rgba(239,68,68,0.15);  color: #ef4444; }
-.ba-tag.conflict { background: rgba(245,158,11,0.15); color: #f59e0b; }
+.ba-tag.safe {
+    background: rgba(52, 211, 153, 0.15);
+    color: #34d399;
+}
+
+.ba-tag.added {
+    background: rgba(79, 172, 254, 0.15);
+    color: #4facfe;
+}
+
+.ba-tag.removed {
+    background: rgba(239, 68, 68, 0.15);
+    color: #ef4444;
+}
+
+.ba-tag.conflict {
+    background: rgba(245, 158, 11, 0.15);
+    color: #f59e0b;
+}
 
 .ba-desc {
     display: flex;
     align-items: baseline;
     gap: 5px;
     flex-wrap: wrap;
-    color: rgba(255,255,255,0.8);
+    color: rgba(255, 255, 255, 0.8);
     min-width: 0;
 }
 
-body:not(.dark-mode) .ba-desc { color: rgba(0,0,0,0.75); }
+body:not(.dark-mode) .ba-desc {
+    color: rgba(0, 0, 0, 0.75);
+}
 
-.ba-desc strong { color: inherit; font-weight: 600; }
+.ba-desc strong {
+    color: inherit;
+    font-weight: 600;
+}
 
-.ba-from  { color: rgba(255,255,255,0.4); text-decoration: line-through; font-style: italic; }
-.ba-to    { color: #34d399; font-weight: 600; }
-.ba-arrow { color: rgba(255,255,255,0.25); font-size: 10px; }
+.ba-from {
+    color: rgba(255, 255, 255, 0.4);
+    text-decoration: line-through;
+    font-style: italic;
+}
 
-body:not(.dark-mode) .ba-from  { color: rgba(0,0,0,0.35); }
-body:not(.dark-mode) .ba-arrow { color: rgba(0,0,0,0.2); }
+.ba-to {
+    color: #34d399;
+    font-weight: 600;
+}
+
+.ba-arrow {
+    color: rgba(255, 255, 255, 0.25);
+    font-size: 10px;
+}
+
+body:not(.dark-mode) .ba-from {
+    color: rgba(0, 0, 0, 0.35);
+}
+
+body:not(.dark-mode) .ba-arrow {
+    color: rgba(0, 0, 0, 0.2);
+}
 
 .ba-empty {
     padding: 8px 10px;
     font-size: 11px;
-    color: rgba(255,255,255,0.25);
+    color: rgba(255, 255, 255, 0.25);
     font-style: italic;
 }
 
-body:not(.dark-mode) .ba-empty { color: rgba(0,0,0,0.3); }
+body:not(.dark-mode) .ba-empty {
+    color: rgba(0, 0, 0, 0.3);
+}
+
+/* ============================================================
+   Layer Panel — Scene Graph View (Structure + Analysis)
+   ============================================================ */
+
+/* ── View toggle (Structure / Analysis) ─────────────────── */
+.layer-view-toggle {
+    display: flex;
+    gap: 2px;
+    background: rgba(0, 0, 0, 0.12);
+    border-radius: 6px;
+    padding: 2px;
+    margin-bottom: 8px;
+}
+
+.lvt-btn {
+    flex: 1;
+    background: none;
+    border: none;
+    border-radius: 4px;
+    padding: 4px 6px;
+    font-size: 10px;
+    cursor: pointer;
+    color: rgba(255, 255, 255, 0.4);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    transition: background 0.15s, color 0.15s;
+}
+
+.lvt-btn.active {
+    background: rgba(79, 172, 254, 0.18);
+    color: #4facfe;
+}
+
+body:not(.dark-mode) .lvt-btn {
+    color: rgba(0, 0, 0, 0.45);
+}
+
+body:not(.dark-mode) .lvt-btn.active {
+    background: #fff;
+    color: #0066cc;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
+}
+
+/* ── Drag-to-reorder handle ──────────────────────────────── */
+.layer-drag-handle {
+    cursor: grab;
+    color: rgba(255, 255, 255, 0.18);
+    font-size: 11px;
+    flex-shrink: 0;
+    padding: 0 2px;
+    user-select: none;
+    line-height: 1;
+}
+
+.layer-drag-handle:active {
+    cursor: grabbing;
+}
+
+.layer-item[draggable="true"]:active {
+    opacity: 0.5;
+}
+
+body:not(.dark-mode) .layer-drag-handle {
+    color: rgba(0, 0, 0, 0.2);
+}
+
+/* ── Drop indicator line between rows ───────────────────── */
+.layer-drop-indicator {
+    height: 2px;
+    background: #4facfe;
+    border-radius: 1px;
+    margin: 1px 0;
+    pointer-events: none;
+}
+
+/* ── Topology badge (inline in Structure view) ───────────── */
+.layer-topo-badge {
+    font-size: 8px;
+    padding: 1px 5px;
+    border-radius: 8px;
+    flex-shrink: 0;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+    line-height: 1.6;
+    white-space: nowrap;
+}
+
+.badge-wire {
+    background: rgba(79, 172, 254, 0.15);
+    color: #4facfe;
+}
+
+.badge-module {
+    background: rgba(52, 211, 153, 0.15);
+    color: #34d399;
+}
+
+.badge-connector,
+.badge-pin {
+    background: rgba(167, 139, 250, 0.15);
+    color: #a78bfa;
+}
+
+.badge-component {
+    background: rgba(148, 163, 184, 0.15);
+    color: #94a3b8;
+}
+
+.badge-junction {
+    background: rgba(251, 191, 36, 0.15);
+    color: #fbbf24;
+}
+
+/* ── Structure view children container ───────────────────── */
+.layer-struct-children {
+    /* shown/hidden via jQuery .toggle() */
+}
