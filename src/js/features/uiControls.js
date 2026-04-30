@@ -55,7 +55,9 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     exportCurrentView() {
-        const svgData = new XMLSerializer().serializeToString(this.$svgDisplay[0]);
+        // Use clean serializer: content lifted out of _cameraRotGroup with originalViewBox,
+        // so the exported file round-trips through _mountParsedSvg without data loss.
+        const svgData = this._serializeCurrentDisplay();
         this._triggerDownload(svgData, 'wiring_diagram.svg', 'image/svg+xml;charset=utf-8');
         this.showToast('SVG exported', 'success');
     },

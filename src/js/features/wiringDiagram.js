@@ -32,6 +32,12 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Switch active display ─────────────────────────────────
     switchDisplay(idx) {
         if (idx < 0 || idx >= this.displays.length) return;
+
+        // Snapshot current canvas into svgContent before leaving so edits survive the switch
+        if (this.activeDisplayIdx >= 0 && this.displays[this.activeDisplayIdx]) {
+            this.displays[this.activeDisplayIdx].svgContent = this._serializeCurrentDisplay();
+        }
+
         this.activeDisplayIdx = idx;
         const d = this.displays[idx];
         try {
@@ -40,6 +46,41 @@ Object.assign(MobileSVGEditor.prototype, {
             this.showToast(`Render error: ${e.message}`, 'error');
         }
         if ($('#timelinePanel').hasClass('open')) this.buildTimeline();
+    },
+
+    // ── Clean SVG serializer: content only, no camera/grid infrastructure ──
+    // Lifts user elements out of _cameraRotGroup and uses originalViewBox
+    // so the output can round-trip through _mountParsedSvg without data loss.
+    _serializeCurrentDisplay() {
+        const svg = this.$svgDisplay[0];
+        if (!svg) return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800"></svg>';
+        const contentRoot = this._contentRoot;
+        const NS = this.SVG_NS;
+
+        const vb = this.originalViewBox || '0 0 1200 800';
+        const tempSvg = document.createElementNS(NS, 'svg');
+        tempSvg.setAttribute('xmlns', NS);
+        tempSvg.setAttribute('viewBox', vb);
+        tempSvg.setAttribute('width', '100%');
+        tempSvg.setAttribute('height', '100%');
+
+        // Copy non-grid root-level defs (patterns, filters, markers, etc.)
+        Array.from(svg.children).forEach(child => {
+            if (child.tagName === 'defs' && child.id !== '_gridDefs') {
+                tempSvg.appendChild(document.importNode(child, true));
+            }
+        });
+
+        // Copy user content (skip grid layer and transient selection handles)
+        if (contentRoot) {
+            Array.from(contentRoot.children).forEach(child => {
+                if (child.id === '_gridLayer') return;
+                if (child.classList.contains('selection-handle-group')) return;
+                tempSvg.appendChild(document.importNode(child, true));
+            });
+        }
+
+        return new XMLSerializer().serializeToString(tempSvg);
     },
 
     _fileToSvgString(file) {
@@ -224,6 +265,10 @@ Object.assign(MobileSVGEditor.prototype, {
 
     // ── Shared: mount a parsed SVG string into the display and activate all features ──
     _mountParsedSvg(svgContent, toastMsg) {
+        // Kill any in-flight fitToView/zoom animation so the previous display's
+        // tween can't override the camera state of the newly mounted display.
+        if (typeof gsap !== 'undefined') gsap.killTweensOf(this._cameraTween);
+
         const parser = new DOMParser();
         const svgDoc = parser.parseFromString(svgContent, 'image/svg+xml');
         const svgElement = svgDoc.querySelector('svg');
