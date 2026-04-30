@@ -656,8 +656,9 @@ Object.assign(MobileSVGEditor.prototype, {
             const ey = assigned[endIdx]   ? canonical[endIdx*2+1]   : pts[pts.length-1];
             return {
                 el, id: `wire_${i}`,
-                color:  el.getAttribute('stroke') || 'black',
-                width:  parseFloat(el.getAttribute('stroke-width') || '1'),
+                // Prefer SVG attribute; fall back to inline style (imported SVGs often use style only)
+                color:  el.getAttribute('stroke') || el.style?.stroke || 'black',
+                width:  parseFloat(el.getAttribute('stroke-width') || el.style?.strokeWidth || '1'),
                 endpoints: [{ x: sx, y: sy }, { x: ex, y: ey }],
                 length:    score.pathLen,
                 linearity: score.linearity,

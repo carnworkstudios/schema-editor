@@ -120,8 +120,10 @@ Object.assign(MobileSVGEditor.prototype, {
 
     hideConnections() {
         const before = this.captureHighlightState();
+        // Restore the wire's original color; blanking stroke makes wires with
+        // inline-style-only stroke permanently invisible (no SVG attribute fallback)
         (this.wires || []).forEach(wire =>
-            wire.$element?.css({ stroke: '', 'stroke-width': '', filter: '' }));
+            wire.$element?.css({ stroke: wire.color || '', filter: '' }));
         const after = this.captureHighlightState();
         this.pushHistory('Hide Connections', before, after);
         this.showToast('Wire connections hidden', 'success');
@@ -131,12 +133,20 @@ Object.assign(MobileSVGEditor.prototype, {
     clearAllHighlights() {
         const before = this.captureHighlightState();
 
-        this.$svgDisplay.find('.wire-trace, .component-highlight, .module-highlight, .selected-element, .wire-endpoint')
-            .removeClass('wire-trace component-highlight module-highlight selected-element wire-endpoint');
+        // Remove all CSS-class-based highlights
+        this.$svgDisplay.find(
+            '.wire-trace, .component-highlight, .module-highlight, ' +
+            '.selected-element, .wire-endpoint, .wire-hover, ' +
+            '.canvas-overlay-hover, .wire-net-highlight'
+        ).removeClass(
+            'wire-trace component-highlight module-highlight ' +
+            'selected-element wire-endpoint wire-hover ' +
+            'canvas-overlay-hover wire-net-highlight'
+        );
 
-        this.$svgDisplay.find('*').each((_, el) => {
-            $(el).css({ stroke: '', 'stroke-width': '', filter: '', fill: '' });
-        });
+        // Restore wire original colors (blanking stroke makes wires with inline-only stroke invisible)
+        (this.wires || []).forEach(wire =>
+            wire.$element?.css({ stroke: wire.color || '', filter: '' }));
 
         const after = this.captureHighlightState();
         this.pushHistory('Clear Highlights', before, after);

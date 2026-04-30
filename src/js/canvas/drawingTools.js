@@ -143,6 +143,8 @@ Object.assign(MobileSVGEditor.prototype, {
         el.setAttribute('fill', s.fill);
         if (s.fill !== 'none') el.setAttribute('fill-opacity', s.fillOpacity);
         if (s.strokeDasharray !== 'none') el.setAttribute('stroke-dasharray', s.strokeDasharray);
+        // Bake into the SVG attribute so exported files render consistently
+        el.setAttribute('vector-effect', 'non-scaling-stroke');
     },
 
     _makePreview(tagName) {

@@ -109,8 +109,8 @@ Object.assign(MobileSVGEditor.prototype, {
     deleteSelected() {
         if (!this._selection.length) return;
         const unlocked = this._selection.filter(
-            el => el.dataset.locked !== 'true' && 
-                  el.dataset.seSystem !== 'true' &&
+            el => el.dataset?.locked !== 'true' &&
+                  el.dataset?.seSystem !== 'true' &&
                   !el.id?.startsWith('_') // extra safety against deleting system layers
         );
         if (unlocked.length < this._selection.length)
@@ -124,16 +124,19 @@ Object.assign(MobileSVGEditor.prototype, {
         });
         this._selection = [];
         this._removeHandles();
-        // Clear stale element refs so topology graph never holds detached DOM nodes.
-        // Without this, hit-testing and wire tracing silently break after delete.
-        this.wires = [];
-        this.components = [];
-        this.connectors = [];
+        // Prune detached refs; keep topology for elements still in the DOM so the
+        // layers panel stays in topology-mode (not flat-fallback) after a partial delete.
+        // _scheduleGeoAnalysis will re-run and catch any structural changes.
+        this.wires      = (this.wires      || []).filter(w => w.element?.isConnected);
+        this.components = (this.components || []).filter(c => c.element?.isConnected);
+        this.connectors = (this.connectors || []).filter(c => c.element?.isConnected);
         this._scheduleGeoAnalysis?.();
         const after = this._captureFullState();
         this.pushHistory('Delete', before, after);
         this.showToast('Deleted', 'success');
-        if (typeof this.buildLayersTree === 'function') this.buildLayersTree();
+        // Let MutationObserver rebuild the layers tree after 150 ms so the geo
+        // analysis has time to run first — avoids the "blank defs" flash.
+        // (The observer is already watching _contentRoot; no explicit call needed.)
     },
 
     // ── Group / Ungroup ───────────────────────────────────────
@@ -238,6 +241,14 @@ Object.assign(MobileSVGEditor.prototype, {
             maxX = Math.max(maxX, p.x); maxY = Math.max(maxY, p.y);
         });
 
+        // Single wire selected → show endpoint handles instead of bounding box.
+        // The bounding box is meaningless for a 1px-wide line and its resize
+        // handles apply scale() which makes stroke-width grow even with non-scaling-stroke.
+        if (this._selection.length === 1 && this._isWireElement(this._selection[0])) {
+            this._drawWireEndpointHandles(ctx, this._selection[0]);
+            return;
+        }
+
         const pad = 4;
         const tl = { x: minX - pad, y: minY - pad };
         const tr = { x: maxX + pad, y: minY - pad };
@@ -247,6 +258,88 @@ Object.assign(MobileSVGEditor.prototype, {
         this._drawOverlayRect(ctx, [tl, tr, br, bl]);
         this._drawOverlayHandles(ctx, tl, tr, bl, br);
         this._drawOverlayRotHandle(ctx, tl, tr);
+    },
+
+    // ── Wire element detection ────────────────────────────────
+    _isWireElement(el) {
+        if (!el) return false;
+        if (el.getAttribute('data-geo-class') === 'wire') return true;
+        if (el.tagName?.toLowerCase() === 'line') return true;
+        // Fallback: path with fill:none and only M/L commands (straight segments)
+        const fill = el.getAttribute('fill') || el.style?.fill || '';
+        const d    = el.getAttribute('d')    || '';
+        return fill === 'none' && d.length > 0 && /^[MLml\s\d.eE+\-,]+$/.test(d.trim());
+    },
+
+    // ── Parse ALL points of a wire element (M + all L coords) ──
+    _parseWirePoints(el) {
+        if (!el) return null;
+        if (el.tagName?.toLowerCase() === 'line') {
+            return [
+                { x: parseFloat(el.getAttribute('x1') || 0), y: parseFloat(el.getAttribute('y1') || 0) },
+                { x: parseFloat(el.getAttribute('x2') || 0), y: parseFloat(el.getAttribute('y2') || 0) },
+            ];
+        }
+        const d = el.getAttribute('d') || '';
+        const pts = [...d.matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/gi)]
+            .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
+        return pts.length >= 2 ? pts : null;
+    },
+
+    // Keep thin wrapper for callers that only need first + last
+    _parseWireEndpoints(el) {
+        const pts = this._parseWirePoints(el);
+        return pts ? [pts[0], pts[pts.length - 1]] : null;
+    },
+
+    // ── Draw wire-shaped selection with handles at every bend ──
+    // Traces the actual M/L path (not a straight hypotenuse shortcut).
+    // Endpoint handles (ep0, ep_last) at the termini — larger circles.
+    // Breakpoint handles (bp_1, bp_2 …) at each intermediate bend — smaller.
+    _drawWireEndpointHandles(ctx, el) {
+        const pts = this._parseWirePoints(el);
+        if (!pts) return;
+
+        // Project every wire point to screen space
+        const sPts = pts.map(p => this._worldToOverlayScreen(p.x, p.y));
+
+        ctx.save();
+
+        // Dashed selection line that follows the actual wire geometry
+        ctx.strokeStyle = 'rgba(79,172,254,0.55)';
+        ctx.lineWidth   = 1;
+        ctx.setLineDash([4, 3]);
+        ctx.beginPath();
+        ctx.moveTo(sPts[0].x, sPts[0].y);
+        for (let i = 1; i < sPts.length; i++) ctx.lineTo(sPts[i].x, sPts[i].y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Helper — draw a circle handle and register its hit zone
+        const circle = (pos, id, R) => {
+            ctx.beginPath();
+            ctx.arc(pos.x, pos.y, R, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.stroke();
+            this._overlayHandleZones.push({ type: 'circle', id, cx: pos.x, cy: pos.y, r: R + 4 });
+        };
+
+        // Breakpoint handles at intermediate bend points (drawn first, sit behind endpoints)
+        ctx.fillStyle   = 'rgba(79,172,254,0.15)';
+        ctx.strokeStyle = 'rgba(79,172,254,0.7)';
+        ctx.lineWidth   = 1.5;
+        for (let i = 1; i < sPts.length - 1; i++) {
+            circle(sPts[i], `bp_${i}`, 4);
+        }
+
+        // Endpoint handles at termini (drawn on top)
+        ctx.fillStyle   = '#0f172a';
+        ctx.strokeStyle = '#4facfe';
+        ctx.lineWidth   = 2;
+        circle(sPts[0], 'ep0', 6);
+        circle(sPts[sPts.length - 1], 'ep_last', 6);
+
+        ctx.restore();
     },
 
     // ── Tight bbox corners projected directly to overlay screen space ──
@@ -420,6 +513,12 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     _startHandleInteraction(type, clientX, clientY) {
+        // Wire-point drag — endpoints (ep0, ep_last) or bend points (bp_N)
+        if (type === 'ep0' || type === 'ep_last' || type.startsWith('bp_')) {
+            this._startWirePointDrag(type, clientX, clientY);
+            return;
+        }
+
         const startX = clientX;
         const startY = clientY;
         const startBB = this._getSelectionBBoxWorld();
@@ -471,6 +570,62 @@ Object.assign(MobileSVGEditor.prototype, {
         };
 
         $(document).on('mousemove.handle', onMove).on('mouseup.handle', onUp);
+    },
+
+    // ── Wire-point drag: move any point on a wire (endpoint or bend) ──
+    _startWirePointDrag(pointId, clientX, clientY) {
+        const el = this._selection[0];
+        if (!el) return;
+        const before = this._captureFullState();
+
+        const onMove = (ev) => {
+            const pt      = this.screenToSVG(ev.clientX, ev.clientY);
+            const snapped = this.smartSnap?.(pt.x, pt.y) || pt;
+            this._moveWirePoint(el, pointId, snapped.x, snapped.y);
+            this._renderHandles();
+        };
+
+        const onUp = () => {
+            $(document).off('mousemove.handle mouseup.handle');
+            const after = this._captureFullState();
+            this.pushHistory('Move Wire Point', before, after);
+            this._scheduleGeoAnalysis?.();
+            this._refreshPropertyPanel?.();
+        };
+
+        $(document).on('mousemove.handle', onMove).on('mouseup.handle', onUp);
+    },
+
+    // ── Rewrite one specific point in a wire's geometry ──────
+    // pointId: 'ep0' | 'ep_last' | 'bp_N' (N = 1-based index)
+    _moveWirePoint(el, pointId, x, y) {
+        const tag = el.tagName?.toLowerCase();
+
+        // <line> — first or last attribute pair
+        if (tag === 'line') {
+            if (pointId === 'ep0') { el.setAttribute('x1', x); el.setAttribute('y1', y); }
+            else                   { el.setAttribute('x2', x); el.setAttribute('y2', y); }
+            return;
+        }
+
+        // <path> — rewrite the N-th M/L coordinate in the d string
+        const d = el.getAttribute('d') || '';
+        const matches = [...d.matchAll(/([ML])\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/gi)];
+        if (matches.length < 2) return;
+
+        let idx;
+        if      (pointId === 'ep0')             idx = 0;
+        else if (pointId === 'ep_last')          idx = matches.length - 1;
+        else if (pointId.startsWith('bp_'))      idx = parseInt(pointId.slice(3), 10);
+        else return;
+
+        if (idx < 0 || idx >= matches.length) return;
+
+        const m   = matches[idx];
+        const cmd = idx === 0 ? 'M' : 'L';
+        el.setAttribute('d',
+            d.slice(0, m.index) + `${cmd} ${x} ${y}` + d.slice(m.index + m[0].length)
+        );
     },
 
     _captureElementAttrs(el) {
@@ -658,6 +813,15 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Feature 1: Dblclick wire → split and insert component ──
 
     _splitWireAtClick(wirePath, clientX, clientY) {
+        // When the dblclick lands on the hitbox (pointer-events:stroke intercepts first),
+        // resolve to the visual sibling so stroke attrs are read from the real wire, not the
+        // 12-wide hitbox. Without this, stroke-width multiplies: 1→12→72→... on each split.
+        const wireContainer = wirePath.closest('.wire-group') || wirePath;
+        if (wirePath.classList.contains('wire-hitbox')) {
+            const visual = wireContainer.querySelector(':not(.wire-hitbox)');
+            if (visual) wirePath = visual;
+        }
+
         const svgPt = this.screenToSVG(clientX, clientY);
 
         // Nearest point on the wire path
@@ -705,7 +869,8 @@ Object.assign(MobileSVGEditor.prototype, {
         const seg2 = mkWire(splitPt, toPt);
         if (toSym)   { seg2.setAttribute('data-to-sym', toSym);     seg2.setAttribute('data-to-pin', toPin); }
 
-        wirePath.remove();
+        // Remove whole wire-group (visual + hitbox); falls back to the path itself for raw wires
+        wireContainer.remove();
         this._contentRoot.appendChild(seg1);
         this._contentRoot.appendChild(seg2);
 
@@ -1076,7 +1241,7 @@ Object.assign(MobileSVGEditor.prototype, {
             '#_cameraRotGroup, [data-se-system="true"], [data-se-system="true"] *, .snap-guide, .draw-preview, ' +
             '.selection-handle-group, .selection-handle, .rotation-handle'
         ).each((_, el) => {
-            if (el.dataset.locked === 'true' || el.id?.startsWith('_')) return;
+            if (!el.dataset || el.dataset.locked === 'true' || el.id?.startsWith('_')) return;
 
             let bb;
             try { bb = el.getBBox(); } catch (_) { return; }
@@ -1157,7 +1322,7 @@ Object.assign(MobileSVGEditor.prototype, {
             const ignored = ['svg', 'svgDisplay', '_cameraRotGroup'];
             const isIgnored = ignored.includes(target.id) || target.tagName.toLowerCase() === 'svg' ||
                 target.closest('[data-se-system="true"]') ||
-                target.dataset.seSystem === 'true' ||
+                target.dataset?.seSystem === 'true' ||
                 target.classList.contains('snap-guide') ||
                 target.classList.contains('draw-preview') ||
                 target.closest('.selection-handle-group');
@@ -1206,7 +1371,7 @@ Object.assign(MobileSVGEditor.prototype, {
             }
 
             // Locked elements (canvas background, grid) cannot be selected
-            if (el.dataset.locked === 'true') {
+            if (el.dataset?.locked === 'true') {
                 this.showToast('Element is locked — unlock in Layers panel to edit', 'error');
                 return;
             }

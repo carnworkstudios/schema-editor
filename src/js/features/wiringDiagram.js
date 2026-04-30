@@ -699,14 +699,12 @@ Object.assign(MobileSVGEditor.prototype, {
 
     highlightElement($element, on) {
         if (on) {
-            // Canvas-mode overlay wires are invisible by default; reveal on hover
+            // Use CSS classes — never touch inline styles so showConnections() colors survive hover
             const isCanvasOverlay = $element.hasClass('canvas-wire-overlay') ||
                 $element.hasClass('canvas-component-overlay');
-            $element.css(isCanvasOverlay
-                ? { stroke: '#4facfe', 'stroke-opacity': '0.75' }
-                : { stroke: '#4facfe' });
+            $element.addClass(isCanvasOverlay ? 'canvas-overlay-hover' : 'wire-hover');
         } else {
-            $element.css({ stroke: '', 'stroke-width': '', filter: '', 'stroke-opacity': '' });
+            $element.removeClass('wire-hover canvas-overlay-hover');
         }
     },
 

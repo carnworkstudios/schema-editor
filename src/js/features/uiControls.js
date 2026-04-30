@@ -86,37 +86,48 @@ ${svgData}
     },
 
     exportAsJson() {
-        const svgEl = this.$svgDisplay[0];
-        const vb = svgEl.getAttribute('viewBox') || '';
         const name = this.displays[this.activeDisplayIdx]?.name || 'diagram';
 
-        const serializeEl = (el) => {
-            const attrs = {};
-            for (const attr of el.attributes) attrs[attr.name] = attr.value;
-            const children = Array.from(el.children).map(serializeEl);
-            return {
-                tag: el.tagName.toLowerCase(),
-                attrs,
-                text: el.children.length === 0 ? (el.textContent || undefined) : undefined,
-                ...(children.length ? { children } : {}),
-            };
-        };
+        // ── svg: clean round-trippable markup (same as SVG export) ──
+        const svgMarkup = this._serializeCurrentDisplay();
 
-        const json = {
-            name,
-            viewBox: vb,
-            elements: Array.from(svgEl.children).map(serializeEl),
-            wires: this.wires.map(w => ({
-                id: $(w.element || w.$element?.[0]).attr('id') || null,
-                color: w.color || null,
+        // ── topology: full GeoEngine analysis ───────────────────
+        const topology = {
+            wires: (this.wires || []).filter(w => w.element?.isConnected).map(w => ({
+                id:        w.element?.id || w.id || null,
+                color:     w.color      || null,
+                width:     w.width      || null,
+                length:    w.length     || null,
+                linearity: w.linearity  ?? null,
+                endpoints: w.endpoints  || [],
+                bbox:      w.bbox       || null,
             })),
-            components: this.components.map(c => ({
-                id: $(c.element || c.$element?.[0]).attr('id') || null,
-                type: c.type || null,
+            components: (this.components || []).filter(c => c.element?.isConnected).map(c => ({
+                id:   c.element?.id || c.id || null,
+                type: c.type  || null,
+                bbox: c.bbox  || null,
+            })),
+            connectors: (this.connectors || []).filter(c => c.element?.isConnected).map(c => ({
+                id:   c.element?.id || c.id || null,
                 bbox: c.bbox || null,
             })),
+            graph: {
+                nodes: this.graph?.nodes
+                    ? [...this.graph.nodes.values()].map(n => ({
+                        id: n.id, kind: n.kind, x: n.x, y: n.y,
+                        degree: n.degree ?? null,
+                    }))
+                    : [],
+                edges: this.graph?.edges
+                    ? [...this.graph.edges.values()].map(e => ({
+                        id: e.id, from: e.from, to: e.to,
+                        color: e.color || null, length: e.length ?? null,
+                    }))
+                    : [],
+            },
         };
 
+        const json = { schema: 'ginexys-diagram-v1', name, svg: svgMarkup, topology };
         const base = name.replace(/\.[^.]+$/, '');
         this._triggerDownload(JSON.stringify(json, null, 2), `${base}.json`, 'application/json');
         this.showToast('JSON exported', 'success');
@@ -185,20 +196,65 @@ ${svgData}
     //   4  Store data               (kernel pointer store)
     //   5  Deliver to TAFNE
     //
-    async sendNetlistToTafne() {
-        // ── Build netlist ──────────────────────────────────────
+    // ── Build ginexys-diagram-v1 payload for IPC send ────────
+    // Merges rich component data (refdes, symbolType, ports from DOM)
+    // with full GeoEngine topology (wires, connectors, graph).
+    _buildDiagramPayload() {
         const netlist = this.buildNetlistJson();
-        if (!netlist.components.length && !netlist.connections.length) {
+        const wires = (this.wires || []).filter(w => w.element?.isConnected).map(w => ({
+            id:        w.element?.id || w.id || null,
+            color:     w.color       || null,
+            width:     w.width       || null,
+            length:    w.length      || null,
+            linearity: w.linearity   ?? null,
+            endpoints: w.endpoints   || [],
+            bbox:      w.bbox        || null,
+        }));
+        const connectors = (this.connectors || []).filter(c => c.element?.isConnected).map(c => ({
+            id:   c.element?.id || c.id || null,
+            bbox: c.bbox || null,
+        }));
+        const graph = {
+            nodes: this.graph?.nodes
+                ? [...this.graph.nodes.values()].map(n => ({
+                    id: n.id, kind: n.kind, x: n.x, y: n.y, degree: n.degree ?? null,
+                }))
+                : [],
+            edges: this.graph?.edges
+                ? [...this.graph.edges.values()].map(e => ({
+                    id: e.id, from: e.from, to: e.to,
+                    color: e.color || null, length: e.length ?? null,
+                }))
+                : [],
+        };
+        return {
+            schema:   'ginexys-diagram-v1',
+            name:     netlist.diagramName,
+            svg:      this._serializeCurrentDisplay(),
+            topology: {
+                components: netlist.components, // rich: refdes, symbolType, ports
+                wires,
+                connectors,
+                graph,
+            },
+        };
+    },
+
+    async sendNetlistToTafne() {
+        // ── Build diagram payload (ginexys-diagram-v1) ─────────
+        const diagram = this._buildDiagramPayload();
+        const { components, wires } = diagram.topology;
+        if (!components.length && !wires.length) {
             this.showToast('No wiring data — run analysis first', 'error');
             return;
         }
 
         // ── Standalone (not inside OS shell) → download JSON ───
         if (!CwsBridge.isEmbedded) {
-            const base = netlist.diagramName.replace(/\.[^.]+$/, '');
-            this._triggerDownload(JSON.stringify(netlist, null, 2),
-                `${base}__netlist.json`, 'application/json');
-            this.showToast('Saved netlist JSON (not in OS shell)', 'success');
+            const base = diagram.name.replace(/\.[^.]+$/, '');
+            this._triggerDownload(JSON.stringify(diagram, null, 2),
+                `${base}__diagram.json`, 'application/json');
+            this.showToast('Saved diagram JSON (not in OS shell)', 'success');
             return;
         }
 
@@ -208,13 +264,12 @@ ${svgData}
         try {
             // ── Step 0: Schema gathered ────────────────────────
             pipeline.step(0, 'done',
-                `${netlist.components.length} components · ${netlist.connections.length} connections`);
+                `${components.length} components · ${wires.length} wires`);
 
             // ── Step 1: Kernel heartbeat ───────────────────────
             pipeline.step(1, 'running', 'Checking…');
             if (!CwsBridge.isConnected) {
                 pipeline.step(1, 'running', 'Kernel sleeping — waking…');
-                // Trigger the bridge's own reconnect handshake
                 try { window.parent.postMessage({ type: 'cws:ready' }, '*'); } catch (_) {}
                 const connected = await this._cwsWaitForConnection(8000);
                 if (pipeline.cancelled) return;
@@ -245,9 +300,9 @@ ${svgData}
                     launched ? 'TAFNE opened' : 'No ack — continuing anyway…');
             }
 
-            // ── Step 4: Store data ─────────────────────────────
-            pipeline.step(4, 'running', 'Storing netlist…');
-            const pointerId = await CwsBridge.requestStore(JSON.stringify(netlist), 'json-data');
+            // ── Step 4: Store diagram ──────────────────────────
+            pipeline.step(4, 'running', 'Storing diagram…');
+            const pointerId = await CwsBridge.requestStore(JSON.stringify(diagram), 'json-data');
             if (pipeline.cancelled) return;
             pipeline.step(4, 'done', `ID: ${pointerId.slice(0, 10)}…`);
 
@@ -257,17 +312,17 @@ ${svgData}
                 pointer:     pointerId,
                 contentType: 'json-data',
                 metadata: {
-                    source:          'schema-editor',
-                    diagramName:     netlist.diagramName,
-                    componentCount:  netlist.components.length,
-                    connectionCount: netlist.connections.length,
+                    source:         'schema-editor',
+                    diagramName:    diagram.name,
+                    componentCount: components.length,
+                    wireCount:      wires.length,
                 },
-                hints: { suggestedTarget: 'tifany', action: 'load-netlist' },
+                hints: { suggestedTarget: 'tifany', action: 'load-diagram' },
             }));
             this._trackExport();
             pipeline.step(5, 'done',
-                `${netlist.components.length} components → TAFNE`);
-            pipeline.success(`Sent ${netlist.components.length} components and ${netlist.connections.length} connections`);
+                `${components.length} components · ${wires.length} wires → TAFNE`);
+            pipeline.success(`Sent ${components.length} components and ${wires.length} wires`);
 
         } catch (err) {
             pipeline.fail(err.message || 'Unexpected error');

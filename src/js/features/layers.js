@@ -11,6 +11,16 @@ Object.assign(MobileSVGEditor.prototype, {
         this.$sidePanel.addClass('open');
         this.buildLayersTree();
         this._initLayerObserver();
+        // Bind Alt+M for merge once per editor instance
+        if (!this._layerKeysBound) {
+            this._layerKeysBound = true;
+            $(document).on('keydown.layerKeys', (e) => {
+                if (e.altKey && e.key.toLowerCase() === 'm') {
+                    e.preventDefault();
+                    this._mergeSelectedLayers();
+                }
+            });
+        }
     },
 
     _initLayerObserver() {
@@ -220,7 +230,7 @@ Object.assign(MobileSVGEditor.prototype, {
                         ${classDropdown}
                         <span class="layer-name">${item.label}</span>
                         ${item.extra ? `<span class="layer-extra">${item.extra}</span>` : ''}
-                        
+
                         <div style="margin-left:auto; display:flex; gap:2px; align-items:center;">
                             ${item.el ? `
                             <button class="layer-toggle layer-lock-btn" title="${lockTitle}"
@@ -230,6 +240,10 @@ Object.assign(MobileSVGEditor.prototype, {
                             <button class="layer-toggle layer-vis-btn" title="Toggle visibility"
                                     style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.4);">
                                 <iconify-icon icon="material-symbols:visibility-outline" style="font-size:12px;"></iconify-icon>
+                            </button>
+                            <button class="layer-toggle layer-del-btn" title="Delete layer"
+                                    style="background:none;border:none;cursor:pointer;color:rgba(255,100,100,0.45);">
+                                <iconify-icon icon="material-symbols:delete-outline-rounded" style="font-size:12px;"></iconify-icon>
                             </button>
                             ` : ''}
                         </div>
@@ -252,21 +266,49 @@ Object.assign(MobileSVGEditor.prototype, {
                     }
                 });
 
-                // Click → select element in canvas
+                // Click → single select or shift+click to add to multi-selection
                 $item.on('click', e => {
-                    if ($(e.target).closest('.layer-vis-btn, .layer-lock-btn, .geo-class-select').length) return;
+                    if ($(e.target).closest('.layer-vis-btn, .layer-lock-btn, .layer-del-btn, .geo-class-select').length) return;
                     if (isLocked) {
                         this.showToast('Element is locked — click the lock icon to unlock', 'error');
                         return;
                     }
-                    if (item.el) {
-                        this.deselectAll?.();
-                        this.selectEl?.(item.el);
-                        // Animate scroll to element
-                        item.el.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+
+                    if (e.shiftKey && item.el) {
+                        if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
+                        if (this._layerSelectedItems.has(item.el)) {
+                            this._layerSelectedItems.delete(item.el);
+                            $item.removeClass('layer-selected active');
+                        } else {
+                            this._layerSelectedItems.set(item.el, $item);
+                            $item.addClass('layer-selected active');
+                            this.selectEl?.(item.el, true); // additive canvas select
+                        }
+                    } else {
+                        this._clearLayerSelection();
+                        if (item.el) {
+                            this._layerSelectedItems.set(item.el, $item);
+                            $item.addClass('layer-selected');
+                            this.selectEl?.(item.el);
+                            item.el.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
+                        }
+                        $('.topo-item').removeClass('active');
+                        $item.addClass('active');
                     }
-                    $('.topo-item').removeClass('active');
-                    $item.addClass('active');
+                });
+
+                // Right-click → context menu
+                $item.on('contextmenu', e => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
+                    // If this item isn't already in the selection, make it the sole selection
+                    if (item.el && !this._layerSelectedItems.has(item.el)) {
+                        this._clearLayerSelection();
+                        this._layerSelectedItems.set(item.el, $item);
+                        $item.addClass('layer-selected active');
+                    }
+                    this._showLayerContextMenu(e.clientX, e.clientY);
                 });
 
                 // Double click → rename layer
@@ -302,6 +344,19 @@ Object.assign(MobileSVGEditor.prototype, {
                     $item.css('opacity', hidden ? 1 : 0.4);
                 });
 
+                // Per-item delete
+                $item.find('.layer-del-btn').on('click', e => {
+                    e.stopPropagation();
+                    if (!item.el || item.el.dataset?.locked === 'true') return;
+                    if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
+                    // Delete just this item unless it's part of a multi-selection
+                    if (!this._layerSelectedItems.has(item.el)) {
+                        this._clearLayerSelection();
+                        this._layerSelectedItems.set(item.el, $item);
+                    }
+                    this._deleteSelectedLayerItems();
+                });
+
                 $body.append($item);
             });
 
@@ -325,6 +380,8 @@ Object.assign(MobileSVGEditor.prototype, {
     _buildFlatLayerTree($panel, rootElements) {
         const build = (elements, depth) => {
             elements.forEach((el, idx) => {
+                // Guard: skip non-element nodes (e.g. SVG animation elements without dataset)
+                if (!el?.dataset) return;
                 const $el = $(el);
                 const tag = el.tagName.toLowerCase();
                 const id = $el.attr('id') || `${tag}_${idx}`;
@@ -391,7 +448,11 @@ Object.assign(MobileSVGEditor.prototype, {
                 });
 
                 $panel.append($item);
-                if (isGroup && childCount > 0) build(Array.from(el.children), depth + 1);
+                // Don't expose wire-group / component-group internals as separate layer entries
+                const isInternalGroup = el.classList.contains('wire-group') ||
+                    el.classList.contains('component-group');
+                if (isGroup && childCount > 0 && !isInternalGroup)
+                    build(Array.from(el.children), depth + 1);
             });
         };
         build(rootElements, 0);
@@ -509,6 +570,154 @@ Object.assign(MobileSVGEditor.prototype, {
         `);
         $addCard.on('click', () => $('#hiddenFileInput').click());
         $tracks.append($addCard);
+    },
+
+    // ── Layer multi-select helpers ────────────────────────────
+
+    _clearLayerSelection() {
+        $('#layersPanel .layer-item, #layersPanel .topo-item').removeClass('layer-selected');
+        this._layerSelectedItems = new Map();
+    },
+
+    // ── Merge selected layers into a single <g> group ─────────
+    _mergeSelectedLayers() {
+        if (!this._layerSelectedItems || this._layerSelectedItems.size < 2) {
+            this.showToast('Select 2+ layers to merge (Shift+click)', 'error');
+            return;
+        }
+        const els = [...this._layerSelectedItems.keys()].filter(el => el?.isConnected);
+        if (els.length < 2) {
+            this.showToast('Not enough connected layers to merge', 'error');
+            return;
+        }
+
+        const before = this._captureFullState?.();
+        const NS = this.SVG_NS;
+        const g = document.createElementNS(NS, 'g');
+        g.id = `merged_${Date.now()}`;
+        g.setAttribute('data-geo-class', 'module');
+
+        // Resolve containers (wire-group / component-group wrappers if present)
+        const containers = els.map(el => el.closest?.('.wire-group, .component-group') || el);
+
+        // Insert the new group before the first container in document order
+        const parent = containers[0].parentNode || this._contentRoot;
+        const anchor = containers.reduce((first, c) =>
+            first.compareDocumentPosition(c) & Node.DOCUMENT_POSITION_PRECEDING ? c : first
+        );
+        parent.insertBefore(g, anchor);
+        containers.forEach(c => g.appendChild(c));
+
+        const after = this._captureFullState?.();
+        this.pushHistory?.('Merge Layers', before, after);
+
+        this._clearLayerSelection();
+        this.wires      = (this.wires      || []).filter(w => w.element?.isConnected);
+        this.components = (this.components || []).filter(c => c.element?.isConnected);
+        this.connectors = (this.connectors || []).filter(c => c.element?.isConnected);
+        this._scheduleGeoAnalysis?.();
+        this.buildLayersTree();
+        this.showToast(`Merged ${els.length} layers → merged_${g.id.split('_')[1]}`, 'success');
+    },
+
+    // ── Delete all currently selected layer items ─────────────
+    _deleteSelectedLayerItems() {
+        if (!this._layerSelectedItems || !this._layerSelectedItems.size) return;
+
+        const els = [...this._layerSelectedItems.keys()].filter(el =>
+            el?.isConnected &&
+            el?.dataset?.locked !== 'true' &&
+            el?.dataset?.seSystem !== 'true'
+        );
+        const skipped = this._layerSelectedItems.size - els.length;
+        if (skipped) this.showToast(`${skipped} locked/system element(s) skipped`, 'error');
+        if (!els.length) return;
+
+        const before = this._captureFullState?.();
+        els.forEach(el => {
+            (el.closest?.('.wire-group, .component-group') || el).remove();
+        });
+
+        this._clearLayerSelection();
+        this.wires      = (this.wires      || []).filter(w => w.element?.isConnected);
+        this.components = (this.components || []).filter(c => c.element?.isConnected);
+        this.connectors = (this.connectors || []).filter(c => c.element?.isConnected);
+        this._scheduleGeoAnalysis?.();
+        const after = this._captureFullState?.();
+        this.pushHistory?.('Delete Layers', before, after);
+        this.showToast(`Deleted ${els.length} layer${els.length > 1 ? 's' : ''}`, 'success');
+    },
+
+    // ── Right-click context menu for layer items ──────────────
+    _showLayerContextMenu(x, y) {
+        $('#layerCtxMenu').remove();
+        const count = this._layerSelectedItems?.size || 0;
+
+        const BTN = 'background:none;border:none;width:100%;text-align:left;padding:7px 14px;' +
+                    'cursor:pointer;display:flex;align-items:center;gap:9px;font-size:12px;color:#e2e8f0;';
+
+        const mkItem = (label, icon, action, disabled = false) => {
+            const $b = $(`<button style="${BTN}opacity:${disabled ? 0.35 : 1};pointer-events:${disabled ? 'none' : 'auto'};">
+                <iconify-icon icon="${icon}" style="font-size:13px;flex-shrink:0;"></iconify-icon>
+                <span>${label}</span>
+            </button>`);
+            if (!disabled) {
+                $b.on('mouseenter', () => $b.css('background', 'rgba(79,172,254,0.15)'));
+                $b.on('mouseleave', () => $b.css('background', ''));
+                $b.on('click', () => { $('#layerCtxMenu').remove(); action(); });
+            }
+            return $b;
+        };
+
+        const $menu = $('<div id="layerCtxMenu">').css({
+            position: 'fixed', zIndex: 9999,
+            background: '#1e293b', border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '8px', padding: '4px 0', minWidth: '180px',
+            boxShadow: '0 8px 28px rgba(0,0,0,0.5)',
+        });
+
+        $menu.append(mkItem(
+            `Select in Canvas (${count})`,
+            'material-symbols:touch-app-outline',
+            () => {
+                this.deselectAll?.();
+                this._layerSelectedItems?.forEach((_, el) => this.selectEl?.(el, true));
+            },
+            count === 0
+        ));
+
+        $menu.append($('<hr>').css({ margin: '4px 0', border: 'none', borderTop: '1px solid rgba(255,255,255,0.07)' }));
+
+        $menu.append(mkItem(
+            `Merge  (Alt+M)`,
+            'material-symbols:merge-outline',
+            () => this._mergeSelectedLayers(),
+            count < 2
+        ));
+
+        $menu.append(mkItem(
+            `Delete  (${count})`,
+            'material-symbols:delete-outline-rounded',
+            () => this._deleteSelectedLayerItems(),
+            count === 0
+        ));
+
+        $('body').append($menu);
+
+        // Clamp to viewport
+        const mw = $menu.outerWidth(true) || 180;
+        const mh = $menu.outerHeight(true) || 120;
+        $menu.css({
+            left: Math.min(x, window.innerWidth  - mw - 8),
+            top:  Math.min(y, window.innerHeight - mh - 8),
+        });
+
+        // Close on outside interaction
+        setTimeout(() => {
+            $(document).one('mousedown.layerCtx', (e) => {
+                if (!$(e.target).closest('#layerCtxMenu').length) $('#layerCtxMenu').remove();
+            });
+        }, 0);
     },
 
     removeDisplay(idx) {
