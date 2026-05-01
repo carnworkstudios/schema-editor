@@ -40,6 +40,8 @@ Object.assign(MobileSVGEditor.prototype, {
 
         this.activeDisplayIdx = idx;
         const d = this.displays[idx];
+        // DOM rebuild via importNode invalidates all cached element refs — force fresh analysis
+        d.analyzed = false;
         try {
             this._mountParsedSvg(d.svgContent, `Active: ${d.name}`);
         } catch (e) {

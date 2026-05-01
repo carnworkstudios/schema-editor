@@ -77,11 +77,14 @@ Object.assign(MobileSVGEditor.prototype, {
             </div>
         `);
         $toggle.find('.lvt-btn').on('click', (e) => {
+            e.stopPropagation(); // prevent document close-panel handler seeing detached target
             const view = $(e.currentTarget).data('view');
             this._layerPanelMode = view;
             this.buildLayersTree();
         });
-        $panel.append($toggle);
+        // Render toggle above the scroll container so it's always visible
+        $('#layerViewToggle').remove();
+        $('#layersPanel').before($toggle);
 
         // ── Dispatch to correct view ──────────────────────────────
         if (this._layerPanelMode === 'analysis') {
@@ -172,15 +175,27 @@ Object.assign(MobileSVGEditor.prototype, {
                 $(e.currentTarget).text(open ? '▸' : '▾');
             });
 
-            // Click → select
+            // Click → select (Shift+click adds to multi-selection for merge)
             $row.on('click', e => {
                 if ($(e.target).closest('.layer-vis-btn, .layer-lock-btn, .layer-del-btn, .layer-drag-handle, .layer-collapse-arrow').length) return;
                 if (isLocked) { this.showToast('Element is locked', 'error'); return; }
-                this._clearLayerSelection();
-                if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
-                this._layerSelectedItems.set(el, $row);
-                $row.addClass('layer-selected active');
-                this.selectEl?.(el);
+                if (e.shiftKey) {
+                    if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
+                    if (this._layerSelectedItems.has(el)) {
+                        this._layerSelectedItems.delete(el);
+                        $row.removeClass('layer-selected active');
+                    } else {
+                        this._layerSelectedItems.set(el, $row);
+                        $row.addClass('layer-selected active');
+                        this.selectEl?.(el, true);
+                    }
+                } else {
+                    this._clearLayerSelection();
+                    if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
+                    this._layerSelectedItems.set(el, $row);
+                    $row.addClass('layer-selected active');
+                    this.selectEl?.(el);
+                }
             });
 
             // Right-click → context menu
@@ -444,8 +459,27 @@ Object.assign(MobileSVGEditor.prototype, {
     // ── Analysis view: GeoEngine topology buckets ─────────────
     // All live elements are visible here — no group exclusion.
     _buildAnalysisView($panel, liveWires, liveComponents, liveConnectors) {
+        // Always-visible Run Analysis button — lets users manually trigger GeoEngine
+        // after a timeline switch or import where analysis may not have re-run yet.
+        const $runBtn = $(`
+            <button title="Re-run geometry analysis on current SVG"
+                    style="width:100%;background:rgba(79,172,254,0.1);border:1px solid rgba(79,172,254,0.25);
+                           border-radius:5px;color:#4facfe;font-size:11px;padding:5px 8px;cursor:pointer;
+                           display:flex;align-items:center;gap:5px;margin-bottom:8px;">
+                <iconify-icon icon="material-symbols:refresh" style="font-size:12px;"></iconify-icon>
+                Run Analysis
+            </button>
+        `);
+        $runBtn.on('click', () => {
+            if (typeof this.analyzeWiringDiagram === 'function') {
+                this.analyzeWiringDiagram();
+                this.buildLayersTree();
+            }
+        });
+        $panel.append($runBtn);
+
         if (!liveWires.length && !liveComponents.length && !liveConnectors.length) {
-            $panel.append('<p style="color:rgba(255,255,255,0.4);font-size:11px;padding:8px;">Run analysis first — load an SVG with wires or components.</p>');
+            $panel.append('<p style="color:rgba(255,255,255,0.4);font-size:11px;padding:4px 0 8px;">No topology data — click Run Analysis or load an SVG with wires and components.</p>');
             return;
         }
 
@@ -463,7 +497,7 @@ Object.assign(MobileSVGEditor.prototype, {
             const extraArr = [];
             if (w.color !== 'black') extraArr.push(w.color);
             if (w.length) extraArr.push(`${w.length.toFixed(0)}px`);
-            if (w.linearity != null) extraArr.push(`lin: ${w.linearity.toFixed(2)}`);
+            if (w.linearity != null) extraArr.push(`l: ${w.linearity.toFixed(2)}`);
             groups.wires.items.push({
                 el: w.element, id: w.id, label: w.id,
                 classType: 'wire',
@@ -916,6 +950,9 @@ Object.assign(MobileSVGEditor.prototype, {
         this.components = (this.components || []).filter(c => c.element?.isConnected);
         this.connectors = (this.connectors || []).filter(c => c.element?.isConnected);
         this._scheduleGeoAnalysis?.();
+        // Switch to Structure view — the new user group is only visible there,
+        // not in Analysis view (which shows topology buckets, not user groups).
+        this._layerPanelMode = 'structure';
         this.buildLayersTree();
 
         // Auto-trigger rename on the new group so user can name it immediately
@@ -927,7 +964,7 @@ Object.assign(MobileSVGEditor.prototype, {
             }
         }, 80);
 
-        this.showToast(`Merged ${els.length} layers into "${groupName}"`, 'success');
+        this.showToast(`Merged ${els.length} layers into "${groupName}" — switched to Structure view`, 'success');
     },
 
     // ── Delete all currently selected layer items ─────────────
@@ -963,8 +1000,21 @@ Object.assign(MobileSVGEditor.prototype, {
         $('#layerCtxMenu').remove();
         const count = this._layerSelectedItems?.size || 0;
 
-        // Get first selected SVG element for single-item actions
+        // firstEl: the selected SVG element (may be a visual path inside a wire-group in Analysis view)
         const firstEl = this._layerSelectedItems?.keys().next().value || null;
+
+        // firstContainer: the operative node for Z-order / delete — the wire-group or
+        // component-group wrapper when in Analysis view, or firstEl itself in Structure view.
+        const firstContainer = firstEl
+            ? (firstEl.closest?.('.wire-group, .component-group') || firstEl)
+            : null;
+
+        // isUngrouppable: firstEl is itself a named <g> (Structure view), OR it lives
+        // inside a named <g> user group (Analysis view — e.g. wire inside a merged group).
+        const ownGroup = firstEl?.tagName?.toLowerCase() === 'g' && firstEl?.hasAttribute('data-layer-name');
+        const ancestorGroup = !ownGroup ? (firstEl?.closest?.('[data-layer-name]') || null) : null;
+        const isUngrouppable = count === 1 && (ownGroup || !!ancestorGroup);
+        const groupToUngroup = ownGroup ? firstEl : ancestorGroup;
 
         const BTN = 'background:none;border:none;width:100%;text-align:left;padding:7px 14px;' +
                     'cursor:pointer;display:flex;align-items:center;gap:9px;font-size:12px;color:#e2e8f0;';
@@ -1010,14 +1060,14 @@ Object.assign(MobileSVGEditor.prototype, {
             count < 2
         ));
 
-        // Ungroup: dissolve a named <g> container
-        const isUngrouppable = count === 1 && firstEl?.tagName?.toLowerCase() === 'g' &&
-                               firstEl?.hasAttribute('data-layer-name');
+        // Ungroup: dissolve a named <g> container.
+        // Works in both views: Structure (firstEl IS the group) and
+        // Analysis (firstEl is inside a group — ungroupToUngroup is the ancestor).
         $menu.append(mkItem(
             'Ungroup',
             'material-symbols:grid-view-outline',
             () => {
-                const el    = firstEl;
+                const el = groupToUngroup;
                 const gname = el.getAttribute('data-layer-name') || el.id || 'group';
                 const before = this._captureFullState?.();
                 const parent = el.parentNode;
@@ -1042,8 +1092,8 @@ Object.assign(MobileSVGEditor.prototype, {
         $menu.append(HDR('Z-order'));
 
         const doZOrder = (op) => {
-            if (!firstEl) return;
-            const target = firstEl.closest?.('.wire-group, .component-group') || firstEl;
+            if (!firstContainer) return;
+            const target = firstContainer;
             const parent = target.parentNode;
             if (!parent) return;
             const before = this._captureFullState?.();
@@ -1062,6 +1112,8 @@ Object.assign(MobileSVGEditor.prototype, {
                 }
             }
             this.pushHistory?.(`Z-order: ${op}`, before, this._captureFullState?.());
+            // Switch to Structure view — Z-order is a draw-order concept; only visible there.
+            this._layerPanelMode = 'structure';
             this.buildLayersTree();
         };
 

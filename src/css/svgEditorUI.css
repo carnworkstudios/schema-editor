@@ -146,7 +146,7 @@ body {
     border: 1px solid rgba(0, 0, 0, 0.14);
     color: #1a1a1a;
     padding: 5px 10px;
-    border-radius: 20px;
+    border-radius: 8px;
     font-size: 12px;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -329,13 +329,19 @@ body {
     background: rgba(242, 243, 246, 0.97);
     backdrop-filter: blur(15px);
     padding: 8px;
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(40px, 1fr));
+    display: flex;
+    /* grid-template-columns: repeat(auto-fit, minmax(40px, 1fr)); */
     gap: 6px;
     border-top: 1px solid rgba(0, 0, 0, 0.07);
     overflow: hidden;
     transition: max-height 0.3s ease, padding 0.3s ease;
     flex-shrink: 0;
+    position: absolute;
+    bottom: 5px;
+    left: 25%;
+    right: 25%;
+    border-radius: 10px;
+    overflow: auto;
 }
 
 .bottom-controls.expanded {
@@ -347,7 +353,7 @@ body {
     flex-direction: column;
     align-items: center;
     gap: 2px;
-    padding: 6px 4px;
+    padding: 6px 8px;
     border: 1px solid rgba(0, 0, 0, 0.1);
     border-radius: 8px;
     cursor: pointer;
@@ -937,14 +943,14 @@ body:not(.dark-mode) .layer-item-locked .layer-name {
     }
 
     .btn {
-        padding: 4px 6px;
-        font-size: 15px;
+        /* padding: 4px 6px; */
+        font-size: 20px;
         background: none;
         border: none;
     }
 
     .side-panel {
-        width: 75%;
+        width: 50%;
         right: -100%;
     }
 
@@ -953,7 +959,8 @@ body:not(.dark-mode) .layer-item-locked .layer-name {
     }
 
     .bottom-controls {
-        grid-template-columns: repeat(6, 1fr);
+        width: 72%;
+        left: 15%;
     }
 
     .control-group-flex {
@@ -2211,10 +2218,10 @@ body:not(.dark-mode) .ba-empty {
 .layer-view-toggle {
     display: flex;
     gap: 2px;
-    background: rgba(0, 0, 0, 0.12);
+    background: rgba(0, 0, 0, 0.49);
     border-radius: 6px;
     padding: 2px;
-    margin-bottom: 8px;
+    margin-bottom: 6px;
 }
 
 .lvt-btn {
