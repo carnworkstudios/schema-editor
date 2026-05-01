@@ -200,6 +200,9 @@ class MobileSVGEditor {
 
     bindEvents() {
         // Load file (multi-select)
+        // Snapshot panel state on mousedown (before the document click handler closes it)
+        // so switchDisplay can restore it after the import finishes.
+        $('#loadFileBtn').on('mousedown', () => { this._panelOpenSnap = this.$sidePanel.hasClass('open'); });
         $('#loadFileBtn').on('click', () => $('#hiddenFileInput').click());
         $('#svgFileInput, #hiddenFileInput').on('change', (e) => this.loadSVGFiles(e));
 

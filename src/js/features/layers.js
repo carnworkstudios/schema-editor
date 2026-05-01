@@ -215,12 +215,6 @@ Object.assign(MobileSVGEditor.prototype, {
                 e.stopPropagation();
                 if (isLocked) return;
                 this.startLayerRename(el, $row, $(e.currentTarget));
-                // Keep data-layer-name in sync after rename
-                const obs = new MutationObserver(() => {
-                    el.setAttribute('data-layer-name', el.id.replace(/-/g, ' '));
-                    obs.disconnect();
-                });
-                obs.observe(el, { attributes: true, attributeFilter: ['id'] });
             });
 
             // Hover highlight
@@ -267,7 +261,10 @@ Object.assign(MobileSVGEditor.prototype, {
                 e.dataTransfer.effectAllowed = 'move';
                 setTimeout(() => $row.css('opacity', 0.4), 0);
             });
-            rowEl.addEventListener('dragend', () => $row.css('opacity', ''));
+            rowEl.addEventListener('dragend', () => {
+                $row.css('opacity', '');
+                $('#layersPanel .layer-drop-indicator').remove();
+            });
 
             rowEl.addEventListener('dragover', e => {
                 if (!this._layerDragEl || this._layerDragEl === el) return;
@@ -284,11 +281,19 @@ Object.assign(MobileSVGEditor.prototype, {
                 const src = this._layerDragEl;
                 const srcContainer = src.closest?.('.wire-group, .component-group') || src;
                 const tgtContainer = el.closest?.('.wire-group, .component-group') || el;
-                if (srcContainer.parentNode === tgtContainer.parentNode) {
+                const tgtParent = tgtContainer.parentNode;
+                const isCrossLevel = srcContainer.parentNode !== tgtParent;
+
+                // Guard: never create circular DOM (src is ancestor of tgt's parent)
+                if (srcContainer === tgtParent || srcContainer.contains?.(tgtParent)) {
+                    this.showToast('Cannot move a group into one of its own children', 'error');
+                } else {
                     const before = this._captureFullState?.();
-                    tgtContainer.parentNode.insertBefore(srcContainer, tgtContainer);
-                    this.pushHistory?.('Reorder', before, this._captureFullState?.());
+                    tgtParent.insertBefore(srcContainer, tgtContainer);
+                    this.pushHistory?.(isCrossLevel ? 'Move to Group' : 'Reorder', before, this._captureFullState?.());
+                    if (isCrossLevel) this._scheduleGeoAnalysis?.();
                     this.buildLayersTree();
+                    if (isCrossLevel) this.showToast('Moved to new level', 'success');
                 }
                 this._layerDragEl = null;
                 $('#layersPanel .layer-drop-indicator').remove();
@@ -318,143 +323,6 @@ Object.assign(MobileSVGEditor.prototype, {
         return '';
     },
 
-    // ── (Legacy stub, kept so old FHS references don't crash) ─
-    _buildUserGroupSection($panel, groups) {
-        const $section = $(`
-            <div class="layer-group" id="lg_usergroups">
-                <div class="layer-group-header" data-group="lg_usergroups">
-                    <span class="layer-group-arrow">▾</span>
-                    <iconify-icon icon="material-symbols:folder-outline" style="font-size:13px;color:#f59e0b;"></iconify-icon>
-                    <span class="layer-group-label" style="color:#f59e0b;">Groups</span>
-                    <span class="layer-group-count">${groups.length}</span>
-                </div>
-                <div class="layer-group-body" id="lg_usergroups_body"></div>
-            </div>
-        `);
-
-        $section.find('.layer-group-header').on('click', () => {
-            const $arrow = $section.find('.layer-group-arrow');
-            const $body  = $section.find('.layer-group-body');
-            const collapsed = $body.hasClass('collapsed');
-            $body.toggleClass('collapsed', !collapsed);
-            $arrow.text(collapsed ? '▾' : '▸');
-        });
-
-        const $body = $section.find('#lg_usergroups_body');
-
-        groups.forEach(g => {
-            const name     = g.getAttribute('data-layer-name') || g.id || 'Group';
-            const childEls = Array.from(g.children).filter(el => !el?.dataset?.seSystem);
-            const isLocked = g.dataset?.locked === 'true';
-
-            const $folder = $(`
-                <div class="layer-item layer-folder" data-element-id="${g.id}"
-                     style="display:flex;align-items:center;gap:6px;padding:5px 8px;cursor:pointer;border-radius:4px;">
-                    <span class="layer-folder-arrow" style="font-size:10px;width:10px;">▾</span>
-                    <iconify-icon icon="material-symbols:folder-open-outline" style="font-size:13px;color:#f59e0b;flex-shrink:0;"></iconify-icon>
-                    <span class="layer-name" style="color:#f59e0b;font-weight:500;">${name}</span>
-                    <span style="font-size:10px;opacity:0.4;margin-left:2px;">${childEls.length}</span>
-                    <div style="margin-left:auto;display:flex;gap:2px;">
-                        <button class="layer-toggle layer-vis-btn" title="Toggle visibility" style="background:none;border:none;cursor:pointer;color:rgba(255,255,255,0.4);">
-                            <iconify-icon icon="material-symbols:visibility-outline" style="font-size:12px;"></iconify-icon>
-                        </button>
-                        <button class="layer-toggle layer-del-btn" title="Ungroup" style="background:none;border:none;cursor:pointer;color:rgba(255,100,100,0.45);">
-                            <iconify-icon icon="material-symbols:folder-off-outline" style="font-size:12px;"></iconify-icon>
-                        </button>
-                    </div>
-                </div>
-            `);
-
-            // Children container
-            const $children = $('<div class="layer-folder-children">').css({ paddingLeft: '18px' });
-
-            childEls.forEach((child, idx) => {
-                if (!child?.dataset) return;
-                const childName = child.getAttribute('data-layer-name') || child.id || `${child.tagName}_${idx}`;
-                const $child = $(`
-                    <div class="layer-item topo-item" data-element-id="${child.id || idx}"
-                         style="font-size:11px;" title="${childName}">
-                        <span class="layer-dot" style="background:#64748b;"></span>
-                        <span class="layer-name">${childName}</span>
-                    </div>
-                `);
-                $child.on('click', e => {
-                    if ($(e.target).closest('.layer-vis-btn, .layer-del-btn').length) return;
-                    this._clearLayerSelection();
-                    if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
-                    this._layerSelectedItems.set(child, $child);
-                    $child.addClass('layer-selected active');
-                    this.selectEl?.(child);
-                });
-                $child.on('contextmenu', e => {
-                    e.preventDefault();
-                    if (!this._layerSelectedItems?.has(child)) {
-                        this._clearLayerSelection();
-                        if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
-                        this._layerSelectedItems.set(child, $child);
-                        $child.addClass('layer-selected active');
-                    }
-                    this._showLayerContextMenu(e.clientX, e.clientY);
-                });
-                $children.append($child);
-            });
-
-            // Folder collapse/expand
-            $folder.on('click', e => {
-                if ($(e.target).closest('.layer-vis-btn, .layer-del-btn').length) return;
-                const collapsed = $children.hasClass('collapsed');
-                $children.toggleClass('collapsed', !collapsed);
-                $folder.find('.layer-folder-arrow').text(collapsed ? '▾' : '▸');
-            });
-
-            // Folder select → select whole group in canvas
-            $folder.on('dblclick', e => {
-                if ($(e.target).closest('.layer-vis-btn, .layer-del-btn').length) return;
-                this._clearLayerSelection();
-                if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
-                this._layerSelectedItems.set(g, $folder);
-                $folder.addClass('layer-selected');
-                this.selectEl?.(g);
-            });
-
-            // Rename on double-click of name span
-            $folder.find('.layer-name').on('dblclick', e => {
-                e.stopPropagation();
-                this.startLayerRename(g, $folder, $(e.currentTarget));
-                // Keep data-layer-name in sync after rename
-                const obs = new MutationObserver(() => {
-                    g.setAttribute('data-layer-name', g.id.replace(/-/g, ' '));
-                    obs.disconnect();
-                });
-                obs.observe(g, { attributes: true, attributeFilter: ['id'] });
-            });
-
-            // Visibility toggle
-            $folder.find('.layer-vis-btn').on('click', e => {
-                e.stopPropagation();
-                const hidden = $(g).css('display') === 'none';
-                $(g).css('display', hidden ? '' : 'none');
-                $folder.css('opacity', hidden ? 1 : 0.45);
-            });
-
-            // Ungroup (dissolve folder, return children to root)
-            $folder.find('.layer-del-btn').on('click', e => {
-                e.stopPropagation();
-                const before = this._captureFullState?.();
-                const parent = g.parentNode;
-                Array.from(g.children).forEach(child => parent.insertBefore(child, g));
-                g.remove();
-                const after = this._captureFullState?.();
-                this.pushHistory?.('Ungroup', before, after);
-                this.buildLayersTree();
-                this.showToast(`Ungrouped "${name}"`, 'success');
-            });
-
-            $body.append($folder).append($children);
-        });
-
-        $panel.append($section);
-    },
 
     // ── Analysis view: GeoEngine topology buckets ─────────────
     // All live elements are visible here — no group exclusion.
@@ -655,19 +523,16 @@ Object.assign(MobileSVGEditor.prototype, {
                     </div>
                 `);
 
-                // Class override dropdown change handler
-                $item.find('.geo-class-select').on('change', function (e) {
+                // Class override dropdown — re-run GeoEngine so the element physically
+                // moves to the new semantic bucket. Arrow function preserves editor `this`.
+                $item.find('.geo-class-select').on('change', (e) => {
                     e.stopPropagation();
                     if (!item.el) return;
-                    const newClass = $(this).val();
+                    const newClass = $(e.target).val();
                     item.el.setAttribute('data-geo-class', newClass);
-
-                    // The mutation observer will catch the attribute change,
-                    // but we also need to force GeoEngine to re-evaluate the graph immediately
-                    // so the component physically moves to the new semantic bucket in the logic.
-                    // (Assuming MobileSVGEditor._runGeometryPipeline exists and can be called)
-                    if (typeof window.svgEditor?._runGeometryPipeline === 'function') {
-                        window.svgEditor._runGeometryPipeline();
+                    if (typeof this._runGeometryPipeline === 'function') {
+                        this._runGeometryPipeline();
+                        this.buildLayersTree();
                     }
                 });
 
@@ -800,33 +665,32 @@ Object.assign(MobileSVGEditor.prototype, {
     startLayerRename(svgEl, $item, $nameSpan) {
         if ($item.find('.layer-name-input').length) return;
 
-        const tag = svgEl.tagName.toLowerCase();
-        const currentId = $(svgEl).attr('id') || '';
+        // Pre-fill with the friendly display name (data-layer-name), falling back to id.
+        const currentName = svgEl.getAttribute('data-layer-name') || svgEl.id || '';
+        const currentId   = svgEl.id || '';
+
         const $input = $('<input type="text" class="layer-name-input">')
-            .val(currentId)
-            .attr('placeholder', 'layer-name');
+            .val(currentName)
+            .attr('placeholder', 'layer name');
 
         $nameSpan.replaceWith($input);
         $input[0].focus();
         $input[0].select();
 
         const commit = () => {
-            const raw = $input.val().trim();
-            const newId = raw
-                ? raw.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_\-:.]/g, '')
-                : currentId;
+            const raw = $input.val().trim() || currentName;
 
-            if (newId) svgEl.setAttribute('id', newId);
+            // data-layer-name gets the raw user-typed string (special chars allowed).
+            svgEl.setAttribute('data-layer-name', raw);
+
+            // id gets a sanitized slug. Keep existing id if input is empty or identical.
+            const newId = raw.replace(/\s+/g, '-').replace(/[^a-zA-Z0-9_\-:.]/g, '') || currentId;
+            if (newId && newId !== currentId) svgEl.setAttribute('id', newId);
             $item.attr('data-element-id', newId || currentId);
 
-            const label = `${tag}${newId ? `#${newId}` : ''}`;
-            const $newSpan = $(`<span class="layer-name" title="Double-click to rename">${label}</span>`);
-            $input.replaceWith($newSpan);
-
-            $newSpan.on('dblclick', (e) => {
-                e.stopPropagation();
-                this.startLayerRename(svgEl, $item, $newSpan);
-            });
+            // Rebuild the panel so the new friendly name shows immediately,
+            // without waiting for the MutationObserver debounce.
+            this.buildLayersTree();
         };
 
         $input.on('blur', commit);
@@ -874,6 +738,7 @@ Object.assign(MobileSVGEditor.prototype, {
                 </div>
             `);
 
+            $card.on('mousedown', () => { this._panelOpenSnap = this.$sidePanel.hasClass('open'); });
             $card.on('click', e => {
                 if (!$(e.target).closest('.timeline-card-del').length) {
                     this.switchDisplay(idx);

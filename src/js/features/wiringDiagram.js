@@ -40,12 +40,20 @@ Object.assign(MobileSVGEditor.prototype, {
 
         this.activeDisplayIdx = idx;
         const d = this.displays[idx];
+        // Consume the mousedown snapshot (set by load button / timeline card) before the
+        // document click handler closes the panel. If neither fired, default to false.
+        const restorePanel = this._panelOpenSnap ?? false;
+        this._panelOpenSnap = undefined;
         // DOM rebuild via importNode invalidates all cached element refs — force fresh analysis
         d.analyzed = false;
         try {
             this._mountParsedSvg(d.svgContent, `Active: ${d.name}`);
         } catch (e) {
             this.showToast(`Render error: ${e.message}`, 'error');
+        }
+        if (restorePanel && this._layerPanelMode) {
+            this.$sidePanel.addClass('open');
+            this.buildLayersTree();
         }
         if ($('#timelinePanel').hasClass('open')) this.buildTimeline();
     },
@@ -340,7 +348,7 @@ Object.assign(MobileSVGEditor.prototype, {
 
         this.updateMiniMap?.();
         this.showToast(toastMsg, 'success');
-        this.closeSidePanel();
+        // this.closeSidePanel();
 
         // Re-attach the MutationObserver to the freshly-created _cameraRotGroup.
         // _mountParsedSvg wipes and recreates the DOM, so the old observer target

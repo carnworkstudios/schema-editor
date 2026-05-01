@@ -78,6 +78,36 @@ Object.assign(MobileSVGEditor.prototype, {
         }
         this._renderHandles();
         this._refreshPropertyPanel();
+        // Sync selection back to the layers panel if it's open and the
+        // selection didn't originate FROM the panel (avoid feedback loop).
+        if (!additive) this._revealInLayersPanel(svgEl);
+    },
+
+    // Highlight and scroll to the layer-panel row matching svgEl.
+    // No-op if the element was already selected via the panel itself.
+    _revealInLayersPanel(svgEl) {
+        if (!this.$sidePanel?.hasClass('open') || !this._layerPanelMode) return;
+        // If this element is already in the panel selection it came FROM the panel — skip.
+        if (this._layerSelectedItems?.has(svgEl)) return;
+
+        this._clearLayerSelection?.();
+
+        // 1. Try id-based lookup (fast path)
+        let $row = svgEl.id ? $(`#layersPanel [data-element-id="${CSS.escape(svgEl.id)}"]`).first() : $();
+
+        // 2. Fall back: scan all rows for a stored _svgEl reference (Structure view rows)
+        if (!$row.length) {
+            $('#layersPanel .layer-item').each(function () {
+                if (this._svgEl === svgEl) { $row = $(this); return false; }
+            });
+        }
+
+        if (!$row.length) return;
+
+        if (!this._layerSelectedItems) this._layerSelectedItems = new Map();
+        this._layerSelectedItems.set(svgEl, $row);
+        $row.addClass('layer-selected active');
+        $row[0]?.scrollIntoView?.({ behavior: 'smooth', block: 'nearest' });
     },
 
     selectAll() {
