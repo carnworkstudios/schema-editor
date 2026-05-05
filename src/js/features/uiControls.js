@@ -86,51 +86,27 @@ ${svgData}
     },
 
     exportAsJson() {
-        const name = this.displays[this.activeDisplayIdx]?.name || 'diagram';
-
-        // ── svg: clean round-trippable markup (same as SVG export) ──
-        const svgMarkup = this._serializeCurrentDisplay();
-
-        // ── topology: full GeoEngine analysis ───────────────────
-        const topology = {
-            wires: (this.wires || []).filter(w => w.element?.isConnected).map(w => ({
-                id:        w.element?.id || w.id || null,
-                color:     w.color      || null,
-                width:     w.width      || null,
-                length:    w.length     || null,
-                linearity: w.linearity  ?? null,
-                endpoints: w.endpoints  || [],
-                bbox:      w.bbox       || null,
-            })),
-            components: (this.components || []).filter(c => c.element?.isConnected).map(c => ({
-                id:   c.element?.id || c.id || null,
-                type: c.type  || null,
-                bbox: c.bbox  || null,
-            })),
-            connectors: (this.connectors || []).filter(c => c.element?.isConnected).map(c => ({
-                id:   c.element?.id || c.id || null,
-                bbox: c.bbox || null,
-            })),
-            graph: {
-                nodes: this.graph?.nodes
-                    ? [...this.graph.nodes.values()].map(n => ({
-                        id: n.id, kind: n.kind, x: n.x, y: n.y,
-                        degree: n.degree ?? null,
-                    }))
-                    : [],
-                edges: this.graph?.edges
-                    ? [...this.graph.edges.values()].map(e => ({
-                        id: e.id, from: e.from, to: e.to,
-                        color: e.color || null, length: e.length ?? null,
-                    }))
-                    : [],
-            },
-        };
-
-        const json = { schema: 'ginexys-diagram-v1', name, svg: svgMarkup, topology };
-        const base = name.replace(/\.[^.]+$/, '');
-        this._triggerDownload(JSON.stringify(json, null, 2), `${base}.json`, 'application/json');
+        const diagram = this._buildDiagramPayload();
+        const base = diagram.name.replace(/\.[^.]+$/, '');
+        this._triggerDownload(JSON.stringify(diagram, null, 2), `${base}.json`, 'application/json');
         this.showToast('JSON exported', 'success');
+    },
+
+    // ── Walk _contentRoot for user-named <g> groups ─────────────
+    _buildStructureGroups() {
+        const groups = [];
+        const root = this._contentRoot;
+        if (!root) return groups;
+        root.querySelectorAll('[data-layer-name]').forEach(g => {
+            const children = [];
+            g.querySelectorAll('[id]').forEach(el => { if (el.id) children.push(el.id); });
+            groups.push({
+                id:       g.id || null,
+                name:     g.getAttribute('data-layer-name') || '',
+                children,
+            });
+        });
+        return groups;
     },
 
     // ── CWS Netlist IPC ──────────────────────────────────────
@@ -196,52 +172,107 @@ ${svgData}
     //   4  Store data               (kernel pointer store)
     //   5  Deliver to TAFNE
     //
-    // ── Build ginexys-diagram-v1 payload for IPC send ────────
-    // Merges rich component data (refdes, symbolType, ports from DOM)
-    // with full GeoEngine topology (wires, connectors, graph).
+    // ── Build ginexys-diagram-v2 payload (export + IPC send) ─────
+    // v2 adds: meta, structure.groups, wire.path, wire.layer,
+    // component.layer, component.symbol, top-level connections[].
+    // Grouped elements (inside a <g data-layer-name>) → type:"module".
     _buildDiagramPayload() {
-        const netlist = this.buildNetlistJson();
-        const wires = (this.wires || []).filter(w => w.element?.isConnected).map(w => ({
-            id:        w.element?.id || w.id || null,
-            color:     w.color       || null,
-            width:     w.width       || null,
-            length:    w.length      || null,
-            linearity: w.linearity   ?? null,
-            endpoints: w.endpoints   || [],
-            bbox:      w.bbox        || null,
-        }));
+        const name = this.displays[this.activeDisplayIdx]?.name || 'diagram';
+        const svgEl = this.$svgDisplay[0];
+
+        const meta = {
+            viewBox:      this.originalViewBox || null,
+            elementCount: svgEl ? svgEl.querySelectorAll('*').length : 0,
+            analyzed:     !!(this.wires?.length || this.components?.length),
+            exportedAt:   new Date().toISOString(),
+        };
+
+        const structure = { groups: this._buildStructureGroups() };
+
+        // ── Components ────────────────────────────────────────────
+        // Elements inside a user group (<g data-layer-name>) → type:"module"
+        const components = (this.components || []).filter(c => c.element?.isConnected).map(c => {
+            const el = c.element;
+            const layerGroup = el?.closest?.('[data-layer-name]');
+            const layer      = layerGroup
+                ? (layerGroup.getAttribute('data-layer-name') || layerGroup.id || null)
+                : null;
+            const type   = layer ? 'module' : (c.type || 'component');
+            const symbol = el?.getAttribute?.('data-symbol') || c.type || null;
+
+            const labelEl = el?.querySelector?.('text.sym-value');
+            const refdes  = labelEl?.textContent?.trim() || '';
+
+            let x = 0, y = 0;
+            const m = (el?.getAttribute?.('transform') || '').match(/translate\(\s*([\d.+-]+)[,\s]+([\d.+-]+)/);
+            if (m) { x = parseFloat(m[1]); y = parseFloat(m[2]); }
+
+            const ports = this.graph?.nodes?.get(c.id)?.ports || c.ports || [];
+
+            return {
+                id:     el?.id || c.id || null,
+                type, symbol,
+                refdes, value: refdes,
+                domain: el?.getAttribute?.('data-domain') || this.activeMode || null,
+                layer,
+                x, y,
+                ports:  ports.map(p => ({ wireId: p.wireId || '', x: p.x || 0, y: p.y || 0 })),
+                bbox:   c.bbox || null,
+            };
+        });
+
+        // ── Wires ─────────────────────────────────────────────────
+        const wires = (this.wires || []).filter(w => w.element?.isConnected).map(w => {
+            const el = w.element;
+            const layerGroup = el?.closest?.('[data-layer-name]');
+            const layer      = layerGroup
+                ? (layerGroup.getAttribute('data-layer-name') || layerGroup.id || null)
+                : null;
+            return {
+                id:        el?.id || w.id || null,
+                color:     w.color     || null,
+                width:     w.width     || null,
+                length:    w.length    || null,
+                linearity: w.linearity ?? null,
+                path:      el?.getAttribute?.('d') || null,
+                layer,
+                endpoints: w.endpoints || [],
+                bbox:      w.bbox      || null,
+            };
+        });
+
+        // ── Connectors ────────────────────────────────────────────
         const connectors = (this.connectors || []).filter(c => c.element?.isConnected).map(c => ({
             id:   c.element?.id || c.id || null,
             bbox: c.bbox || null,
         }));
-        const graph = {
-            nodes: this.graph?.nodes
-                ? [...this.graph.nodes.values()].map(n => ({
-                    id: n.id, kind: n.kind, x: n.x, y: n.y, degree: n.degree ?? null,
-                }))
-                : [],
-            edges: this.graph?.edges
-                ? [...this.graph.edges.values()].map(e => ({
-                    id: e.id, from: e.from, to: e.to,
-                    color: e.color || null, length: e.length ?? null,
-                }))
-                : [],
-        };
+
+        // ── Connections (flattened graph edges) ────────────────────
+        const wireMap = new Map((this.wires || []).map(w => [w.id, w]));
+        const connections = [...(this.graph?.edges?.values() || [])].map(edge => {
+            const wire = wireMap.get(edge.id) || {};
+            return {
+                id:         edge.id || '',
+                from:       edge.from || null,
+                to:         edge.to   || null,
+                color:      edge.color || wire.color || null,
+                length:     edge.length ?? wire.length ?? null,
+                signalType: edge.signalType || null,
+            };
+        });
+
         return {
-            schema:   'ginexys-diagram-v1',
-            name:     netlist.diagramName,
-            svg:      this._serializeCurrentDisplay(),
-            topology: {
-                components: netlist.components, // rich: refdes, symbolType, ports
-                wires,
-                connectors,
-                graph,
-            },
+            schema: 'ginexys-diagram-v2',
+            name,
+            svg:    this._serializeCurrentDisplay(),
+            meta,
+            structure,
+            topology: { components, wires, connectors, connections },
         };
     },
 
     async sendNetlistToTafne() {
-        // ── Build diagram payload (ginexys-diagram-v1) ─────────
+        // ── Build diagram payload (ginexys-diagram-v2) ─────────
         const diagram = this._buildDiagramPayload();
         const { components, wires } = diagram.topology;
         if (!components.length && !wires.length) {

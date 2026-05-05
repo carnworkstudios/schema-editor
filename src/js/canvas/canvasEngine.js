@@ -607,16 +607,51 @@ Object.assign(MobileSVGEditor.prototype, {
         const el = this._selection[0];
         if (!el) return;
         const before = this._captureFullState();
+        this._lastSnappedPin = null; // reset so stale state from prior interactions doesn't leak
+
+        const isEndpoint = pointId === 'ep0' || pointId === 'ep_last';
 
         const onMove = (ev) => {
-            const pt      = this.screenToSVG(ev.clientX, ev.clientY);
-            const snapped = this.smartSnap?.(pt.x, pt.y) || pt;
+            const pt = this.screenToSVG(ev.clientX, ev.clientY);
+            // Endpoints snap to nearby pins; bend points use grid snap only.
+            const snapped = isEndpoint
+                ? this._wireSnapToPort(pt)
+                : (this.smartSnap?.(pt.x, pt.y) || pt);
+            // Visual pin-snap highlight
+            if (isEndpoint) {
+                this._contentRoot?.querySelectorAll('.pin-point.pin-snap').forEach(p => {
+                    if (p !== this._lastSnappedPin) p.classList.remove('pin-snap');
+                });
+                if (this._lastSnappedPin) this._lastSnappedPin.classList.add('pin-snap');
+            }
             this._moveWirePoint(el, pointId, snapped.x, snapped.y);
             this._renderHandles();
         };
 
         const onUp = () => {
             $(document).off('mousemove.handle mouseup.handle');
+            this._clearPinSnap?.();
+            // Re-anchor or un-anchor the endpoint based on where it was dropped.
+            if (isEndpoint) {
+                const pin = this._lastSnappedPin;
+                const symGroup = pin?.closest?.('.domain-symbol');
+                if (symGroup?.id) {
+                    // Dropped on a pin → establish/update the anchor
+                    const symAttr = pointId === 'ep0' ? 'data-from-sym' : 'data-to-sym';
+                    const pinAttr = pointId === 'ep0' ? 'data-from-pin' : 'data-to-pin';
+                    el.setAttribute(symAttr, symGroup.id);
+                    el.setAttribute(pinAttr, pin.dataset?.pin ?? '0');
+                } else {
+                    // Dropped on empty space → clear any stale anchor for this endpoint
+                    if (pointId === 'ep0') {
+                        el.removeAttribute('data-from-sym');
+                        el.removeAttribute('data-from-pin');
+                    } else {
+                        el.removeAttribute('data-to-sym');
+                        el.removeAttribute('data-to-pin');
+                    }
+                }
+            }
             const after = this._captureFullState();
             this.pushHistory('Move Wire Point', before, after);
             this._scheduleGeoAnalysis?.();
@@ -703,29 +738,98 @@ Object.assign(MobileSVGEditor.prototype, {
         if (!this._selection.length) return;
         const before = this._captureFullState();
         const svgStart = this.screenToSVG(startClientX, startClientY);
+
+        // Bake any existing transforms on wire elements into their d-coordinates
+        // before we start, so delta arithmetic works in world space throughout.
+        this._selection.forEach(el => {
+            if (this._isWireElement(el)) this._bakeWireTransform(el);
+        });
+
         const origTransforms = this._selection.map(el => el.getAttribute('transform') || '');
+        // Snapshot original d for wire elements (world-space coords after bake above).
+        const origDAttrs = this._selection.map(el =>
+            this._isWireElement(el) ? (el.getAttribute('d') || null) : null
+        );
+
         let pendingWireSnap = null;
 
         const onMove = (ev) => {
             const svgNow = this.screenToSVG(ev.clientX, ev.clientY);
-            const raw = { x: svgNow.x - svgStart.x, y: svgNow.y - svgStart.y };
+            const raw    = { x: svgNow.x - svgStart.x, y: svgNow.y - svgStart.y };
             const snapped = this.snapPoint(raw.x, raw.y);
             this._removeSnapGuides();
             const pt = this.smartSnap(svgNow.x, svgNow.y, this._selection.map(el => el.id));
             if (this._grid.snapOn) this.showSnapGuides(pt.x, pt.y);
 
             this._selection.forEach((el, i) => {
-                el.setAttribute('transform', `translate(${snapped.x},${snapped.y}) ${origTransforms[i]}`);
+                if (this._isWireElement(el) && origDAttrs[i]) {
+                    // ── Wire: update d directly, never translate ────────────
+                    // Keeps endpoint-anchoring and avoids transform accumulation.
+                    el.setAttribute('transform', origTransforms[i]);
+
+                    const fromSym = el.getAttribute('data-from-sym');
+                    const toSym   = el.getAttribute('data-to-sym');
+                    const fromPt  = fromSym
+                        ? this._resolveSymPinPos(fromSym, el.getAttribute('data-from-pin'))
+                        : null;
+                    const toPt    = toSym
+                        ? this._resolveSymPinPos(toSym, el.getAttribute('data-to-pin'))
+                        : null;
+
+                    // Parse original world-space points (snapshotted before bake)
+                    const pts = [...origDAttrs[i]
+                        .matchAll(/([ML])\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/gi)]
+                        .map(m => ({ x: parseFloat(m[2]), y: parseFloat(m[3]) }));
+                    if (pts.length < 2) return;
+
+                    if (!fromPt && !toPt) {
+                        // Fully free wire: offset every point by the drag delta,
+                        // preserving multi-segment geometry.
+                        const newD = pts.map((p, k) =>
+                            `${k === 0 ? 'M' : 'L'} ${p.x + snapped.x} ${p.y + snapped.y}`
+                        ).join(' ');
+                        el.setAttribute('d', newD);
+                    } else {
+                        // One or both endpoints anchored.
+                        // Anchored end = component pin position (current, live).
+                        // Free end     = original position + drag delta.
+                        const fp = fromPt
+                            || { x: pts[0].x + snapped.x, y: pts[0].y + snapped.y };
+                        const tp = toPt
+                            || { x: pts[pts.length - 1].x + snapped.x,
+                                 y: pts[pts.length - 1].y + snapped.y };
+
+                        if (fromPt && toPt) {
+                            // Both anchored: route from-pin → cursor → to-pin so drag
+                            // controls the bend rather than locking the wire in place.
+                            const segs = [`M ${fp.x} ${fp.y}`];
+                            if (Math.abs(fp.y - svgNow.y) > 0.5) segs.push(`L ${fp.x} ${svgNow.y}`);
+                            segs.push(`L ${svgNow.x} ${svgNow.y}`);
+                            if (Math.abs(svgNow.y - tp.y) > 0.5) segs.push(`L ${svgNow.x} ${tp.y}`);
+                            segs.push(`L ${tp.x} ${tp.y}`);
+                            el.setAttribute('d', segs.join(' '));
+                        } else {
+                            el.setAttribute('d', this._manhattanRoute(fp, tp));
+                        }
+                    }
+                } else {
+                    // Non-wire element: standard translate
+                    el.setAttribute('transform',
+                        `translate(${snapped.x},${snapped.y}) ${origTransforms[i]}`);
+                }
             });
 
             // Wire-body proximity snap: nudge so a pin aligns to a nearby wire
-            // (must run after transforms are applied so _pinWorldPos is current)
+            // (only fires for .domain-symbol elements — wires are skipped automatically)
             const wireAdj = this._computeWireSnapAdjustment();
             if (wireAdj) {
                 const adjX = snapped.x + wireAdj.dx;
                 const adjY = snapped.y + wireAdj.dy;
                 this._selection.forEach((el, i) => {
-                    el.setAttribute('transform', `translate(${adjX},${adjY}) ${origTransforms[i]}`);
+                    if (!this._isWireElement(el)) {
+                        el.setAttribute('transform',
+                            `translate(${adjX},${adjY}) ${origTransforms[i]}`);
+                    }
                 });
             }
             pendingWireSnap = wireAdj || null;
@@ -738,7 +842,6 @@ Object.assign(MobileSVGEditor.prototype, {
         const onUp = () => {
             $(document).off('mousemove.move mouseup.move');
             this._removeSnapGuides();
-            // Commit wire snap: endpoint link or body T-junction split
             if (pendingWireSnap) this._commitWireSnap(pendingWireSnap, pendingWireSnap.symEl);
             const after = this._captureFullState();
             this.pushHistory('Move', before, after);
@@ -780,34 +883,88 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     // Re-route a wire path whose from- or to-endpoint belongs to a symbol being dragged.
+    // Resolve the world-space position of a named pin on a symbol element.
+    // Shared by _updateAttachedWire and _startMoveSelected wire-drag logic.
+    _resolveSymPinPos(symId, pinAttr) {
+        const sym = document.getElementById(symId);
+        if (!sym) return null;
+        const pin = pinAttr
+            ? sym.querySelector(`.pin-point[data-pin="${pinAttr}"]`) || sym.querySelector('.pin-point')
+            : sym.querySelector('.pin-point');
+        return pin ? this._pinWorldPos(pin) : null;
+    },
+
+    // Bake any existing SVG transform on a wire into its d-attribute coordinates,
+    // then clear the transform. Ensures d always holds true world-space coordinates
+    // before a drag begins so delta math is unambiguous.
+    _bakeWireTransform(el) {
+        const tv = el.transform?.baseVal;
+        if (!tv?.length) return;
+        const m = tv.consolidate()?.matrix;
+        if (!m) return;
+        const dm = new DOMMatrix([m.a, m.b, m.c, m.d, m.e, m.f]);
+        const d = el.getAttribute('d') || '';
+        const newD = d.replace(/([ML])\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/gi, (_, cmd, x, y) => {
+            const pt = new DOMPoint(parseFloat(x), parseFloat(y)).matrixTransform(dm);
+            return `${cmd} ${pt.x.toFixed(2)} ${pt.y.toFixed(2)}`;
+        });
+        el.setAttribute('d', newD);
+        el.setAttribute('transform', '');
+    },
+
+    // Non-degenerate Manhattan 2-elbow route. Falls back to a straight segment
+    // when endpoints share an axis, avoiding a zero-length intermediate stub that
+    // visually collapses the wire to a single line.
+    _manhattanRoute(fromPt, toPt) {
+        const dx = Math.abs(toPt.x - fromPt.x);
+        const dy = Math.abs(toPt.y - fromPt.y);
+        if (dx < 0.5 || dy < 0.5) {
+            return `M ${fromPt.x} ${fromPt.y} L ${toPt.x} ${toPt.y}`;
+        }
+        return `M ${fromPt.x} ${fromPt.y} L ${fromPt.x} ${toPt.y} L ${toPt.x} ${toPt.y}`;
+    },
+
     _updateAttachedWire(wirePath, movedSymId) {
         const fromSymId = wirePath.getAttribute('data-from-sym');
         const toSymId   = wirePath.getAttribute('data-to-sym');
 
-        const resolvePin = (symId, pinId) => {
-            const sym = document.getElementById(symId);
-            if (!sym) return null;
-            const pin = sym.querySelector(`.pin-point[data-pin="${pinId}"]`) || sym.querySelector('.pin-point');
-            return pin ? this._pinWorldPos(pin) : null;
-        };
-
-        // Parse current path endpoints as fallback for the static end
         const d = wirePath.getAttribute('d') || '';
         const coords = [...d.matchAll(/[ML]\s*([\d.eE+\-]+)[,\s]+([\d.eE+\-]+)/g)]
             .map(m => ({ x: parseFloat(m[1]), y: parseFloat(m[2]) }));
-        const staticFrom = coords[0]                   || { x: 0, y: 0 };
-        const staticTo   = coords[coords.length - 1]   || { x: 0, y: 0 };
+        const staticFrom = coords[0]                 || { x: 0, y: 0 };
+        const staticTo   = coords[coords.length - 1] || { x: 0, y: 0 };
 
         const fromPt = fromSymId
-            ? (resolvePin(fromSymId, wirePath.getAttribute('data-from-pin') || '0') || staticFrom)
+            ? (this._resolveSymPinPos(fromSymId, wirePath.getAttribute('data-from-pin') || '0') || staticFrom)
             : staticFrom;
         const toPt = toSymId
-            ? (resolvePin(toSymId,   wirePath.getAttribute('data-to-pin')   || '0') || staticTo)
+            ? (this._resolveSymPinPos(toSymId,   wirePath.getAttribute('data-to-pin')   || '0') || staticTo)
             : staticTo;
 
-        // Vertical-first Manhattan route matching _wirePathFromPoints behaviour
-        const newD = `M ${fromPt.x} ${fromPt.y} L ${fromPt.x} ${toPt.y} L ${toPt.x} ${toPt.y}`;
-        wirePath.setAttribute('d', newD);
+        // Preserve intermediate waypoints when only one endpoint moved.
+        // Without this, every component nudge collapses a carefully routed
+        // multi-segment wire to a single 2-knee elbow.
+        if (coords.length > 2) {
+            const fromMoved = fromSymId && fromSymId === movedSymId;
+            const toMoved   = toSymId   && toSymId   === movedSymId;
+            if (fromMoved && !toMoved) {
+                // FROM pin moved: update first coord only, keep intermediates + TO end
+                const newCoords = [fromPt, ...coords.slice(1)];
+                wirePath.setAttribute('d',
+                    newCoords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' '));
+                return;
+            }
+            if (toMoved && !fromMoved) {
+                // TO pin moved: keep FROM end + intermediates, update last coord only
+                const newCoords = [...coords.slice(0, -1), toPt];
+                wirePath.setAttribute('d',
+                    newCoords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' '));
+                return;
+            }
+        }
+
+        // Both endpoints changed or simple 2-point wire: full re-route
+        wirePath.setAttribute('d', this._manhattanRoute(fromPt, toPt));
     },
 
     // ── Feature 3: Alt+click wire → branch new wire from that point ──

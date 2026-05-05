@@ -74,5 +74,5 @@ Enable the **Grid** (G) and **Snap** to ensure components align perfectly. Use t
 Navigate to the **Export** section in the toolbar:
 1.  **SVG**: Standard vector format for use in other design tools.
 2.  **HTML**: A self-contained file including the diagram and interactive viewing logic.
-3.  **JSON**: Raw diagram data for programmatic use within the GENIXY ecosystem.
+3.  **JSON**: Raw diagram data for programmatic use within the Ginexys ecosystem.
 4.  **Batch**: If multiple diagrams are loaded in the **Timeline**, use Batch Export to save all tracks as separate SVG files simultaneously.
