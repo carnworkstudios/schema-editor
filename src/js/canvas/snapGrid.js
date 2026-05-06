@@ -159,32 +159,37 @@ Object.assign(MobileSVGEditor.prototype, {
         const gridPt = this.snapPoint(x, y);
         const THRESH = 8 / (this.zoom || 1);
 
-        const bboxes = this._bboxMap?.size
-            ? [...this._bboxMap.entries()]
-                .filter(([id]) => !excludeIds.includes(id))
-                .map(([, bb]) => bb).filter(Boolean)
-            : Array.from(this._contentRoot?.querySelectorAll?.(
+        const elementsInfo = Array.from(this._contentRoot?.querySelectorAll?.(
                 '.domain-symbol, path[data-geo-class="wire"]'
             ) ?? []).filter(el =>
                 !el.id?.startsWith('_') &&
                 !el.classList.contains('snap-guide') &&
                 !el.classList.contains('draw-preview') &&
                 !excludeIds.includes(el.id)
-            ).map(el => { try { return el.getBBox(); } catch(_) { return null; } })
-             .filter(Boolean);
+            ).map(el => { 
+                try { return this._getVisualBBoxWorld(el); } 
+                catch(_) { return null; } 
+            }).filter(Boolean);
 
         let snapX = gridPt.x, snapY = gridPt.y;
         let distX = Math.abs(x - gridPt.x), distY = Math.abs(y - gridPt.y);
 
-        bboxes.forEach(bb => {
+        elementsInfo.forEach(bb => {
             if (!bb || (!bb.width && !bb.height)) return;
-            // X: left edge, center, right edge
-            [bb.x, bb.x + bb.width * 0.5, bb.x + bb.width].forEach(cx => {
+            // X: left edge, center, right edge, plus pins
+            const targetXs = [bb.x, bb.x + bb.width * 0.5, bb.x + bb.width];
+            if (bb.pins) bb.pins.forEach(p => targetXs.push(p.x));
+            
+            targetXs.forEach(cx => {
                 const d = Math.abs(x - cx);
                 if (d < THRESH && d < distX) { distX = d; snapX = cx; }
             });
-            // Y: top edge, center, bottom edge
-            [bb.y, bb.y + bb.height * 0.5, bb.y + bb.height].forEach(cy => {
+
+            // Y: top edge, center, bottom edge, plus pins
+            const targetYs = [bb.y, bb.y + bb.height * 0.5, bb.y + bb.height];
+            if (bb.pins) bb.pins.forEach(p => targetYs.push(p.y));
+
+            targetYs.forEach(cy => {
                 const d = Math.abs(y - cy);
                 if (d < THRESH && d < distY) { distY = d; snapY = cy; }
             });
@@ -215,23 +220,60 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const selEdgesX = [uL, uL + uW * 0.5, uR];
         const selEdgesY = [uT, uT + uH * 0.5, uB];
+        
+        // Inject selection pins into targets
+        origBBoxes.forEach(bb => {
+            if (bb.pins) {
+                bb.pins.forEach(p => {
+                    selEdgesX.push(p.x + delta.x);
+                    selEdgesY.push(p.y + delta.y);
+                });
+            }
+        });
 
         const refs = this._getOtherElementBBoxes(excludeIds);
         if (!refs.length) return null;
 
+        // Precompute uniform gaps between refs for distribution snapping
+        const refGapsX = [];
+        const refGapsY = [];
+        for (let i = 0; i < refs.length; i++) {
+            for (let j = i + 1; j < refs.length; j++) {
+                const cx1 = refs[i].x + refs[i].width/2;
+                const cy1 = refs[i].y + refs[i].height/2;
+                const cx2 = refs[j].x + refs[j].width/2;
+                const cy2 = refs[j].y + refs[j].height/2;
+                
+                if (Math.abs(cy1 - cy2) < 50) {
+                    refGapsX.push({ dist: Math.abs(cx1 - cx2), r1: refs[i], r2: refs[j], cy: (cy1+cy2)/2 });
+                }
+                if (Math.abs(cx1 - cx2) < 50) {
+                    refGapsY.push({ dist: Math.abs(cy1 - cy2), r1: refs[i], r2: refs[j], cx: (cx1+cx2)/2 });
+                }
+            }
+        }
+
         let bestDx = 0, bestDxDist = THRESH + 1, xGuide = null;
         let bestDy = 0, bestDyDist = THRESH + 1, yGuide = null;
 
+        const selCx = uL + uW * 0.5;
+        const selCy = uT + uH * 0.5;
+
         refs.forEach(ref => {
             if (!ref || (!ref.width && !ref.height)) return;
+            
+            // 1. Edge and Pin Snapping
             const refEdgesX = [ref.x, ref.x + ref.width * 0.5, ref.x + ref.width];
+            if (ref.pins) ref.pins.forEach(p => refEdgesX.push(p.x));
+            
             const refEdgesY = [ref.y, ref.y + ref.height * 0.5, ref.y + ref.height];
+            if (ref.pins) ref.pins.forEach(p => refEdgesY.push(p.y));
 
             selEdgesX.forEach(se => refEdgesX.forEach(re => {
                 const d = Math.abs(se - re);
                 if (d < THRESH && d < bestDxDist) {
                     bestDxDist = d;
-                    bestDx = delta.x + (re - se); // shift so selection edge lands on re
+                    bestDx = delta.x + (re - se);
                     xGuide = { axis: 'v', at: re, ref };
                 }
             }));
@@ -244,6 +286,36 @@ Object.assign(MobileSVGEditor.prototype, {
                     yGuide = { axis: 'h', at: re, ref };
                 }
             }));
+
+            // 2. Distribution Snapping
+            const refCx = ref.x + ref.width * 0.5;
+            const refCy = ref.y + ref.height * 0.5;
+
+            refGapsX.forEach(gap => {
+                if ((gap.r1 === ref || gap.r2 === ref) && Math.abs((selCy + delta.y) - gap.cy) < 50) {
+                    [refCx - gap.dist, refCx + gap.dist].forEach(targetCx => {
+                        const d = Math.abs((selCx + delta.x) - targetCx);
+                        if (d < THRESH && d < bestDxDist) {
+                            bestDxDist = d;
+                            bestDx = delta.x + (targetCx - (selCx + delta.x));
+                            xGuide = { axis: 'h-dist', gap: gap.dist, ref1: gap.r1, ref2: gap.r2, ref3: ref, targetCx };
+                        }
+                    });
+                }
+            });
+
+            refGapsY.forEach(gap => {
+                if ((gap.r1 === ref || gap.r2 === ref) && Math.abs((selCx + delta.x) - gap.cx) < 50) {
+                    [refCy - gap.dist, refCy + gap.dist].forEach(targetCy => {
+                        const d = Math.abs((selCy + delta.y) - targetCy);
+                        if (d < THRESH && d < bestDyDist) {
+                            bestDyDist = d;
+                            bestDy = delta.y + (targetCy - (selCy + delta.y));
+                            yGuide = { axis: 'v-dist', gap: gap.dist, ref1: gap.r1, ref2: gap.r2, ref3: ref, targetCy };
+                        }
+                    });
+                }
+            });
         });
 
         const xSnapped = bestDxDist <= THRESH;
@@ -267,23 +339,18 @@ Object.assign(MobileSVGEditor.prototype, {
     },
 
     // Returns world-space bboxes for all non-selected elements.
-    // Prefers _bboxMap (no reflow); falls back to live querySelectorAll.
     _getOtherElementBBoxes(excludeIds = []) {
-        const excl = new Set(excludeIds);
-        if (this._bboxMap?.size) {
-            const out = [];
-            this._bboxMap.forEach((bb, id) => { if (!excl.has(id) && bb) out.push(bb); });
-            if (out.length) return out;
-        }
         const root = this._contentRoot || this.$svgDisplay?.[0];
         if (!root) return [];
         const out = [];
         root.querySelectorAll('.domain-symbol').forEach(el => {
-            if (el.id?.startsWith('_') || excl.has(el.id)) return;
+            if (el.id?.startsWith('_') || excludeIds.includes(el.id)) return;
             if (el.dataset?.seSystem === 'true') return;
             try {
-                const bb = el.getBBox();
-                if (bb.width > 0 || bb.height > 0) out.push(bb);
+                const bb = this._getVisualBBoxWorld(el);
+                if (bb && (bb.width > 0 || bb.height > 0)) {
+                    out.push({ ...bb, refEl: el });
+                }
             } catch(_) {}
         });
         return out;
@@ -302,6 +369,51 @@ Object.assign(MobileSVGEditor.prototype, {
         const PAD = 20;
 
         guides.forEach(g => {
+            if (g.axis === 'h-dist' || g.axis === 'v-dist') {
+                // Draw distribution dimension markers (Figma-style)
+                const isH = g.axis === 'h-dist';
+                const c1 = g.ref1[isH ? 'x' : 'y'] + g.ref1[isH ? 'width' : 'height']/2;
+                const c2 = g.ref2[isH ? 'x' : 'y'] + g.ref2[isH ? 'width' : 'height']/2;
+                const c3 = g.targetCx || g.targetCy; // selection center
+                
+                const pts = [c1, c2, c3].sort((a,b)=>a-b);
+                const crossCoord = isH ? g.ref1.y + g.ref1.height + 15 : g.ref1.x + g.ref1.width + 15;
+                
+                // Draw dimension lines
+                for (let i = 0; i < 2; i++) {
+                    const line = document.createElementNS(NS, 'line');
+                    line.classList.add('snap-guide', 'snap-align');
+                    line.setAttribute('stroke-dasharray', '4,4');
+                    line.setAttribute('pointer-events', 'none');
+                    if (isH) {
+                        line.setAttribute('x1', pts[i]); line.setAttribute('y1', crossCoord);
+                        line.setAttribute('x2', pts[i+1]); line.setAttribute('y2', crossCoord);
+                    } else {
+                        line.setAttribute('x1', crossCoord); line.setAttribute('y1', pts[i]);
+                        line.setAttribute('x2', crossCoord); line.setAttribute('y2', pts[i+1]);
+                    }
+                    root.appendChild(line);
+
+                    // Dimension text
+                    const text = document.createElementNS(NS, 'text');
+                    text.classList.add('snap-align');
+                    text.textContent = Math.round(g.gap);
+                    text.setAttribute('font-size', '10');
+                    text.setAttribute('fill', '#4facfe');
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('pointer-events', 'none');
+                    if (isH) {
+                        text.setAttribute('x', (pts[i] + pts[i+1])/2);
+                        text.setAttribute('y', crossCoord - 4);
+                    } else {
+                        text.setAttribute('x', crossCoord + 4);
+                        text.setAttribute('y', (pts[i] + pts[i+1])/2 + 4);
+                    }
+                    root.appendChild(text);
+                }
+                return;
+            }
+
             if (!g?.sel || !g?.ref) return;
             const line = document.createElementNS(NS, 'line');
             line.classList.add('snap-guide', 'snap-align');

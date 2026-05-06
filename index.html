@@ -237,22 +237,24 @@
                     </button>
 
                     <!-- Wire-trace toggle -->
-                <div class="switch-mode btn">
-                    <small class="switch-content">
-                    <iconify-icon icon="material-symbols:bolt" style="font-size:14px;color:#4facfe;"></iconify-icon>
-                    Trace
-                </small>
-                <div class="switch" id="traceWireBtn" title="Wire Trace ON/OFF" role="switch" aria-checked="false">
-                    <input type="checkbox" aria-label="Toggle wire tracing">
-                    <span class="switch-slider"></span>
+                    <div class="switch-mode btn">
+                        <small class="switch-content">
+                            <iconify-icon icon="material-symbols:bolt"
+                                style="font-size:14px;color:#4facfe;"></iconify-icon>
+                            Trace
+                        </small>
+                        <div class="switch" id="traceWireBtn" title="Wire Trace ON/OFF" role="switch"
+                            aria-checked="false">
+                            <input type="checkbox" aria-label="Toggle wire tracing">
+                            <span class="switch-slider"></span>
+                        </div>
+                    </div>
                 </div>
-                </div>
-            </div>
-            <!-- Dark Mode Toggle -->
-            <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light"
-                aria-label="Toggle dark mode">
-                <iconify-icon icon="material-symbols:dark-mode-outline" style="font-size:16px;"></iconify-icon>
-            </button>
+                <!-- Dark Mode Toggle -->
+                <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light"
+                    aria-label="Toggle dark mode">
+                    <iconify-icon icon="material-symbols:dark-mode-outline" style="font-size:16px;"></iconify-icon>
+                </button>
 
             </div>
         </div>
@@ -415,23 +417,28 @@
                     <iconify-icon icon="material-symbols:download-for-offline-outline"></iconify-icon>
                     <span class="panel-content">Batch</span>
                 </button>
-                <button class="btn export-domain-btn" data-mode="software" id="exportSqlBtn" title="Export ERD as SQL DDL">
+                <button class="btn export-domain-btn" data-mode="software" id="exportSqlBtn"
+                    title="Export ERD as SQL DDL">
                     <iconify-icon icon="material-symbols:database-outline"></iconify-icon>
                     <span class="panel-content">SQL</span>
                 </button>
-                <button class="btn export-domain-btn" data-mode="software" id="exportMermaidSeqBtn" title="Export Sequence as Mermaid">
+                <button class="btn export-domain-btn" data-mode="software" id="exportMermaidSeqBtn"
+                    title="Export Sequence as Mermaid">
                     <iconify-icon icon="material-symbols:swap-horiz"></iconify-icon>
                     <span class="panel-content">Mermaid</span>
                 </button>
-                <button class="btn export-domain-btn" data-mode="software" id="exportFsmJsonBtn" title="Export FSM as JSON">
+                <button class="btn export-domain-btn" data-mode="software" id="exportFsmJsonBtn"
+                    title="Export FSM as JSON">
                     <iconify-icon icon="material-symbols:data-object"></iconify-icon>
                     <span class="panel-content">FSM JSON</span>
                 </button>
-                <button class="btn export-domain-btn" data-mode="software" id="exportXStateBtn" title="Export FSM as XState">
+                <button class="btn export-domain-btn" data-mode="software" id="exportXStateBtn"
+                    title="Export FSM as XState">
                     <iconify-icon icon="material-symbols:code"></iconify-icon>
                     <span class="panel-content">XState</span>
                 </button>
-                <button class="btn export-domain-btn" data-mode="software" id="sendFsmToTafneBtn" title="Send FSM to TAFNE">
+                <button class="btn export-domain-btn" data-mode="software" id="sendFsmToTafneBtn"
+                    title="Send FSM to TAFNE">
                     <iconify-icon icon="material-symbols:send-outline"></iconify-icon>
                     <span class="panel-content">→ TAFNE</span>
                 </button>
@@ -567,7 +574,7 @@
                 <!-- <div>Layers</div> -->
             </div>
 
-            <div class="control-btn" id="timelineBtn" title="Timeline – all loaded diagrams">
+            <div class="control-btn" id="timelineBtn" title="Artboard – all loaded diagrams">
                 <div class="icon"><iconify-icon icon="material-symbols:video-library-outline"
                         style="font-size:20px;"></iconify-icon></div>
                 <!-- <div>Timeline</div> -->
@@ -862,9 +869,9 @@
             // Gate + star toast — fires on first export per session
             if (window.GxGate) {
                 GxGate.init({
-                    toolKey:    'schema_export_count',
-                    gateKey:    'ginexys_schema_gate_shown',
-                    repo:       'carnworkstudios/schema-editor',
+                    toolKey: 'schema_export_count',
+                    gateKey: 'ginexys_schema_gate_shown',
+                    repo: 'carnworkstudios/schema-editor',
                     triggerIds: [
                         'exportViewBtn', 'exportHtmlBtn', 'exportJsonBtn',
                         'sendToTafneBtn', 'batchExportBtn', 'exportSqlBtn',

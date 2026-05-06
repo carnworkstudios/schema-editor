@@ -704,6 +704,59 @@ Object.assign(MobileSVGEditor.prototype, {
         return attrs;
     },
 
+    /**
+     * Compute bounding box ignoring <text> elements so alignment works
+     * purely on visual graphics rather than jutting labels.
+     */
+    _getVisualBBox(el) {
+        const texts = Array.from(el.querySelectorAll('text'));
+        const displays = texts.map(t => t.style.display);
+        texts.forEach(t => t.style.display = 'none');
+        
+        let bb = { x: 0, y: 0, width: 0, height: 0 };
+        try { bb = el.getBBox(); } catch (_) {}
+        
+        texts.forEach((t, i) => t.style.display = displays[i]);
+        return bb;
+    },
+
+    /**
+     * Compute bounding box in world space (ignoring labels), plus extract world-space pins.
+     */
+    _getVisualBBoxWorld(el) {
+        try {
+            const bb = this._getVisualBBox(el);
+            const svg = this.$svgDisplay?.[0];
+            let m = new DOMMatrix();
+            let node = el;
+            while (node && node !== svg && node.id !== '_cameraRotGroup') {
+                const tv = node.transform?.baseVal;
+                if (tv?.length) {
+                    const lm = tv.consolidate()?.matrix;
+                    if (lm) m = new DOMMatrix([lm.a, lm.b, lm.c, lm.d, lm.e, lm.f]).multiply(m);
+                }
+                node = node.parentElement;
+            }
+            const pts = [[bb.x, bb.y], [bb.x + bb.width, bb.y],
+                         [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]]
+                .map(([px, py]) => new DOMPoint(px, py).matrixTransform(m));
+            const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+            
+            const pins = Array.from(el.querySelectorAll('.pin-point')).map(pin => {
+                const cx = parseFloat(pin.getAttribute('cx') || 0);
+                const cy = parseFloat(pin.getAttribute('cy') || 0);
+                return new DOMPoint(cx, cy).matrixTransform(m);
+            });
+
+            return { 
+                x: Math.min(...xs), y: Math.min(...ys),
+                width: Math.max(...xs) - Math.min(...xs),
+                height: Math.max(...ys) - Math.min(...ys),
+                pins 
+            };
+        } catch(_) { return null; }
+    },
+
     _applyResize(startTransforms, startBB, handle, dx, dy, lockAspect) {
         const scaleX = handle.includes('e') ? (startBB.width + dx) / (startBB.width || 1)
             : handle.includes('w') ? (startBB.width - dx) / (startBB.width || 1)
@@ -758,31 +811,9 @@ Object.assign(MobileSVGEditor.prototype, {
 
         // Capture world-space bboxes of non-wire selected elements at drag start.
         // Used per-frame by _computeAlignSnap to project positions and find edge alignment.
-        const svg = this.$svgDisplay[0];
         const selectionOrigBBoxes = this._selection
             .filter(el => !this._isWireElement(el))
-            .map(el => {
-                try {
-                    const bb = el.getBBox();
-                    let m = new DOMMatrix();
-                    let node = el;
-                    while (node && node !== svg && node.id !== '_cameraRotGroup') {
-                        const tv = node.transform?.baseVal;
-                        if (tv?.length) {
-                            const lm = tv.consolidate()?.matrix;
-                            if (lm) m = new DOMMatrix([lm.a, lm.b, lm.c, lm.d, lm.e, lm.f]).multiply(m);
-                        }
-                        node = node.parentElement;
-                    }
-                    const pts = [[bb.x, bb.y], [bb.x + bb.width, bb.y],
-                                 [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]]
-                        .map(([px, py]) => new DOMPoint(px, py).matrixTransform(m));
-                    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
-                    return { x: Math.min(...xs), y: Math.min(...ys),
-                             width: Math.max(...xs) - Math.min(...xs),
-                             height: Math.max(...ys) - Math.min(...ys) };
-                } catch(_) { return null; }
-            });
+            .map(el => this._getVisualBBoxWorld(el));
         const alignExcludeIds = this._selection.map(el => el.id).filter(Boolean);
 
         let pendingWireSnap = null;

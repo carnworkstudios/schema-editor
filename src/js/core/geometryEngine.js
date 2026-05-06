@@ -522,7 +522,7 @@ Object.assign(MobileSVGEditor.prototype, {
         const cls = el.getAttribute('data-geo-class');
         if (tag === 'g') {
             let b;
-            try { b = el.getBBox(); } catch (_) { return null; }
+            try { b = this._getVisualBBox(el); } catch (_) { return null; }
             if (!b.width && !b.height) return null;
             const bbox = { x: b.x, y: b.y, width: b.width, height: b.height };
             return {
@@ -843,7 +843,7 @@ Object.assign(MobileSVGEditor.prototype, {
             // itself remains the selectable element for the canvas engine.
             if (tag === 'g' && el.classList.contains('domain-symbol')) {
                 let lb;
-                try { lb = el.getBBox(); } catch (_) { lb = bbox; }
+                try { lb = this._getVisualBBox(el); } catch (_) { lb = bbox; }
                 const hitbox = document.createElementNS(NS, 'rect');
                 hitbox.setAttribute('x',      String(lb.x));
                 hitbox.setAttribute('y',      String(lb.y));

@@ -53,6 +53,7 @@
 .wire-hover {
     stroke: #4facfe !important;
 }
+
 .canvas-overlay-hover {
     stroke: #4facfe !important;
     stroke-opacity: 0.75 !important;
@@ -307,7 +308,7 @@
 }
 
 .selection-handle {
-    fill: #1a1a2e;
+    fill: #1a203f60;
     stroke: #4facfe;
     stroke-width: 1;
     pointer-events: all;

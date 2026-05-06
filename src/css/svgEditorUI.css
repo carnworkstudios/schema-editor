@@ -2398,3 +2398,98 @@ body:not(.dark-mode) .layer-drag-handle {
 .layer-struct-children {
     /* shown/hidden via jQuery .toggle() */
 }
+
+/* ============================================================
+   MEASURE TOOL — SVG Canvas Overlays
+   ============================================================ */
+
+/* Tape line (live) — dashed cyan */
+.measure-tape {
+    stroke: #4facfe;
+    stroke-width: 1;
+    stroke-dasharray: 5, 3;
+    fill: none;
+    vector-effect: non-scaling-stroke;
+    opacity: 0.8;
+}
+
+/* Tape line (finalized) — solid, slightly brighter */
+.measure-tape.measure-tape-final {
+    stroke: #00e5ff;
+    stroke-dasharray: none;
+    opacity: 1;
+}
+
+/* Point A (green) and Point B (orange) dots */
+.measure-point {
+    fill: none;
+    stroke-width: 1.5;
+    vector-effect: non-scaling-stroke;
+}
+
+.measure-point-a {
+    fill: rgba(52, 211, 153, 0.25);
+    stroke: #34d399;
+}
+
+.measure-point-b {
+    fill: rgba(251, 191, 36, 0.25);
+    stroke: #fbbf24;
+}
+
+/* Angle arc from Point A */
+.measure-angle-arc {
+    stroke: #a78bfa;
+    stroke-width: 1;
+    fill: none;
+    stroke-dasharray: 2, 2;
+    opacity: 0.75;
+    vector-effect: non-scaling-stroke;
+}
+
+/* Main distance label */
+.measure-hud-dist {
+    fill: #00e5ff;
+    font-family: 'DM Mono', 'Courier New', monospace;
+    font-weight: 600;
+    paint-order: stroke fill;
+    stroke: rgba(0, 0, 0, 0.6);
+    stroke-width: 3;
+    stroke-linejoin: round;
+}
+
+/* Angle classification label (e.g. "53.7° Obtuse") */
+.measure-hud-angle {
+    fill: #a78bfa;
+    font-family: 'DM Mono', 'Courier New', monospace;
+    font-weight: 500;
+    paint-order: stroke fill;
+    stroke: rgba(0, 0, 0, 0.55);
+    stroke-width: 2.5;
+    stroke-linejoin: round;
+}
+
+/* Δx / Δy component labels */
+.measure-hud-delta {
+    fill: rgba(79, 172, 254, 0.8);
+    font-family: 'DM Mono', 'Courier New', monospace;
+    paint-order: stroke fill;
+    stroke: rgba(0, 0, 0, 0.5);
+    stroke-width: 2;
+    stroke-linejoin: round;
+}
+
+/* Wire callout background bubble */
+.measure-callout-bg {
+    fill: rgba(0, 10, 25, 0.78);
+    stroke: #4facfe;
+    stroke-width: 0.75;
+}
+
+/* #measureBtn active state */
+#measureBtn.active {
+    background: rgba(0, 229, 255, 0.15) !important;
+    border-color: #00e5ff !important;
+    color: #00e5ff !important;
+    box-shadow: 0 0 8px rgba(0, 229, 255, 0.25);
+}
