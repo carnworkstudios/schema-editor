@@ -152,6 +152,24 @@ Object.assign(MobileSVGEditor.prototype, {
                 <span id="prop-radius-val" class="prop-pill">0px</span>
             </div>
 
+            <!-- Component Info (shown for placed domain symbols with known spec) -->
+            <div id="prop-spec-group" class="prop-section" style="display:none;">
+                <div class="prop-section-label" style="margin-top:8px;">Component Info</div>
+                <div id="prop-spec-desc" class="prop-spec-desc"></div>
+                <div class="prop-spec-row">
+                    <span class="prop-label">Pins</span>
+                    <span id="prop-spec-pins" class="prop-value">—</span>
+                </div>
+                <div class="prop-spec-row">
+                    <span class="prop-label">Parameters</span>
+                    <span id="prop-spec-params" class="prop-value">—</span>
+                </div>
+                <div class="prop-spec-row">
+                    <span class="prop-label">Typical</span>
+                    <span id="prop-spec-typical" class="prop-value">—</span>
+                </div>
+            </div>
+
             <!-- Align & Distribute (shown when 2+ selected) -->
             <div id="prop-align-group" class="prop-section" style="display:none;">
                 <div class="prop-section-label">Align</div>
@@ -202,7 +220,26 @@ Object.assign(MobileSVGEditor.prototype, {
         if (!el) { this._clearPropertyPanel(); return; }
 
         this._propPanelTarget = el;
-        $('#propertyPanel').show();
+
+        // Auto-switch to Properties tab so the panel is actually visible.
+        // Without this, the Properties panel is rendered below the Layers panel
+        // and the user never sees it change.
+        if (this.$sidePanel?.hasClass('open') && this._activeSidePanelTab !== 'properties') {
+            this._switchSidePanelTab('properties');
+        } else {
+            $('#propertyPanel').show();
+        }
+
+        // Multi-select banner — visible when 2+ elements are selected
+        const selCount = sel.length;
+        const $banner = $('#prop-multi-banner');
+        if (selCount >= 2) {
+            const msg = `${selCount} elements — stroke & fill apply to all`;
+            if ($banner.length) { $banner.text(msg); }
+            else { $('<div id="prop-multi-banner" class="prop-multi-banner"></div>').text(msg).prependTo('#propertyPanel'); }
+        } else {
+            $banner.remove();
+        }
 
         const tag = el.tagName.toLowerCase();
         $('#prop-el-tag').text(tag + (el.id ? `#${el.id.slice(0,12)}` : ''));
@@ -286,6 +323,21 @@ Object.assign(MobileSVGEditor.prototype, {
 
         // Align/distribute (multi-select)
         $('#prop-align-group').toggle(sel.length >= 2);
+
+        // Component spec card (electrical domain symbols only)
+        const symId = el?.getAttribute?.('data-symbol');
+        const spec = window.COMPONENT_SPECS?.[symId];
+        $('#prop-spec-group').toggle(!!spec);
+        if (spec) {
+            $('#prop-spec-desc').text(spec.description || '');
+            $('#prop-spec-pins').text(
+                spec.pinCount != null
+                    ? `${spec.pinCount} — ${spec.pinNames?.join(', ') || ''}`
+                    : '—'
+            );
+            $('#prop-spec-params').text(spec.keyParams?.join(' · ') || '—');
+            $('#prop-spec-typical').text(spec.typical?.join(', ') || '—');
+        }
     },
 
     _clearPropertyPanel() {
@@ -314,11 +366,14 @@ Object.assign(MobileSVGEditor.prototype, {
     _bindPropertyPanelEvents() {
         const self = this;
 
-        // Live update helper
+        // Live update helper — broadcasts to all selected elements when 2+ are selected.
+        // Position/size handlers use per-element delta logic that works correctly with
+        // multi-target iteration (each element translates/scales by the same delta).
         const live = (selector, handler) => {
             $(document).on('input.prop change.prop', selector, function () {
                 if (!self._propPanelTarget) return;
-                handler.call(this, self._propPanelTarget);
+                const targets = (self._selection?.length >= 2) ? self._selection : [self._propPanelTarget];
+                targets.forEach(el => handler.call(this, el));
                 self._renderHandles();
             });
         };

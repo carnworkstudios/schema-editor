@@ -18,8 +18,8 @@
             </g>`,
             svgContent: `
                 <rect x="0" y="-6" width="120" height="12" fill="rgba(0,242,254,0.12)" stroke="${WALL_CLR}" stroke-width="2"/>
-                <circle cx="0"   cy="0" r="3" fill="${WALL_CLR}" class="pin-point" data-pin="start"/>
-                <circle cx="120" cy="0" r="3" fill="${WALL_CLR}" class="pin-point" data-pin="end"/>`,
+                <circle cx="0"   cy="0" r="3" fill="${WALL_CLR}" class="pin-point" data-pin="start" data-pin-dir="0,1"/>
+                <circle cx="120" cy="0" r="3" fill="${WALL_CLR}" class="pin-point" data-pin="end" data-pin-dir="1,0"/>`,
         },
         // ── WALL (Vertical) ──────────────────────────────────
         {
@@ -30,8 +30,8 @@
             </g>`,
             svgContent: `
                 <rect x="-6" y="0" width="12" height="120" fill="rgba(0,242,254,0.12)" stroke="${WALL_CLR}" stroke-width="2"/>
-                <circle cx="0" cy="0"   r="3" fill="${WALL_CLR}" class="pin-point" data-pin="start"/>
-                <circle cx="0" cy="120" r="3" fill="${WALL_CLR}" class="pin-point" data-pin="end"/>`,
+                <circle cx="0" cy="0"   r="3" fill="${WALL_CLR}" class="pin-point" data-pin="start" data-pin-dir="0,1"/>
+                <circle cx="0" cy="120" r="3" fill="${WALL_CLR}" class="pin-point" data-pin="end" data-pin-dir="0,1"/>`,
         },
         // ── DOOR (Swing) ─────────────────────────────────────
         {
@@ -174,8 +174,8 @@
             </g>`,
             svgContent: `
                 <line x1="0" y1="0" x2="200" y2="0" stroke="${CLR}" stroke-width="6" stroke-dasharray="15,10"/>
-                <circle cx="0"   cy="0" r="4" fill="${CLR}" class="pin-point" data-pin="start"/>
-                <circle cx="200" cy="0" r="4" fill="${CLR}" class="pin-point" data-pin="end"/>`,
+                <circle cx="0"   cy="0" r="4" fill="${CLR}" class="pin-point" data-pin="start" data-pin-dir="0,1"/>
+                <circle cx="200" cy="0" r="4" fill="${CLR}" class="pin-point" data-pin="end" data-pin-dir="1,0"/>`,
         },
         // ── BOILER / TANK ─────────────────────────────────────
         {

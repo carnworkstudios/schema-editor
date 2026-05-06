@@ -78,6 +78,11 @@ Object.assign(MobileSVGEditor.prototype, {
         }
         this._renderHandles();
         this._refreshPropertyPanel();
+        // Toast on multi-select so the user gets canvas-level feedback immediately,
+        // independent of which side-panel tab is active.
+        if (additive && this._selection.length >= 2) {
+            this.showToast(`${this._selection.length} selected — batch edits apply to all`, 'success');
+        }
         // Sync selection back to the layers panel if it's open and the
         // selection didn't originate FROM the panel (avoid feedback loop).
         if (!additive) this._revealInLayersPanel(svgEl);
@@ -751,15 +756,49 @@ Object.assign(MobileSVGEditor.prototype, {
             this._isWireElement(el) ? (el.getAttribute('d') || null) : null
         );
 
+        // Capture world-space bboxes of non-wire selected elements at drag start.
+        // Used per-frame by _computeAlignSnap to project positions and find edge alignment.
+        const svg = this.$svgDisplay[0];
+        const selectionOrigBBoxes = this._selection
+            .filter(el => !this._isWireElement(el))
+            .map(el => {
+                try {
+                    const bb = el.getBBox();
+                    let m = new DOMMatrix();
+                    let node = el;
+                    while (node && node !== svg && node.id !== '_cameraRotGroup') {
+                        const tv = node.transform?.baseVal;
+                        if (tv?.length) {
+                            const lm = tv.consolidate()?.matrix;
+                            if (lm) m = new DOMMatrix([lm.a, lm.b, lm.c, lm.d, lm.e, lm.f]).multiply(m);
+                        }
+                        node = node.parentElement;
+                    }
+                    const pts = [[bb.x, bb.y], [bb.x + bb.width, bb.y],
+                                 [bb.x, bb.y + bb.height], [bb.x + bb.width, bb.y + bb.height]]
+                        .map(([px, py]) => new DOMPoint(px, py).matrixTransform(m));
+                    const xs = pts.map(p => p.x), ys = pts.map(p => p.y);
+                    return { x: Math.min(...xs), y: Math.min(...ys),
+                             width: Math.max(...xs) - Math.min(...xs),
+                             height: Math.max(...ys) - Math.min(...ys) };
+                } catch(_) { return null; }
+            });
+        const alignExcludeIds = this._selection.map(el => el.id).filter(Boolean);
+
         let pendingWireSnap = null;
 
         const onMove = (ev) => {
             const svgNow = this.screenToSVG(ev.clientX, ev.clientY);
             const raw    = { x: svgNow.x - svgStart.x, y: svgNow.y - svgStart.y };
-            const snapped = this.snapPoint(raw.x, raw.y);
+            const gridSnapped = this.snapPoint(raw.x, raw.y);
+
+            // Figma-style alignment snap: project selection bboxes to current delta,
+            // find smallest per-axis adjustment that aligns a selection edge to a
+            // reference element edge. Falls back to grid snap when no alignment found.
+            const alignResult = this._computeAlignSnap?.(selectionOrigBBoxes, gridSnapped, alignExcludeIds);
+            const snapped = alignResult ? alignResult.delta : gridSnapped;
             this._removeSnapGuides();
-            const pt = this.smartSnap(svgNow.x, svgNow.y, this._selection.map(el => el.id));
-            if (this._grid.snapOn) this.showSnapGuides(pt.x, pt.y);
+            if (alignResult?.guides?.length) this.showAlignmentGuides?.(alignResult.guides);
 
             this._selection.forEach((el, i) => {
                 if (this._isWireElement(el) && origDAttrs[i]) {
@@ -809,7 +848,7 @@ Object.assign(MobileSVGEditor.prototype, {
                             segs.push(`L ${tp.x} ${tp.y}`);
                             el.setAttribute('d', segs.join(' '));
                         } else {
-                            el.setAttribute('d', this._manhattanRoute(fp, tp));
+                            el.setAttribute('d', this._smartRoute(fp, tp));
                         }
                     }
                 } else {
@@ -863,8 +902,6 @@ Object.assign(MobileSVGEditor.prototype, {
         });
     },
 
-    // Get a pin element's current position in SVG document-local space.
-    // Mirrors the CTM chain walk in drawingTools._wireSnapToPort.
     _pinWorldPos(pinEl) {
         const cx = parseFloat(pinEl.getAttribute('cx') || 0);
         const cy = parseFloat(pinEl.getAttribute('cy') || 0);
@@ -879,7 +916,23 @@ Object.assign(MobileSVGEditor.prototype, {
             }
             node = node.parentElement;
         }
-        return new DOMPoint(cx, cy).matrixTransform(m);
+        const pt = new DOMPoint(cx, cy).matrixTransform(m);
+
+        let dx = 0, dy = 0;
+        const dirStr = pinEl.getAttribute('data-pin-dir');
+        if (dirStr) {
+            const parts = dirStr.split(',');
+            if (parts.length === 2) {
+                dx = parseFloat(parts[0]);
+                dy = parseFloat(parts[1]);
+            }
+        }
+        // Project direction vector through the matrix (ignoring translation)
+        const dirX = m.a * dx + m.c * dy;
+        const dirY = m.b * dx + m.d * dy;
+        const len = Math.hypot(dirX, dirY) || 1;
+        
+        return { x: pt.x, y: pt.y, dx: dirX / len, dy: dirY / len };
     },
 
     // Re-route a wire path whose from- or to-endpoint belongs to a symbol being dragged.
@@ -912,16 +965,84 @@ Object.assign(MobileSVGEditor.prototype, {
         el.setAttribute('transform', '');
     },
 
-    // Non-degenerate Manhattan 2-elbow route. Falls back to a straight segment
-    // when endpoints share an axis, avoiding a zero-length intermediate stub that
-    // visually collapses the wire to a single line.
-    _manhattanRoute(fromPt, toPt) {
-        const dx = Math.abs(toPt.x - fromPt.x);
-        const dy = Math.abs(toPt.y - fromPt.y);
-        if (dx < 0.5 || dy < 0.5) {
-            return `M ${fromPt.x} ${fromPt.y} L ${toPt.x} ${toPt.y}`;
+    // Smart orthogonal routing engine
+    // Respects pin exit directions and builds natural 3-elbow or 5-elbow Manhattan paths.
+    _smartRoute(fromPt, toPt) {
+        const STUB = 15;
+        
+        const p1 = { x: fromPt.x, y: fromPt.y };
+        let p2 = { x: p1.x, y: p1.y };
+        if (fromPt.dx !== undefined && fromPt.dy !== undefined) {
+            p2.x += fromPt.dx * STUB;
+            p2.y += fromPt.dy * STUB;
         }
-        return `M ${fromPt.x} ${fromPt.y} L ${fromPt.x} ${toPt.y} L ${toPt.x} ${toPt.y}`;
+
+        const p6 = { x: toPt.x, y: toPt.y };
+        let p5 = { x: p6.x, y: p6.y };
+        if (toPt.dx !== undefined && toPt.dy !== undefined) {
+            p5.x += toPt.dx * STUB;
+            p5.y += toPt.dy * STUB;
+        }
+
+        let path = `M ${p1.x} ${p1.y}`;
+        if (p1.x !== p2.x || p1.y !== p2.y) path += ` L ${p2.x} ${p2.y}`;
+
+        let midX = (p2.x + p5.x) / 2;
+        let midY = (p2.y + p5.y) / 2;
+
+        const fromHoriz = fromPt.dx !== undefined ? Math.abs(fromPt.dx) > 0.5 : true;
+        const toHoriz = toPt.dx !== undefined ? Math.abs(toPt.dx) > 0.5 : true;
+
+        if (fromHoriz && toHoriz) {
+            if ((fromPt.dx > 0 && midX < p2.x) || (fromPt.dx < 0 && midX > p2.x) ||
+                (toPt.dx > 0 && midX < p5.x) || (toPt.dx < 0 && midX > p5.x)) {
+                if (fromPt.dx === toPt.dx) {
+                     midX = fromPt.dx > 0 ? Math.max(p2.x, p5.x) + STUB : Math.min(p2.x, p5.x) - STUB;
+                } else {
+                     path += ` L ${p2.x} ${midY} L ${p5.x} ${midY}`;
+                     midX = null; 
+                }
+            }
+            if (midX !== null) path += ` L ${midX} ${p2.y} L ${midX} ${p5.y}`;
+        } else if (!fromHoriz && !toHoriz) {
+            if ((fromPt.dy > 0 && midY < p2.y) || (fromPt.dy < 0 && midY > p2.y) ||
+                (toPt.dy > 0 && midY < p5.y) || (toPt.dy < 0 && midY > p5.y)) {
+                if (fromPt.dy === toPt.dy) {
+                     midY = fromPt.dy > 0 ? Math.max(p2.y, p5.y) + STUB : Math.min(p2.y, p5.y) - STUB;
+                } else {
+                     path += ` L ${midX} ${p2.y} L ${midX} ${p5.y}`;
+                     midY = null;
+                }
+            }
+            if (midY !== null) path += ` L ${p2.x} ${midY} L ${p5.x} ${midY}`;
+        } else if (fromHoriz && !toHoriz) {
+            let safeX = p5.x;
+            let safeY = p2.y;
+            if ((fromPt.dx > 0 && p5.x < p2.x) || (fromPt.dx < 0 && p5.x > p2.x)) {
+                safeX = p2.x + fromPt.dx * STUB;
+                path += ` L ${safeX} ${p2.y} L ${safeX} ${p5.y}`; 
+            } else if ((toPt.dy > 0 && p2.y > p5.y) || (toPt.dy < 0 && p2.y < p5.y)) {
+                safeY = p5.y + toPt.dy * STUB;
+                path += ` L ${p5.x} ${p2.y} L ${p5.x} ${safeY}`; 
+            } else {
+                path += ` L ${p5.x} ${p2.y}`;
+            }
+        } else {
+            if ((fromPt.dy > 0 && p5.y < p2.y) || (fromPt.dy < 0 && p5.y > p2.y)) {
+                let safeY = p2.y + fromPt.dy * STUB;
+                path += ` L ${p2.x} ${safeY} L ${p5.x} ${safeY}`;
+            } else if ((toPt.dx > 0 && p2.x > p5.x) || (toPt.dx < 0 && p2.x < p5.x)) {
+                let safeX = p5.x + toPt.dx * STUB;
+                path += ` L ${p2.x} ${p5.y} L ${safeX} ${p5.y}`;
+            } else {
+                path += ` L ${p2.x} ${p5.y}`;
+            }
+        }
+        
+        if (p5.x !== p6.x || p5.y !== p6.y) path += ` L ${p5.x} ${p5.y}`;
+        path += ` L ${p6.x} ${p6.y}`;
+        
+        return path;
     },
 
     _updateAttachedWire(wirePath, movedSymId) {
@@ -941,30 +1062,8 @@ Object.assign(MobileSVGEditor.prototype, {
             ? (this._resolveSymPinPos(toSymId,   wirePath.getAttribute('data-to-pin')   || '0') || staticTo)
             : staticTo;
 
-        // Preserve intermediate waypoints when only one endpoint moved.
-        // Without this, every component nudge collapses a carefully routed
-        // multi-segment wire to a single 2-knee elbow.
-        if (coords.length > 2) {
-            const fromMoved = fromSymId && fromSymId === movedSymId;
-            const toMoved   = toSymId   && toSymId   === movedSymId;
-            if (fromMoved && !toMoved) {
-                // FROM pin moved: update first coord only, keep intermediates + TO end
-                const newCoords = [fromPt, ...coords.slice(1)];
-                wirePath.setAttribute('d',
-                    newCoords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' '));
-                return;
-            }
-            if (toMoved && !fromMoved) {
-                // TO pin moved: keep FROM end + intermediates, update last coord only
-                const newCoords = [...coords.slice(0, -1), toPt];
-                wirePath.setAttribute('d',
-                    newCoords.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' '));
-                return;
-            }
-        }
-
         // Both endpoints changed or simple 2-point wire: full re-route
-        wirePath.setAttribute('d', this._manhattanRoute(fromPt, toPt));
+        wirePath.setAttribute('d', this._smartRoute(fromPt, toPt));
     },
 
     // ── Feature 3: Alt+click wire → branch new wire from that point ──
@@ -1037,10 +1136,13 @@ Object.assign(MobileSVGEditor.prototype, {
 
         const before = this._captureFullState();
 
+        const fromPtWithDir = fromSym ? (this._resolveSymPinPos(fromSym, fromPin) || coords[0]) : coords[0];
+        const toPtWithDir   = toSym ? (this._resolveSymPinPos(toSym, toPin) || coords[coords.length - 1]) : coords[coords.length - 1];
+
         const mkWire = (f, t) => {
             const p = document.createElementNS(this.SVG_NS, 'path');
             p.id = `el_${Date.now()}_${Math.floor(Math.random() * 9999)}`;
-            p.setAttribute('d', `M ${f.x} ${f.y} L ${f.x} ${t.y} L ${t.x} ${t.y}`);
+            p.setAttribute('d', this._smartRoute(f, t));
             p.setAttribute('fill', 'none');
             p.setAttribute('stroke', stroke);
             p.setAttribute('stroke-width', sWidth);
@@ -1049,11 +1151,11 @@ Object.assign(MobileSVGEditor.prototype, {
         };
 
         // Left segment: original-from → split point
-        const seg1 = mkWire(fromPt, splitPt);
+        const seg1 = mkWire(fromPtWithDir, splitPt);
         if (fromSym) { seg1.setAttribute('data-from-sym', fromSym); seg1.setAttribute('data-from-pin', fromPin); }
 
         // Right segment: split point → original-to
-        const seg2 = mkWire(splitPt, toPt);
+        const seg2 = mkWire(splitPt, toPtWithDir);
         if (toSym)   { seg2.setAttribute('data-to-sym', toSym);     seg2.setAttribute('data-to-pin', toPin); }
 
         // Remove whole wire-group (visual + hitbox); falls back to the path itself for raw wires

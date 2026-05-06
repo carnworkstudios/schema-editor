@@ -1803,10 +1803,17 @@ body.dark-mode .btn:disabled {
 /* ── Fix #3: Neutral snap guides (distinguish from selection) ── */
 .snap-guide {
     stroke: #f0a500 !important;
-    /* amber, not blue */
     stroke-width: 0.75;
     stroke-dasharray: 4, 4;
     opacity: 0.55;
+}
+
+/* Figma-style alignment guides — solid, bounded, pink-red */
+.snap-guide.snap-align {
+    stroke: #ff6b9d !important;
+    stroke-width: 1 !important;
+    stroke-dasharray: none !important;
+    opacity: 0.9 !important;
 }
 
 /* ── Fix #3: Grid lines — gray, not blue ─────────────────────── */
@@ -2323,6 +2330,68 @@ body:not(.dark-mode) .layer-drag-handle {
 .badge-junction {
     background: rgba(251, 191, 36, 0.15);
     color: #fbbf24;
+}
+
+/* ── Lint badges (Structure panel) ───────────────────────── */
+.layer-lint-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 14px;
+    height: 14px;
+    border-radius: 50%;
+    font-size: 9px;
+    font-weight: 700;
+    flex-shrink: 0;
+    margin-left: 2px;
+}
+.lint-error {
+    background: #ef4444;
+    color: #fff;
+}
+
+/* ── Unconnected pin indicator (canvas) ───────────────────── */
+.pin-unconnected {
+    fill: #ef4444 !important;
+    stroke: #ef4444 !important;
+    opacity: 0.85;
+}
+
+/* ── Property panel: multi-select banner ─────────────────── */
+.prop-multi-banner {
+    background: rgba(79, 172, 254, 0.10);
+    border: 1px solid rgba(79, 172, 254, 0.25);
+    border-radius: 4px;
+    padding: 5px 8px;
+    font-size: 11px;
+    color: #4facfe;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+/* ── Property panel: component spec card ─────────────────── */
+.prop-spec-desc {
+    font-size: 11px;
+    color: #8899aa;
+    margin: 4px 0 6px;
+    line-height: 1.4;
+}
+.prop-spec-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    font-size: 11px;
+    padding: 3px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.04);
+    gap: 8px;
+}
+.prop-spec-row .prop-label {
+    color: #667788;
+    flex-shrink: 0;
+}
+.prop-spec-row .prop-value {
+    color: #b0c4de;
+    text-align: right;
 }
 
 /* ── Structure view children container ───────────────────── */

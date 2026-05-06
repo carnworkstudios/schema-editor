@@ -289,11 +289,38 @@ Object.assign(MobileSVGEditor.prototype, {
             ` eps=${EPS} quadTree=${!!this._quadTree}`
         );
 
+        // Lint pass: mark unconnected pins before rebuilding the layers panel
+        // so Structure-tab badges reflect the fresh connectivity state.
+        if (typeof this._runLintPass === 'function') this._runLintPass();
+
         // Refresh layers panel if it's already open
         if (typeof this.buildLayersTree === 'function' &&
             this.$sidePanel?.hasClass('open')) {
             this.buildLayersTree();
         }
+    },
+
+    // ── Visual Lint Pass ─────────────────────────────────────────
+    // Runs after every geometry pipeline in electrical mode.
+    // Marks .pin-point elements whose nearest wire endpoint exceeds
+    // EPS_LINT with data-lint-unconnected so the canvas and layers panel
+    // can surface Error-Red indicators without re-running the full pipeline.
+    _runLintPass() {
+        if (this.activeMode !== 'electrical') return;
+        const EPS_LINT = 8; // SVG-unit threshold — generous enough to catch snap imprecision
+
+        // Flatten all snapped wire endpoints into one list (world/doc-local coords,
+        // same coordinate space as _pinWorldPos output).
+        const wireEps = (this.wires || []).flatMap(w => w.endpoints || []);
+
+        this._contentRoot?.querySelectorAll('.pin-point').forEach(pin => {
+            const wp = this._pinWorldPos(pin); // canvasEngine.js:822 — on shared prototype
+            const connected = wireEps.some(ep =>
+                Math.hypot(ep.x - wp.x, ep.y - wp.y) <= EPS_LINT
+            );
+            pin.toggleAttribute('data-lint-unconnected', !connected);
+            pin.classList.toggle('pin-unconnected', !connected);
+        });
     },
 
     // ==========================================================

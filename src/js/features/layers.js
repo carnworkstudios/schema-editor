@@ -125,6 +125,14 @@ Object.assign(MobileSVGEditor.prototype, {
             // Inline topology badge
             const badge = this._getTopoBadge(el);
 
+            // Lint badge — count unconnected .pin-point descendants (or self if it's a pin)
+            const unconnectedCount = el.querySelectorAll?.('.pin-point[data-lint-unconnected]').length || 0;
+            const selfLint = el.hasAttribute?.('data-lint-unconnected') ? 1 : 0;
+            const lintTotal = unconnectedCount + selfLint;
+            const lintBadge = lintTotal > 0
+                ? `<span class="layer-lint-badge lint-error" title="${lintTotal} unconnected pin${lintTotal > 1 ? 's' : ''}">!</span>`
+                : '';
+
             // Group label for items nested inside a named <g>
             const parentGroup = el.parentElement?.hasAttribute('data-layer-name')
                 ? (el.parentElement.getAttribute('data-layer-name') || el.parentElement.id)
@@ -144,7 +152,7 @@ Object.assign(MobileSVGEditor.prototype, {
                     <span class="layer-drag-handle" title="Drag to reorder">⠿</span>
                     ${isGroup && childEls.length ? `<span class="layer-collapse-arrow" style="font-size:9px;width:10px;flex-shrink:0;cursor:pointer;">▾</span>` : '<span style="width:10px;flex-shrink:0;"></span>'}
                     <iconify-icon icon="${rowIcon}" style="font-size:12px;flex-shrink:0;opacity:0.7;"></iconify-icon>
-                    ${badge}
+                    ${badge}${lintBadge}
                     <span class="layer-name" title="Double-click to rename">${name}</span>
                     ${groupSuffix}
                     <div style="margin-left:auto;display:flex;gap:2px;align-items:center;">

@@ -33,8 +33,8 @@
                 ${wire(-30,0,-20,0)}
                 <rect x="-20" y="-5" width="40" height="10" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}" rx="1"/>
                 ${wire(20,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>
+                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="1,0"/>`,
         },
         // ── CAPACITOR ───────────────────────────────────────
         {
@@ -52,8 +52,8 @@
                 <line x1="-4" y1="-9" x2="-4" y2="9" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
                 <line x1="4"  y1="-9" x2="4"  y2="9" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
                 ${wire(4,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>
+                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="1,0"/>`,
         },
         // ── INDUCTOR ────────────────────────────────────────
         {
@@ -69,8 +69,8 @@
                 ${wire(-30,0,-22,0)}
                 <path d="M-22,0 Q-18,-10,-14,0 Q-10,-10,-6,0 Q-2,-10,2,0 Q6,-10,10,0 Q14,-10,18,0 Q22,-10,26,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}" stroke-linecap="round"/>
                 ${wire(26,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>
+                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="1,0"/>`,
         },
         // ── DIODE ───────────────────────────────────────────
         {
@@ -88,8 +88,8 @@
                 <polygon points="-12,-8 -12,8 8,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <line x1="8" y1="-8" x2="8" y2="8" stroke="${CLR}" stroke-width="2" stroke-linecap="round"/>
                 ${wire(8,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>
+                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="1,0"/>`,
         },
         // ── LED ─────────────────────────────────────────────
         {
@@ -111,8 +111,8 @@
                 <line x1="12" y1="-10" x2="18" y2="-16" stroke="${CLR}" stroke-width="1.2"/>
                 <line x1="16" y1="-6" x2="22" y2="-12" stroke="${CLR}" stroke-width="1.2"/>
                 ${wire(8,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>
+                <circle cx="30"  cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="1,0"/>`,
         },
         // ── NPN TRANSISTOR ───────────────────────────────────
         {
@@ -132,9 +132,9 @@
                 <line x1="0" y1="-10" x2="16" y2="-20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <line x1="0" y1="10" x2="16" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <polygon points="10,14 16,20 10,18" fill="${CLR}"/>
-                <circle cx="-20" cy="0"  r="2" fill="${CLR}" class="pin-point" data-pin="base"/>
-                <circle cx="16"  cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="collector"/>
-                <circle cx="16"  cy="20"  r="2" fill="${CLR}" class="pin-point" data-pin="emitter"/>`,
+                <circle cx="-20" cy="0"  r="2" fill="${CLR}" class="pin-point" data-pin="base" data-pin-dir="-1,0"/>
+                <circle cx="16"  cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="collector" data-pin-dir="0,-1"/>
+                <circle cx="16"  cy="20"  r="2" fill="${CLR}" class="pin-point" data-pin="emitter" data-pin-dir="0,1"/>`,
         },
         // ── IC GENERIC ──────────────────────────────────────
         {
@@ -152,12 +152,12 @@
                 <text x="25" y="24" text-anchor="middle" font-size="9" fill="${CLR}" font-family="monospace">IC</text>
                 ${wire(-8,10,0,10)} ${wire(-8,20,0,20)} ${wire(-8,30,0,30)}
                 ${wire(50,10,58,10)} ${wire(50,20,58,20)} ${wire(50,30,58,30)}
-                <circle cx="-8" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="-8" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>
-                <circle cx="-8" cy="30" r="2" fill="${CLR}" class="pin-point" data-pin="2"/>
-                <circle cx="58" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="3"/>
-                <circle cx="58" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="4"/>
-                <circle cx="58" cy="30" r="2" fill="${CLR}" class="pin-point" data-pin="5"/>`,
+                <circle cx="-8" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="0,1"/>
+                <circle cx="-8" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="0,1"/>
+                <circle cx="-8" cy="30" r="2" fill="${CLR}" class="pin-point" data-pin="2" data-pin-dir="0,1"/>
+                <circle cx="58" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="3" data-pin-dir="1,0"/>
+                <circle cx="58" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="4" data-pin-dir="1,0"/>
+                <circle cx="58" cy="30" r="2" fill="${CLR}" class="pin-point" data-pin="5" data-pin-dir="1,0"/>`,
         },
         // ── GROUND ──────────────────────────────────────────
         {
@@ -175,7 +175,7 @@
                 <line x1="-14" y1="0" x2="14" y2="0" stroke="${CLR}" stroke-width="2"/>
                 <line x1="-8" y1="5" x2="8" y2="5" stroke="${CLR}" stroke-width="1.5"/>
                 <line x1="-3" y1="10" x2="3" y2="10" stroke="${CLR}" stroke-width="1"/>
-                <circle cx="0" cy="-16" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>`,
+                <circle cx="0" cy="-16" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="0,-1"/>`,
         },
         // ── VCC / POWER ──────────────────────────────────────
         {
@@ -189,7 +189,7 @@
             svgContent: `
                 ${wire(0,16,0,5)}
                 <polygon points="0,-10 -10,5 10,5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
-                <circle cx="0" cy="16" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>`,
+                <circle cx="0" cy="16" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="0,1"/>`,
         },
         // ── SWITCH / CONNECTOR ───────────────────────────────
         {
@@ -205,7 +205,7 @@
                 <circle cx="0" cy="0" r="12" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <circle cx="0" cy="0" r="4"  fill="${CLR}"/>
                 ${wire(-28,0,-12,0)}
-                <circle cx="-28" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>`,
+                <circle cx="-28" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>`,
         },
         // ── PNP TRANSISTOR ───────────────────────────────────
         {
@@ -225,9 +225,9 @@
                 <line x1="0" y1="-10" x2="16" y2="-20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <line x1="0" y1="10" x2="16" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <polygon points="6,14 0,10 6,6" fill="${CLR}"/>
-                <circle cx="-20" cy="0"  r="2" fill="${CLR}" class="pin-point" data-pin="base"/>
-                <circle cx="16"  cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="collector"/>
-                <circle cx="16"  cy="20"  r="2" fill="${CLR}" class="pin-point" data-pin="emitter"/>`,
+                <circle cx="-20" cy="0"  r="2" fill="${CLR}" class="pin-point" data-pin="base" data-pin-dir="-1,0"/>
+                <circle cx="16"  cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="collector" data-pin-dir="0,-1"/>
+                <circle cx="16"  cy="20"  r="2" fill="${CLR}" class="pin-point" data-pin="emitter" data-pin-dir="0,1"/>`,
         },
         // ── N-MOSFET ─────────────────────────────────────────
         {
@@ -257,9 +257,9 @@
                 <line x1="2" y1="0" x2="20" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <line x1="20" y1="-20" x2="20" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <polygon points="12,-3 2,0 12,3" fill="${CLR}"/>
-                <circle cx="-20" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="gate"/>
-                <circle cx="20" cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="drain"/>
-                <circle cx="20" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="source"/>`,
+                <circle cx="-20" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="gate" data-pin-dir="-1,0"/>
+                <circle cx="20" cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="drain" data-pin-dir="1,0"/>
+                <circle cx="20" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="source" data-pin-dir="1,0"/>`,
         },
         // ── P-MOSFET ─────────────────────────────────────────
         {
@@ -289,9 +289,9 @@
                 <line x1="2" y1="0" x2="20" y2="0" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <line x1="20" y1="-20" x2="20" y2="20" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <polygon points="4,-3 14,0 4,3" fill="${CLR}"/>
-                <circle cx="-20" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="gate"/>
-                <circle cx="20" cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="drain"/>
-                <circle cx="20" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="source"/>`,
+                <circle cx="-20" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="gate" data-pin-dir="-1,0"/>
+                <circle cx="20" cy="-20" r="2" fill="${CLR}" class="pin-point" data-pin="drain" data-pin-dir="1,0"/>
+                <circle cx="20" cy="20" r="2" fill="${CLR}" class="pin-point" data-pin="source" data-pin-dir="1,0"/>`,
         },
         // ── ZENER DIODE ───────────────────────────────────────
         {
@@ -313,8 +313,8 @@
                 <line x1="8" y1="-8" x2="12" y2="-12" stroke="${CLR}" stroke-width="2"/>
                 <line x1="8" y1="8" x2="4" y2="12" stroke="${CLR}" stroke-width="2"/>
                 ${wire(8,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="1,0"/>`,
         },
         // ── SCHOTTKY DIODE ────────────────────────────────────
         {
@@ -340,8 +340,8 @@
                 <line x1="8" y1="8" x2="2" y2="8" stroke="${CLR}" stroke-width="2"/>
                 <line x1="2" y1="8" x2="2" y2="4" stroke="${CLR}" stroke-width="2"/>
                 ${wire(8,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="1,0"/>`,
         },
         // ── POLARIZED CAPACITOR ───────────────────────────────
         {
@@ -361,8 +361,8 @@
                 <path d="M10,-9 Q4,0 10,9" fill="none" stroke="${CLR}" stroke-width="2.5" stroke-linecap="round"/>
                 <text x="-16" y="-6" font-size="8" fill="${CLR}">+</text>
                 ${wire(7,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="+"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="-"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="+" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="-" data-pin-dir="1,0"/>`,
         },
         // ── BATTERY / DC SOURCE ───────────────────────────────
         {
@@ -382,8 +382,8 @@
                 <line x1="6" y1="-6" x2="6" y2="6" stroke="${CLR}" stroke-width="4"/>
                 <text x="-18" y="-8" font-size="8" fill="${CLR}">+</text>
                 ${wire(6,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="+"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="-"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="+" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="-" data-pin-dir="1,0"/>`,
         },
         // ── AC SOURCE ─────────────────────────────────────────
         {
@@ -401,8 +401,8 @@
                 <circle cx="0" cy="0" r="12" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <path d="M-6,0 Q-3,-6 0,0 T6,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 ${wire(12,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="1,0"/>`,
         },
         // ── SPST SWITCH ───────────────────────────────────────
         {
@@ -422,8 +422,8 @@
                 <circle cx="-10" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <circle cx="18" cy="0" r="2.5" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <line x1="-10" y1="0" x2="14" y2="-10" stroke="${CLR}" stroke-width="${STROKE_W}" stroke-linecap="round"/>
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="2"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="2" data-pin-dir="1,0"/>`,
         },
         // ── PUSHBUTTON ────────────────────────────────────────
         {
@@ -447,8 +447,8 @@
                 <line x1="-10" y1="-8" x2="10" y2="-8" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <line x1="0" y1="-8" x2="0" y2="-14" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <line x1="-4" y1="-14" x2="4" y2="-14" stroke="${CLR}" stroke-width="${STROKE_W}"/>
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="2"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="1" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="2" data-pin-dir="1,0"/>`,
         },
         // ── OP-AMP ────────────────────────────────────────────
         {
@@ -470,9 +470,9 @@
                 <text x="-14" y="-6" font-size="8" fill="${CLR}">−</text>
                 <text x="-14" y="14" font-size="8" fill="${CLR}">+</text>
                 ${wire(20,0,30,0)}
-                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in-"/>
-                <circle cx="-30" cy="10"  r="2" fill="${CLR}" class="pin-point" data-pin="in+"/>
-                <circle cx="30"  cy="0"   r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in-" data-pin-dir="-1,0"/>
+                <circle cx="-30" cy="10"  r="2" fill="${CLR}" class="pin-point" data-pin="in+" data-pin-dir="-1,0"/>
+                <circle cx="30"  cy="0"   r="2" fill="${CLR}" class="pin-point" data-pin="out" data-pin-dir="1,0"/>`,
         },
         // ── AND GATE ──────────────────────────────────────────
         {
@@ -490,9 +490,9 @@
                 ${wire(-30,10,-14,10)}
                 <path d="M-14,-16 L0,-16 A16,16 0 0,1 0,16 L-14,16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 ${wire(16,0,30,0)}
-                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
-                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1" data-pin-dir="-1,0"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out" data-pin-dir="1,0"/>`,
         },
         // ── OR GATE ───────────────────────────────────────────
         {
@@ -510,9 +510,9 @@
                 ${wire(-30,10,-10,10)}
                 <path d="M-16,-16 Q-4,0 -16,16 Q4,16 16,0 Q4,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 ${wire(16,0,30,0)}
-                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
-                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1" data-pin-dir="-1,0"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out" data-pin-dir="1,0"/>`,
         },
         // ── NOT GATE ──────────────────────────────────────────
         {
@@ -530,8 +530,8 @@
                 <polygon points="-10,-12 -10,12 10,0" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <circle cx="13" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 ${wire(16,0,30,0)}
-                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="in"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+                <circle cx="-30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="in" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out" data-pin-dir="1,0"/>`,
         },
         // ── NAND GATE ─────────────────────────────────────────
         {
@@ -551,9 +551,9 @@
                 <path d="M-14,-16 L-2,-16 A16,16 0 0,1 -2,16 L-14,16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <circle cx="17" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 ${wire(20,0,30,0)}
-                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
-                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1" data-pin-dir="-1,0"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out" data-pin-dir="1,0"/>`,
         },
         // ── NOR GATE ──────────────────────────────────────────
         {
@@ -573,9 +573,9 @@
                 <path d="M-16,-16 Q-4,0 -16,16 Q2,16 12,0 Q2,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <circle cx="15" cy="0" r="3" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 ${wire(18,0,30,0)}
-                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
-                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1" data-pin-dir="-1,0"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out" data-pin-dir="1,0"/>`,
         },
         // ── XOR GATE ──────────────────────────────────────────
         {
@@ -595,9 +595,9 @@
                 <path d="M-20,-16 Q-8,0 -20,16" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <path d="M-16,-16 Q-4,0 -16,16 Q4,16 16,0 Q4,-16 -16,-16 Z" fill="none" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 ${wire(16,0,30,0)}
-                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1"/>
-                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2"/>
-                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out"/>`,
+                <circle cx="-30" cy="-10" r="2" fill="${CLR}" class="pin-point" data-pin="in1" data-pin-dir="-1,0"/>
+                <circle cx="-30" cy="10" r="2" fill="${CLR}" class="pin-point" data-pin="in2" data-pin-dir="-1,0"/>
+                <circle cx="30" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="out" data-pin-dir="1,0"/>`,
         },
         // ── NET LABEL ────────────────────────────────────────
         {
@@ -611,7 +611,7 @@
             svgContent: `
                 <polygon points="-10,-8 30,-8 38,0 30,8 -10,8" fill="rgba(79,172,254,0.15)" stroke="${CLR}" stroke-width="${STROKE_W}"/>
                 <text x="10" y="4" text-anchor="middle" font-size="9" fill="${CLR}" font-family="monospace" class="sym-value">NET</text>
-                <circle cx="-10" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0"/>`,
+                <circle cx="-10" cy="0" r="2" fill="${CLR}" class="pin-point" data-pin="0" data-pin-dir="-1,0"/>`,
         },
     ];
 

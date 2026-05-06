@@ -151,74 +151,196 @@ Object.assign(MobileSVGEditor.prototype, {
         };
     },
 
-    // ── Snap to nearby elements + grid (smart snap) ──────────
+    // ── Smart snap (axis-independent, 6 targets) ─────────────
+    // Used by drawing tools (wire, line, shapes).
+    // Snaps x and y independently to nearby element edges/centers.
     smartSnap(x, y, excludeIds = []) {
-        const snapped = this.snapPoint(x, y);
-        const THRESH  = 6;
+        if (!this._grid.snapOn) return { x, y };
+        const gridPt = this.snapPoint(x, y);
+        const THRESH = 8 / (this.zoom || 1);
 
-        // Use BBox map cache if available (no getBBox reflow)
-        const bboxSource = this._bboxMap?.size
+        const bboxes = this._bboxMap?.size
             ? [...this._bboxMap.entries()]
                 .filter(([id]) => !excludeIds.includes(id))
-                .map(([, bb]) => bb)
-            : null;
-
-        // Fall back to live querySelectorAll+getBBox only when cache is empty
-        const bboxes = bboxSource ?? (() => {
-            return Array.from(this.$svgDisplay[0].querySelectorAll(
-                'rect, circle, ellipse, line, path, polygon, polyline, text'
-            )).filter(el =>
-                !el.id.startsWith('_grid') &&
-                !el.classList.contains('selection-handle') &&
-                !el.classList.contains('draw-preview') &&
+                .map(([, bb]) => bb).filter(Boolean)
+            : Array.from(this._contentRoot?.querySelectorAll?.(
+                '.domain-symbol, path[data-geo-class="wire"]'
+            ) ?? []).filter(el =>
+                !el.id?.startsWith('_') &&
                 !el.classList.contains('snap-guide') &&
+                !el.classList.contains('draw-preview') &&
                 !excludeIds.includes(el.id)
             ).map(el => { try { return el.getBBox(); } catch(_) { return null; } })
              .filter(Boolean);
-        })();
 
-        let bestDist = THRESH;
-        let result   = snapped;
+        let snapX = gridPt.x, snapY = gridPt.y;
+        let distX = Math.abs(x - gridPt.x), distY = Math.abs(y - gridPt.y);
 
         bboxes.forEach(bb => {
-            if (!bb.width && !bb.height) return;
-            const points = [
-                { x: bb.x,               y: bb.y               },
-                { x: bb.x + bb.width / 2, y: bb.y + bb.height / 2 },
-                { x: bb.x + bb.width,     y: bb.y + bb.height   },
-            ];
-            points.forEach(pt => {
-                const d = Math.hypot(snapped.x - pt.x, snapped.y - pt.y);
-                if (d < bestDist) { bestDist = d; result = { x: pt.x, y: pt.y }; }
+            if (!bb || (!bb.width && !bb.height)) return;
+            // X: left edge, center, right edge
+            [bb.x, bb.x + bb.width * 0.5, bb.x + bb.width].forEach(cx => {
+                const d = Math.abs(x - cx);
+                if (d < THRESH && d < distX) { distX = d; snapX = cx; }
+            });
+            // Y: top edge, center, bottom edge
+            [bb.y, bb.y + bb.height * 0.5, bb.y + bb.height].forEach(cy => {
+                const d = Math.abs(y - cy);
+                if (d < THRESH && d < distY) { distY = d; snapY = cy; }
             });
         });
 
-        return result;
+        return { x: snapX, y: snapY };
     },
 
-    // ── Snap guide lines ──────────────────────────────────────
+    // ── Alignment snap for element drag (Figma-style) ────────
+    // Projects origBBoxes (world-space, captured at drag start) by delta,
+    // then finds the smallest per-axis adjustment that aligns a selection
+    // edge to a reference element edge. Returns {delta, guides} or null.
+    _computeAlignSnap(origBBoxes, delta, excludeIds = []) {
+        if (!this._grid.snapOn || !origBBoxes?.length) return null;
+        const THRESH = 8 / (this.zoom || 1);
+
+        // Compute union bbox of all selection elements projected to current delta
+        let uL = Infinity, uT = Infinity, uR = -Infinity, uB = -Infinity;
+        origBBoxes.forEach(bb => {
+            if (!bb) return;
+            uL = Math.min(uL, bb.x + delta.x);
+            uT = Math.min(uT, bb.y + delta.y);
+            uR = Math.max(uR, bb.x + bb.width  + delta.x);
+            uB = Math.max(uB, bb.y + bb.height + delta.y);
+        });
+        if (!isFinite(uL)) return null;
+        const uW = uR - uL, uH = uB - uT;
+
+        const selEdgesX = [uL, uL + uW * 0.5, uR];
+        const selEdgesY = [uT, uT + uH * 0.5, uB];
+
+        const refs = this._getOtherElementBBoxes(excludeIds);
+        if (!refs.length) return null;
+
+        let bestDx = 0, bestDxDist = THRESH + 1, xGuide = null;
+        let bestDy = 0, bestDyDist = THRESH + 1, yGuide = null;
+
+        refs.forEach(ref => {
+            if (!ref || (!ref.width && !ref.height)) return;
+            const refEdgesX = [ref.x, ref.x + ref.width * 0.5, ref.x + ref.width];
+            const refEdgesY = [ref.y, ref.y + ref.height * 0.5, ref.y + ref.height];
+
+            selEdgesX.forEach(se => refEdgesX.forEach(re => {
+                const d = Math.abs(se - re);
+                if (d < THRESH && d < bestDxDist) {
+                    bestDxDist = d;
+                    bestDx = delta.x + (re - se); // shift so selection edge lands on re
+                    xGuide = { axis: 'v', at: re, ref };
+                }
+            }));
+
+            selEdgesY.forEach(se => refEdgesY.forEach(re => {
+                const d = Math.abs(se - re);
+                if (d < THRESH && d < bestDyDist) {
+                    bestDyDist = d;
+                    bestDy = delta.y + (re - se);
+                    yGuide = { axis: 'h', at: re, ref };
+                }
+            }));
+        });
+
+        const xSnapped = bestDxDist <= THRESH;
+        const ySnapped = bestDyDist <= THRESH;
+        if (!xSnapped && !ySnapped) return null;
+
+        const finalDx = xSnapped ? bestDx : delta.x;
+        const finalDy = ySnapped ? bestDy : delta.y;
+
+        // Re-project union with final delta so guide span is drawn at the actual final position
+        const finalUL = uL + (finalDx - delta.x);
+        const finalUT = uT + (finalDy - delta.y);
+        const sel = { x: finalUL, y: finalUT, w: uW, h: uH };
+        if (xGuide) xGuide.sel = sel;
+        if (yGuide) yGuide.sel = sel;
+
+        return {
+            delta: { x: finalDx, y: finalDy },
+            guides: [xGuide, yGuide].filter(Boolean),
+        };
+    },
+
+    // Returns world-space bboxes for all non-selected elements.
+    // Prefers _bboxMap (no reflow); falls back to live querySelectorAll.
+    _getOtherElementBBoxes(excludeIds = []) {
+        const excl = new Set(excludeIds);
+        if (this._bboxMap?.size) {
+            const out = [];
+            this._bboxMap.forEach((bb, id) => { if (!excl.has(id) && bb) out.push(bb); });
+            if (out.length) return out;
+        }
+        const root = this._contentRoot || this.$svgDisplay?.[0];
+        if (!root) return [];
+        const out = [];
+        root.querySelectorAll('.domain-symbol').forEach(el => {
+            if (el.id?.startsWith('_') || excl.has(el.id)) return;
+            if (el.dataset?.seSystem === 'true') return;
+            try {
+                const bb = el.getBBox();
+                if (bb.width > 0 || bb.height > 0) out.push(bb);
+            } catch(_) {}
+        });
+        return out;
+    },
+
+    // ── Bounded alignment guides (Figma-style) ───────────────
+    // Draws a line from the selection edge to the reference element edge,
+    // spanning only the y-range (for vertical guides) or x-range (for
+    // horizontal guides) of the two aligned elements — not full canvas.
+    showAlignmentGuides(guides) {
+        this.$svgDisplay[0].querySelectorAll('.snap-align').forEach(el => el.remove());
+        if (!guides?.length) return;
+
+        const NS  = this.SVG_NS;
+        const root = this._contentRoot || this.$svgDisplay[0];
+        const PAD = 20;
+
+        guides.forEach(g => {
+            if (!g?.sel || !g?.ref) return;
+            const line = document.createElementNS(NS, 'line');
+            line.classList.add('snap-guide', 'snap-align');
+            line.setAttribute('pointer-events', 'none');
+
+            if (g.axis === 'v') {
+                // Vertical line at g.at — spans both elements' Y ranges
+                const minY = Math.min(g.sel.y, g.ref.y) - PAD;
+                const maxY = Math.max(g.sel.y + g.sel.h, g.ref.y + g.ref.height) + PAD;
+                line.setAttribute('x1', g.at); line.setAttribute('y1', minY);
+                line.setAttribute('x2', g.at); line.setAttribute('y2', maxY);
+            } else {
+                // Horizontal line at g.at — spans both elements' X ranges
+                const minX = Math.min(g.sel.x, g.ref.x) - PAD;
+                const maxX = Math.max(g.sel.x + g.sel.w, g.ref.x + g.ref.width) + PAD;
+                line.setAttribute('x1', minX); line.setAttribute('y1', g.at);
+                line.setAttribute('x2', maxX); line.setAttribute('y2', g.at);
+            }
+            root.appendChild(line);
+        });
+    },
+
+    // ── Grid/snap crosshair for drawing tools ─────────────────
     showSnapGuides(x, y) {
         this._removeSnapGuides();
         const NS  = this.SVG_NS;
         const svg = this.$svgDisplay[0];
         const vb  = (svg.getAttribute('viewBox') || '0 0 2000 2000').trim().split(/[\s,]+/).map(Number);
-
-        // Optional check for NaN just in case the SVG state is completely broken from earlier errors
         if (isNaN(vb[0])) return;
 
         const makeGuide = (orientation) => {
             const line = document.createElementNS(NS, 'line');
             line.classList.add('snap-guide');
             if (orientation === 'h') {
-                line.setAttribute('x1', String(vb[0]));
-                line.setAttribute('y1', String(y));
-                line.setAttribute('x2', String(vb[0] + vb[2]));
-                line.setAttribute('y2', String(y));
+                line.setAttribute('x1', String(vb[0]));       line.setAttribute('y1', String(y));
+                line.setAttribute('x2', String(vb[0] + vb[2])); line.setAttribute('y2', String(y));
             } else {
-                line.setAttribute('x1', String(x));
-                line.setAttribute('y1', String(vb[1]));
-                line.setAttribute('x2', String(x));
-                line.setAttribute('y2', String(vb[1] + vb[3]));
+                line.setAttribute('x1', String(x));           line.setAttribute('y1', String(vb[1]));
+                line.setAttribute('x2', String(x));           line.setAttribute('y2', String(vb[1] + vb[3]));
             }
             line.setAttribute('pointer-events', 'none');
             svg.appendChild(line);
