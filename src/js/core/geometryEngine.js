@@ -1,6 +1,12 @@
 /* ============================================================
-   Schematics Editor — Geometry Engine
-   4-phase analysis pipeline replacing analyzeWiringDiagram().
+   ginexys-schema-engine — Geometry Engine
+   @public-api  Part of the open engine. See engine.js for the
+                CDN entry point exposing KDTree2D / QuadTree2D /
+                CameraMatrix as standalone classes.
+
+   This file is a MobileSVGEditor prototype mixin. It adds a
+   4-phase SVG topology analysis pipeline to any host that
+   extends MobileSVGEditor.
 
    Phase 1 — Canonicalization
      • Matrix de-nesting → global coordinate space
@@ -13,9 +19,9 @@
      • BBox aspect ratio (supplementary)
 
    Phase 3 — Topology
-     • All wire endpoints into KD-Tree
+     • All edge endpoints into KD-Tree
      • Vertex snapping within ε (heals shattered PDF coords)
-     • Port discovery: wire endpoints on component perimeters
+     • Port discovery: edge endpoints on node perimeters
 
    Phase 4 — Adjacency Graph
      • ComponentNode, JunctionNode, WireEdge

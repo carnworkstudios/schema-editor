@@ -761,12 +761,12 @@
     <!-- Geometry Engine (4-phase pipeline — after canvas, before features) -->
     <script src="src/js/core/geometryEngine.js"></script>
 
-    <!-- Domain Kits (Phase 2) -->
-    <script src="src/js/domains/domainManager.js"></script>
-    <script src="src/js/domains/generalKit.js"></script>
-    <script src="src/js/domains/electricalKit.js"></script>
-    <script src="src/js/domains/softwareKit.js"></script>
-    <script src="src/js/domains/constructionKit.js"></script>
+    <!-- Domain Kits — portfolio-managed, not in engine submodule -->
+    <script src="/assets/schema-editor/domains/domainManager.js"></script>
+    <script src="/assets/schema-editor/domains/generalKit.js"></script>
+    <script src="/assets/schema-editor/domains/electricalKit.js"></script>
+    <script src="/assets/schema-editor/domains/softwareKit.js"></script>
+    <script src="/assets/schema-editor/domains/constructionKit.js"></script>
 
     <!-- Features -->
     <script src="src/js/features/viewTransform.js"></script>
@@ -881,8 +881,8 @@
                 });
             }
 
-            // CWS IPC: receive back-annotation from TAFNE
-            CwsBridge.onData(function (envelope) {
+            // CWS IPC: receive back-annotation from TAFNE (no-op when OS bridge absent)
+            if (window.CwsBridge) CwsBridge.onData(function (envelope) {
                 if (envelope?.hints?.action !== 'back-annotate') return;
                 window.editor.receiveBackAnnotation(envelope);
             });
