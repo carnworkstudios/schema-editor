@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GinexysEngine — Standalone Engine Reference | GINEXYS</title>
+<meta name="description" content="API reference for GinexysEngine: PDFGeometryEngine for vector topology analysis, KDTree2D and QuadTree2D spatial indexes, and CameraMatrix. Worker-safe engines for PDF extraction and diagram analysis.">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://ginexys.com/tools/schema-editor/docs/engine/">
+<meta property="og:type" content="article">
+<meta property="og:title" content="GinexysEngine — Standalone Engine Reference | GINEXYS">
+<meta property="og:description" content="API reference for GinexysEngine: PDFGeometryEngine, KDTree2D, QuadTree2D, and CameraMatrix.">
+<meta property="og:url" content="https://ginexys.com/tools/schema-editor/docs/engine/">
+<meta property="og:site_name" content="GINEXYS">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "GinexysEngine — Standalone Engine Reference",
+      "description": "API reference for GinexysEngine: PDFGeometryEngine, KDTree2D, QuadTree2D, CameraMatrix.",
+      "url": "https://ginexys.com/tools/schema-editor/docs/engine/",
+      "isPartOf": {
+        "@type": "WebApplication",
+        "name": "Schema Editor",
+        "url": "https://ginexys.com/tools/schema-editor/"
+      },
+      "publisher": {
+        "@type": "Organization",
+        "name": "GINEXYS",
+        "url": "https://ginexys.com"
+      },
+      "dateModified": "2026-05-07"
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "GINEXYS", "item": "https://ginexys.com/" },
+        { "@type": "ListItem", "position": 2, "name": "Tools", "item": "https://ginexys.com/tools/" },
+        { "@type": "ListItem", "position": 3, "name": "Schema Editor", "item": "https://ginexys.com/tools/schema-editor/" },
+        { "@type": "ListItem", "position": 4, "name": "Docs", "item": "https://ginexys.com/tools/schema-editor/docs/getting-started.html" },
+        { "@type": "ListItem", "position": 5, "name": "Engine Reference" }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&display=swap" rel="stylesheet">
+<style>:root{--bg:#0b1018;--bg-r:#0f1720;--bg-o:#162030;--br:#1e3348;--br-s:#2a4a66;--ac:#c9a84c;--ac2:#00b4d8;--tx:#d8eaf8;--txs:#6a90b0;--txd:#354d63;--radius:6px;}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--tx);font-family:'DM Mono','Courier New',monospace;font-size:13px;line-height:1.65;}
+.gx-nav{height:44px;background:var(--bg-r);border-bottom:1px solid var(--br);display:flex;align-items:center;padding:0 20px;gap:0;position:sticky;top:0;z-index:10;}
+.gx-breadcrumb{list-style:none;display:flex;align-items:center;gap:0;flex:1;min-width:0;overflow:hidden;}
+.gx-breadcrumb li{display:flex;align-items:center;font-size:11px;letter-spacing:.05em;white-space:nowrap;color:var(--txd);}
+.gx-breadcrumb li+li::before{content:'/';margin:0 6px;color:var(--txd);}
+.gx-breadcrumb a{color:var(--txs);text-decoration:none;transition:color .15s;}
+.gx-breadcrumb a:hover{color:var(--ac);}
+.gx-breadcrumb li:last-child{color:var(--tx);overflow:hidden;text-overflow:ellipsis;}
+.gx-open-btn{font-size:10px;letter-spacing:.08em;color:var(--txs);text-decoration:none;border:1px solid var(--br);border-radius:var(--radius);padding:4px 12px;white-space:nowrap;transition:border-color .15s,color .15s;flex-shrink:0;}
+.gx-open-btn:hover{border-color:var(--ac);color:var(--ac);}
+.gx-docs-wrap{max-width:760px;margin:0 auto;padding:36px 24px 80px;}
+.gx-docs-content h1{font-size:24px;color:var(--tx);margin-bottom:20px;padding-bottom:12px;border-bottom:1px solid var(--br);line-height:1.3;}
+.gx-docs-content h2{font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--tx);margin:28px 0 10px;padding-left:8px;border-left:2px solid var(--ac);}
+.gx-docs-content h3{font-size:12px;color:var(--ac2);margin:18px 0 6px;}
+.gx-docs-content h4{font-size:12px;color:var(--txs);margin:14px 0 4px;font-style:italic;}
+.gx-docs-content p{color:var(--txs);margin-bottom:12px;line-height:1.8;}
+.gx-docs-content ul,.gx-docs-content ol{margin:8px 0 14px 20px;color:var(--txs);}
+.gx-docs-content li{margin-bottom:5px;line-height:1.7;}
+.gx-docs-content strong{color:var(--tx);font-weight:500;}
+.gx-docs-content em{color:var(--txs);font-style:italic;}
+.gx-docs-content code{background:var(--bg-o);padding:1px 5px;border:1px solid var(--br);font-size:11px;color:var(--ac2);border-radius:3px;}
+.gx-docs-content pre{background:var(--bg-o);border:1px solid var(--br);border-left:2px solid var(--ac);padding:14px 16px;margin:14px 0;overflow-x:auto;border-radius:var(--radius);}
+.gx-docs-content pre code{background:none;border:none;padding:0;color:var(--txs);font-size:11px;line-height:1.65;}
+.gx-docs-content blockquote{border-left:3px solid var(--ac);padding:10px 16px;background:rgba(201,168,76,.06);margin:14px 0;color:var(--txs);border-radius:0 var(--radius) var(--radius) 0;}
+.gx-docs-content blockquote.note{border-left-color:var(--ac2);background:rgba(0,180,216,.06);}
+.gx-docs-content hr{border:none;border-top:1px solid var(--br);margin:24px 0;}
+.gx-docs-content a{color:var(--ac2);text-decoration:none;}
+.gx-docs-content a:hover{text-decoration:underline;}
+.gx-docs-content .table-wrap{overflow-x:auto;margin:14px 0;}
+.gx-docs-content table{width:100%;border-collapse:collapse;font-size:12px;}
+.gx-docs-content th{text-align:left;font-size:10px;letter-spacing:.08em;text-transform:uppercase;color:var(--txs);padding:8px 12px;border-bottom:1px solid var(--br);background:var(--bg-o);}
+.gx-docs-content td{padding:7px 12px;border-bottom:1px solid var(--br);color:var(--txs);vertical-align:top;}
+.gx-docs-related{margin-top:40px;padding-top:20px;border-top:1px solid var(--br);}
+.gx-docs-related-label{font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--txd);margin-bottom:10px;}
+.gx-link-row{display:flex;flex-wrap:wrap;gap:8px;}
+.gx-link-chip{font-size:11px;color:var(--txs);text-decoration:none;border:1px solid var(--br);border-radius:var(--radius);padding:5px 12px;transition:border-color .15s,color .15s;white-space:nowrap;}
+.gx-link-chip:hover{border-color:var(--ac2);color:var(--ac2);}
+.pill{display:inline-block;font-size:10px;letter-spacing:.06em;padding:2px 8px;border-radius:99px;margin-left:6px;vertical-align:middle;}
+.pill-green{background:rgba(0,180,100,.12);color:#00b464;border:1px solid rgba(0,180,100,.25);}
+.pill-amber{background:rgba(201,168,76,.1);color:var(--ac);border:1px solid rgba(201,168,76,.2);}
+.phase-row{display:flex;gap:12px;margin:14px 0;flex-wrap:wrap;}
+.phase-box{flex:1;min-width:140px;background:var(--bg-o);border:1px solid var(--br);border-radius:var(--radius);padding:10px 14px;}
+.phase-box .phase-num{font-size:10px;letter-spacing:.1em;color:var(--txd);text-transform:uppercase;margin-bottom:4px;}
+.phase-box .phase-name{font-size:12px;color:var(--tx);margin-bottom:4px;}
+.phase-box .phase-desc{font-size:11px;color:var(--txs);line-height:1.5;}
+</style>
+</head>
+<body>
+<nav class="gx-nav" aria-label="Breadcrumb">
+  <ol class="gx-breadcrumb">
+    <li><a href="/">GINEXYS</a></li>
+    <li><a href="/tools/">Tools</a></li>
+    <li><a href="/tools/schema-editor/">Schema Editor</a></li>
+    <li><a href="/tools/schema-editor/docs/getting-started.html">Docs</a></li>
+    <li aria-current="page">Engine Reference</li>
+  </ol>
+  <a class="gx-open-btn" href="/tools/schema-editor/">Open Tool ↗</a>
+</nav>
+<div class="gx-docs-wrap">
+  <article class="gx-docs-content">
+
+<h1>GinexysEngine — Standalone Engine Reference</h1>
+
+<p><code>GinexysEngine</code> is the computation layer extracted from the Schema Editor and exposed as a standalone namespace. The engines below run independently of the diagram UI — no SVG canvas, no editor state required.</p>
+
+<pre><code>window.GinexysEngine = {
+  PDFGeometryEngine, // vector topology engine  — worker-safe
+  KDTree2D,          // 2D spatial index        — worker-safe
+  QuadTree2D,        // 2D spatial partitioning — worker-safe
+  CameraMatrix,      // pan/zoom/rotate math    — worker-safe
+  version: '1.1.0'
+}</code></pre>
+
+<p>The primary use case is <strong>document intelligence</strong>: extracting structured data (wires, components, connection graphs, table grids) from raw PDF vector streams or SVG files. <code>PDFGeometryEngine</code> is the workhorse; the spatial indexes and camera math are its supporting cast.</p>
+
+<h4>Loading</h4>
+<pre><code>&lt;!-- browser --&gt;
+&lt;script src="src/js/core/kdTree.js"&gt;&lt;/script&gt;
+&lt;script src="src/js/core/quadTree.js"&gt;&lt;/script&gt;
+&lt;script src="src/js/core/cameraMatrix.js"&gt;&lt;/script&gt;
+&lt;script src="src/js/core/geometry-engine.standalone.js"&gt;&lt;/script&gt;
+&lt;script src="src/js/core/engine.js"&gt;&lt;/script&gt;
+
+&lt;!-- web worker --&gt;
+importScripts('kdTree.js', 'geometry-engine.standalone.js', 'engine.js');</code></pre>
+
+<hr>
+
+<h2 id="pdf-geometry-engine">PDFGeometryEngine <span class="pill pill-green">worker-safe</span></h2>
+
+<p>A four-phase topology pipeline that takes raw vector element descriptors and returns a structured connection graph. Designed for analyzing engineering diagrams, circuit schematics, floorplans, and table grids extracted from PDFs or SVG files.</p>
+
+<h3>The problem it solves</h3>
+<p>PDF renderers shatter continuous lines into dozens of 2–3 point segments. SVG files mix path geometry with transform stacks. Neither format gives you "this is a wire connecting component A to component B." PDFGeometryEngine normalizes raw geometry into a topology graph you can reason about.</p>
+
+<div class="phase-row">
+  <div class="phase-box"><div class="phase-num">Phase 1</div><div class="phase-name">Transform baking</div><div class="phase-desc">Flatten nested SVG transforms to page-space coordinates using DOMMatrix/DOMPoint</div></div>
+  <div class="phase-box"><div class="phase-num">Phase 2</div><div class="phase-name">Collinear merge</div><div class="phase-desc">Group fragmented line segments by angle bucket + axis band, merge chains within join tolerance</div></div>
+  <div class="phase-box"><div class="phase-num">Phase 3</div><div class="phase-name">Classification</div><div class="phase-desc">Score each element: linearity, circularity → wire / component / connector</div></div>
+  <div class="phase-box"><div class="phase-num">Phase 4</div><div class="phase-name">Topology + graph</div><div class="phase-desc">KDTree2D vertex snapping, port discovery, adjacency graph construction</div></div>
+</div>
+
+<h3>Constructor</h3>
+<pre><code>const engine = new GinexysEngine.PDFGeometryEngine({
+  eps:          8,    // vertex snap tolerance in px (default 8)
+  linTolerance: 0.82, // linearity threshold for wires (default 0.82)
+  cirTolerance: 0.75, // circularity threshold for components (default 0.75)
+});</code></pre>
+
+<h3>Descriptor contract</h3>
+<p>The engine accepts an array of plain JS descriptor objects — no SVG DOM elements. Each descriptor maps to one SVG element:</p>
+<pre><code>const descriptor = {
+  id:        'el-001',               // unique string ID
+  tagName:   'path',                 // 'path' | 'line' | 'polyline' | 'circle' | 'rect' | 'ellipse' | 'g'
+  cmds:      [...],                  // path command array (for tagName='path')
+  pts:       [x1, y1, x2, y2],      // point array (for line/polyline)
+  bbox:      { x, y, width, height }, // pre-computed bounding box
+  attrs: {
+    stroke:           '#000',
+    fill:             'none',
+    'stroke-width':   '1',
+    'class':          'wire',        // optional CSS class
+    'data-geo-class': 'component',   // optional explicit class hint
+    'data-symbol':    'resistor',    // optional symbol type
+  },
+  transform: 'matrix(1,0,0,1,10,20)' // SVG transform string, or null
+};</code></pre>
+
+<blockquote class="note"><strong>Note:</strong> You do not need to provide <code>cmds</code>, <code>pts</code>, and <code>bbox</code> manually when using the main-thread helper. Use <code>PDFGeometryEngine.serialize(svgEl)</code> to walk a live SVG DOM and produce the descriptor array automatically.</blockquote>
+
+<h3>analyze(descriptors)</h3>
+<p>The main entry point. Runs all four phases and returns a structured result.</p>
+<pre><code>const result = engine.analyze(descriptors);
+
+// result shape:
+{
+  wires:      Wire[],       // classified wire elements with topology scores
+  components: Component[],  // classified component elements
+  connectors: Connector[],  // junction/crossing points
+  ports:      Port[],       // connection endpoints
+  graph:      AdjacencyGraph,
+  tableRules: Wire[],       // subset of wires that are likely table grid lines
+}</code></pre>
+
+<h4>Wire object</h4>
+<pre><code>{
+  id:         string,
+  pts:        number[],   // [x1,y1, x2,y2, ...]  baked to page-space
+  linearity:  number,     // 0–1, how straight the path is
+  length:     number,     // total arc length in px
+  width:      number,     // stroke-width
+  angle:      number,     // dominant angle in degrees [0, 180)
+}</code></pre>
+
+<h4>AdjacencyGraph object</h4>
+<pre><code>{
+  nodes: {
+    [id]: { type: 'wire'|'component'|'port', refs: string[] }
+  },
+  edges: [
+    { from: string, to: string, via: 'port'|'junction' }
+  ],
+  junctions: Port[]
+}</code></pre>
+
+<h3>getTableRuleCandidates(wires)</h3>
+<p>Filters a wire array to those matching the table grid line heuristic: <strong>linearity ≥ 0.88, stroke-width ≤ 2, length > 20px</strong>. The output is the hand-off to a lattice reconstructor (Phase 3 of the PDF pipeline).</p>
+<pre><code>const tableRules = engine.getTableRuleCandidates(result.wires);
+// → Wire[] — only the likely horizontal/vertical grid rules</code></pre>
+
+<h3>PDFGeometryEngine.serialize(svgEl) — static</h3>
+<p>Main-thread helper. Walks a live SVG DOM element and produces the descriptor array for <code>analyze()</code>. Handles transform extraction, path command pre-parsing, and bounding box computation. Run this on the main thread, then transfer the descriptor array to a worker.</p>
+<pre><code>// Main thread
+const svgEl = document.querySelector('#diagram svg');
+const descriptors = GinexysEngine.PDFGeometryEngine.serialize(svgEl);
+
+// Transfer to worker
+worker.postMessage({ descriptors });
+
+// Worker
+self.onmessage = function (e) {
+  const engine = new GinexysEngine.PDFGeometryEngine();
+  const result = engine.analyze(e.data.descriptors);
+  self.postMessage(result);
+};</code></pre>
+
+<h3>Collinear segment merger</h3>
+<p>PDF.js operator streams regularly shatter a single line into 20–50 tiny segments. <code>analyze()</code> runs <code>_mergeCollinearSegments</code> automatically before classification. The merger:</p>
+<ol>
+  <li>Scores each segment — discards non-linear candidates (linearity &lt; 0.88)</li>
+  <li>Normalizes angle to <code>[0, π)</code> and computes an axis band key (horizontal, vertical, or diagonal bucket)</li>
+  <li>Groups by <code>(angleBucket, axisBand)</code> — segments that are parallel <em>and</em> co-linear land in the same group</li>
+  <li>Sorts by primary axis coordinate and merges chains where the gap between consecutive segments is ≤ <code>joinTolerance</code> (default 3px)</li>
+  <li>On horizontal merges: spans full X range, averages Y to absorb micro-drift</li>
+</ol>
+<pre><code>// Tuning parameters (passed to constructor or per-call)
+{
+  joinTolerance: 3,   // max gap (px) between collinear segments to merge
+  bandTolerance: 2,   // max perpendicular drift (px) within the same axis band
+  angleTol:      1,   // angle bucket size in degrees
+}</code></pre>
+
+<hr>
+
+<h2 id="kdtree2d">KDTree2D <span class="pill pill-green">worker-safe</span></h2>
+
+<p>A 2D k-d tree for fast spatial queries. Used internally by PDFGeometryEngine for vertex snapping (port discovery) and by LatticeReconstructor for grid intersection detection.</p>
+
+<h3>API</h3>
+<pre><code>const tree = new GinexysEngine.KDTree2D();
+
+// Insert a point
+tree.insert(x, y, payload);
+
+// Find all points within a radius
+tree.rangeQuery(cx, cy, radius);
+// → [{ x, y, data: payload }, ...]
+
+// Find the single nearest point
+tree.nearest(x, y);
+// → { x, y, data: payload } | null</code></pre>
+
+<h3>Example — vertex snapping</h3>
+<pre><code>const snapTree = new GinexysEngine.KDTree2D();
+
+// Build the tree from wire endpoints
+result.wires.forEach(function (w) {
+  snapTree.insert(w.pts[0], w.pts[1], { wireId: w.id, end: 'start' });
+  const last = w.pts.length - 2;
+  snapTree.insert(w.pts[last], w.pts[last + 1], { wireId: w.id, end: 'end' });
+});
+
+// Find all endpoints within 8px of a target point
+const nearby = snapTree.rangeQuery(targetX, targetY, 8);
+// nearby → [{ x, y, data: { wireId, end } }, ...]</code></pre>
+
+<hr>
+
+<h2 id="quadtree2d">QuadTree2D <span class="pill pill-green">worker-safe</span></h2>
+
+<p>A 2D quadtree for spatial partitioning. Used by the editor canvas for viewport culling (only render elements inside the current camera frustum) and overlap detection.</p>
+
+<pre><code>const qt = new GinexysEngine.QuadTree2D({ x: 0, y: 0, width: 2000, height: 2000 });
+
+// Insert a rectangular region with payload
+qt.insert({ x: 10, y: 10, width: 50, height: 50 }, payload);
+
+// Retrieve all items that overlap a query region
+qt.retrieve({ x: 0, y: 0, width: 100, height: 100 });
+// → payload[]
+
+// Point query
+qt.query(px, py);
+// → payload[]</code></pre>
+
+<hr>
+
+<h2 id="camera-matrix">CameraMatrix <span class="pill pill-amber">browser · main-thread</span></h2>
+
+<p>Pan/zoom/rotate math for SVG canvas views. Manages the current camera transform (translate, scale, rotation) and converts between screen-space and world-space coordinates. Used by the Schema Editor canvas but extractable for any SVG viewport implementation.</p>
+
+<pre><code>const cam = new GinexysEngine.CameraMatrix();
+
+// Apply transforms
+cam.pan(dx, dy);
+cam.zoom(factor, originX, originY);   // zoom toward a point
+cam.rotateTo(angleDeg);
+
+// Coordinate conversion
+cam.screenToWorld(sx, sy);  // → { x, y }
+cam.worldToScreen(wx, wy);  // → { x, y }
+
+// Get the CSS transform string for the SVG root element
+cam.toCSSMatrix();  // → 'matrix(s,0,0,s,tx,ty)'</code></pre>
+
+<blockquote><strong>Note:</strong> CameraMatrix uses <code>DOMMatrix</code> for all math and is technically worker-safe, but its primary use is setting CSS transforms on DOM elements. In practice it runs on the main thread.</blockquote>
+
+  </article>
+
+  <div class="gx-docs-related">
+    <div class="gx-docs-related-label">Related</div>
+    <div class="gx-link-row">
+      <a class="gx-link-chip" href="/tools/schema-editor/docs/getting-started.html">Getting Started</a>
+      <a class="gx-link-chip" href="/tools/schema-editor/docs/features/">Features</a>
+      <a class="gx-link-chip" href="/tools/table-formatter/docs/engine/">TafneEngine Reference ↗</a>
+    </div>
+  </div>
+</div>
+</body>
+</html>
