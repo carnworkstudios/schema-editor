@@ -2,14 +2,14 @@
 <html lang="en">
 
 <head>
+<base href="/tools/schema-editor/">
     <base href="/tools/schema-editor/">
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <!-- ── Icons ── -->
     <link rel="icon" type="image/png" href="/assets/images/Ginexys_Logo.png">
     <title>General Vector Drawing — Free Browser-Based SVG Editor | GINEXYS</title>
-    <meta name="description"
-        content="General-purpose vector drawing for illustrations, icons, and freeform diagrams. Full canvas with grouping, layers, snapping, and SVG export. Switch to Electrical, Software, or Construction for domain-specific symbol libraries.">
+    <meta name="description" content="General-purpose vector drawing for illustrations, icons, and freeform diagrams. Full canvas with grouping, layers, snapping, and SVG export.">
     <meta name="keywords"
         content="electrical schematic editor online, circuit diagram maker free, bill of materials generator, BOM from schematic, UML diagram maker online, ER diagram tool, floor plan editor, electrical BOM generator, PCB schematic editor, Arduino circuit diagram, wiring diagram online, GINEXYS, schema editor">
     <meta name="author" content="GINEXYS">
@@ -90,6 +90,10 @@
     <!-- Sidebar nav component -->
     <script src="../../assets/components/sidebar-nav.js"></script>
     <script src="../../assets/js/portfolio.js"></script>
+
+    <!-- Ginexys gate + star toast -->
+    <link rel="stylesheet" href="/assets/css/ginexys-modals.css">
+    <script src="/assets/js/ginexys-gate.js" defer></script>
     <script type="application/ld+json">
 {
   "@context": "https://schema.org",
@@ -122,6 +126,7 @@
   ]
 }
 </script>
+  <link rel="canonical" href="https://ginexys.com/tools/schema-editor/general/">
 </head>
 
 <body class="dark-mode">
@@ -205,11 +210,11 @@
 
                 <div class="control-group-flex" style="margin-left:auto;">
                     <!-- Undo / Redo -->
-                    <button class="btn" id="undoBtn" title="Undo (Ctrl+Z)" disabled>
+                    <button class="btn" id="undoBtn" title="Undo (⌃/⌘+Z)" disabled>
                         <iconify-icon icon="material-symbols:undo"></iconify-icon>
                         <span class="panel-content">Undo</span>
                     </button>
-                    <button class="btn" id="redoBtn" title="Redo (Ctrl+Y)" disabled>
+                    <button class="btn" id="redoBtn" title="Redo (⌃/⌘+Y / ⇧⌘Z)" disabled>
                         <iconify-icon icon="material-symbols:redo"></iconify-icon>
                         <span class="panel-content">Redo</span>
                     </button>
@@ -231,17 +236,22 @@
                         <iconify-icon icon="material-symbols:settings-outline"></iconify-icon>
                         <span class="panel-content">Toolbar</span>
                     </button>
-                </div>
 
-                <!-- Wire-trace toggle -->
-                <small class="switch-content">
-                    <iconify-icon icon="material-symbols:bolt" style="font-size:14px;color:#4facfe;"></iconify-icon>
-                    Trace
-                </small>
-                <div class="switch" id="traceWireBtn" title="Wire Trace ON/OFF" role="switch" aria-checked="false">
-                    <input type="checkbox" aria-label="Toggle wire tracing">
-                    <span class="switch-slider"></span>
+                    <!-- Wire-trace toggle -->
+                    <div class="switch-mode btn">
+                        <small class="switch-content">
+                            <iconify-icon icon="material-symbols:bolt"
+                                style="font-size:14px;color:#4facfe;"></iconify-icon>
+                            Trace
+                        </small>
+                        <div class="switch" id="traceWireBtn" title="Wire Trace ON/OFF" role="switch"
+                            aria-checked="false">
+                            <input type="checkbox" aria-label="Toggle wire tracing">
+                            <span class="switch-slider"></span>
+                        </div>
+                    </div>
                 </div>
+                <!-- Dark Mode Toggle -->
                 <button id="darkModeBtn" class="theme-toggle-btn" title="Toggle dark/light"
                     aria-label="Toggle dark mode">
                     <iconify-icon icon="material-symbols:dark-mode-outline" style="font-size:16px;"></iconify-icon>
@@ -343,19 +353,25 @@
                 <span class="toolbar-sep">Arrange</span>
 
                 <!-- Group -->
-                <button class="btn" id="groupBtn" title="Group (Ctrl+G)">
+                <button class="btn" id="groupBtn" title="Group (⌃/⌘+G)">
                     <iconify-icon icon="material-symbols:group-work-outline"></iconify-icon>
                     <span class="panel-content">Group</span>
                 </button>
 
                 <!-- Ungroup -->
-                <button class="btn" id="ungroupBtn" title="Ungroup (Ctrl+Shift+G)">
+                <button class="btn" id="ungroupBtn" title="Ungroup (⌃/⌘+⇧+G)">
                     <iconify-icon icon="material-symbols:grid-view-outline"></iconify-icon>
                     <span class="panel-content">Ungroup</span>
                 </button>
 
+                <!-- Straighten wires -->
+                <button class="btn" id="straightenWiresBtn" title="Straighten selected wires (⌃/⌘+⇧+L)">
+                    <iconify-icon icon="material-symbols:route-outline"></iconify-icon>
+                    <span class="panel-content">Straighten</span>
+                </button>
+
                 <!-- Delete -->
-                <button class="btn" id="deleteBtn" title="Delete selected (Del)">
+                <button class="btn" id="deleteBtn" title="Delete (Del/⌫)">
                     <iconify-icon icon="material-symbols:delete-outline"></iconify-icon>
                     <span class="panel-content">Delete</span>
                 </button>
@@ -588,7 +604,7 @@
             <!-- Layers tree -->
             <div class="control-group" id="layersPanelWrap">
                 <div id="layersPanel" class="layers-tree"
-                    style="max-height:540px;overflow-y:auto;border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:6px;margin-top:6px;">
+                    style="overflow-y:auto;border:1px solid rgba(255,255,255,0.07);border-radius:6px;padding:6px;margin-top:6px;">
                     <!-- Populated by layers.js -->
                 </div>
             </div>
@@ -832,6 +848,7 @@
             $('#groupBtn').on('click', () => window.editor.groupSelected());
             $('#ungroupBtn').on('click', () => window.editor.ungroupSelected());
             $('#deleteBtn').on('click', () => window.editor.deleteSelected());
+            $('#straightenWiresBtn').on('click', () => window.editor._straightenSelectedWires());
 
             // Service Worker
             if ('serviceWorker' in navigator) {
@@ -849,6 +866,21 @@
             $('#exportFsmJsonBtn').on('click', () => window.editor.exportAsFsmJson());
             $('#exportXStateBtn').on('click', () => window.editor.exportAsXState());
             $('#sendFsmToTafneBtn').on('click', () => window.editor.sendFsmToTafne());
+
+            // Gate + star toast — fires on first export per session
+            if (window.GxGate) {
+                GxGate.init({
+                    toolKey: 'schema_export_count',
+                    gateKey: 'ginexys_schema_gate_shown',
+                    repo: 'carnworkstudios/schema-editor',
+                    triggerIds: [
+                        'exportViewBtn', 'exportHtmlBtn', 'exportJsonBtn',
+                        'sendToTafneBtn', 'batchExportBtn', 'exportSqlBtn',
+                        'exportMermaidSeqBtn', 'exportFsmJsonBtn',
+                        'exportXStateBtn', 'sendFsmToTafneBtn',
+                    ],
+                });
+            }
 
             // CWS IPC: receive back-annotation from TAFNE (no-op when OS bridge absent)
             if (window.CwsBridge) CwsBridge.onData(function (envelope) {
